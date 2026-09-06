@@ -14,12 +14,15 @@
 
 **Files:**
 - Modify: `common/common-security/src/main/java/org/quyq/gwsu/common/security/api/oauth/vo/OAuthClientInfoVO.java`
+- Modify: `common/common-security/src/main/java/org/quyq/gwsu/common/security/config/SecurityRuntimeHintsRegistrar.java`
 
 - [ ] **Step 1: 修改继承关系**
 
 将 `OAuthClientInfoVO` 的父类由 `BaseVO` 改为 `ClientInfo`，保留 Lombok `@EqualsAndHashCode(callSuper = true)`。`ClientInfo` 已经通过 `Visitor -> BaseDO -> BaseVO` 提供基础 VO 字段，并要求实现的 `getClientId()`、`getClientSecret()`、`getClientName()` 由 Lombok 生成。
 
 - [ ] **Step 2: 检查类型使用点**
+
+在 `SecurityRuntimeHintsRegistrar` 中注册 `OAuthClientInfoVO` 及其继承链，确保 `VisitorDeserializer` 根据 `@class` 反序列化时兼容 AOT/Native 环境。
 
 运行：
 
