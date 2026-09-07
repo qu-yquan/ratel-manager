@@ -42,13 +42,14 @@ export default function LayoutComponent() {
 function LayoutRouter() {
   const location = useLocation();
   const { currentTheme } = useThemeContext();
+  const isLoginPage = location.pathname.includes('/login');
 
   // 已登录时加载项目配置（登录页使用独立的免认证接口）
   useEffect(() => {
-    if (useUserStore.getState().checkLogin()) {
+    if (!isLoginPage && useUserStore.getState().checkLogin()) {
       useProjectConfigStore.getState().loadConfig().catch(console.error);
     }
-  }, []);
+  }, [isLoginPage]);
 
   // 访问根路径时自动跳转首页 + 登录事件监听
   useEffect(() => {
@@ -86,9 +87,6 @@ function LayoutRouter() {
       expireEvent();
     };
   }, [location.pathname]);
-
-  // 判断是否是登录页面
-  const isLoginPage = location.pathname.includes('/login');
 
   // 登录页面：不初始化 CopilotKit，使用简单布局
   if (isLoginPage) {

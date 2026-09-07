@@ -30,11 +30,9 @@ import org.quyq.gwsu.common.core.constants.CoreConstants;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.core.exception.BasicException;
 import org.quyq.gwsu.common.core.exception.BusinessException;
-import org.quyq.gwsu.common.core.exception.errcode.CommonErrorCode;
 import org.quyq.gwsu.common.security.constants.SecurityConstants;
 import org.quyq.gwsu.common.security.enums.AccountType;
 import org.springframework.http.MediaType;
-import org.springframework.http.HttpStatus;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.util.StringUtils;
@@ -62,8 +60,8 @@ public class ContextFilterForJakartaServlet implements Filter {
             var req = (HttpServletRequest) request;
             SaTokenContextJakartaServletUtil.setContext(req, (HttpServletResponse) response);
             String accountType = null;
-            String token = normalizeToken(getToken(req));
-            if (StringUtils.hasText(token) && JWTUtil.verify(token,
+            String token = normalizeToken(RequestAuthenticationTokenResolver.resolve(req));
+            if ( StringUtils.hasText(token) && JWTUtil.verify(token,
                     SecurityConstants.JWT.AUTH_JWT_SECRET_KEY.getBytes(StandardCharsets.UTF_8))) {
                 accountType = JWTUtil.parseToken(token)
                         .getPayloads().getStr(SecurityConstants.JWT.LOGIN_TYPE_KEY);
@@ -94,15 +92,6 @@ public class ContextFilterForJakartaServlet implements Filter {
         }
     }
 
-
-    private String getToken(HttpServletRequest request) {
-        String authenInfo = request.getHeader(CoreConstants.Headers.HTTP_HEADER_TOKEN_KEY);
-        if (StringUtils.hasText(authenInfo)) {
-            return authenInfo.replace(CoreConstants.Headers.TOKEN_PREFIX, "");
-        }
-
-        return null;
-    }
 
     private String normalizeToken(String token) {
         if (!StringUtils.hasText(token)) {

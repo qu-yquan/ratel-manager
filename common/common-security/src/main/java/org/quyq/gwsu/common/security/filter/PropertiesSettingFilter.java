@@ -15,11 +15,11 @@ import org.quyq.gwsu.common.security.domain.DataPermissionInfo;
 import org.quyq.gwsu.common.security.domain.Subject;
 import org.quyq.gwsu.common.security.enums.VisitorType;
 import org.quyq.gwsu.common.security.utils.DataPermissionUtils;
+import org.quyq.gwsu.common.security.utils.AuthenticationTokenUtils;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.quyq.gwsu.common.security.utils.SessionUtils;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -89,12 +89,7 @@ public class PropertiesSettingFilter implements Filter {
 
 
     private String getToken(Map<String, String> headers) {
-        String authenInfo = headers.get(CoreConstants.Headers.HTTP_HEADER_TOKEN_KEY);
-        if (StringUtils.hasText(authenInfo)) {
-            return authenInfo.replace(CoreConstants.Headers.TOKEN_PREFIX, "");
-        }
-
-        return null;
+        return AuthenticationTokenUtils.resolve(headers.get(CoreConstants.Headers.HTTP_HEADER_TOKEN_KEY));
     }
 
 

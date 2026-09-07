@@ -62,6 +62,10 @@ throw new BusinessException(XxxErrorCode.E00001);  // 业务异常
 AssertUtils.hasText(name, XxxErrorCode.E00001);     // 参数校验
 ```
 
+### 枚举选项接口
+
+后端存在枚举且前端需要下拉框、筛选项或状态展示时，必须提供枚举选项接口作为唯一数据源，禁止前端重复手写枚举选项。接口返回统一使用 `common-core` 的 `KeyValue<K,V>`，通常约定 `key=枚举编码`、`value=展示名称`。
+
 ### 部署模式
 
 | 模式 | 调用方式 | HTTP 客户端 | 检测方式 |

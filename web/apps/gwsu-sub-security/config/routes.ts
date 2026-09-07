@@ -16,6 +16,10 @@ export default [
     component: '@/pages/dataresource',
   },
   {
+    path: '/oauth-client',
+    component: '@/pages/oauthclient',
+  },
+  {
     path: '/tablemodel',
     component: '@/pages/tablemodel',
   },

@@ -27,6 +27,7 @@ import org.quyq.gwsu.common.log.enums.ViewOperationSubject;
 import org.quyq.gwsu.common.log.service.AccessLogHandlerService;
 import org.quyq.gwsu.common.log.vo.LogOperationVO;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
+import org.quyq.gwsu.common.security.utils.AuthenticationTokenUtils;
 import org.slf4j.MDC;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.ObjectProvider;
@@ -217,7 +218,7 @@ public class LogAspectInterceptor implements MethodInterceptor {
 
         JsonNode requestParam = extractor.getRequestParam(request, invocation);
 
-        accessLog.setOperId(MDC.get(LogInfoConstants.SPAN_ID));
+        accessLog.setOperId(IdUtil.getSnowflakeNextIdStr());
         accessLog.setRequestTime(now)
                 //默认失败状态
                 .setStatus(false)
@@ -375,12 +376,7 @@ public class LogAspectInterceptor implements MethodInterceptor {
     }
 
     private String getTokenId(Map<String, String> headers) {
-        String authenInfo = headers.get(CoreConstants.Headers.HTTP_HEADER_TOKEN_KEY);
-        if (StringUtils.hasText(authenInfo)) {
-            return authenInfo.replace(CoreConstants.Headers.TOKEN_PREFIX, "");
-        }
-
-        return null;
+        return AuthenticationTokenUtils.resolve(headers.get(CoreConstants.Headers.HTTP_HEADER_TOKEN_KEY));
 
     }
 

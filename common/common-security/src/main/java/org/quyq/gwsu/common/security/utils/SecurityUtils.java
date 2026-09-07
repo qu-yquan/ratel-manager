@@ -2,9 +2,11 @@ package org.quyq.gwsu.common.security.utils;
 
 
 import cn.hutool.json.JSONObject;
+import cn.hutool.jwt.JWTException;
 import cn.hutool.jwt.JWTUtil;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ import org.quyq.gwsu.common.core.utils.ServletUtils;
 import org.quyq.gwsu.common.security.constants.SecurityConstants;
 import org.quyq.gwsu.common.security.domain.Subject;
 import org.quyq.gwsu.common.security.domain.deserializer.JacksonCompatibleTypeAdapterFactory;
+import org.quyq.gwsu.common.security.enums.DataScope;
 import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -45,6 +48,8 @@ public class SecurityUtils {
                 .registerTypeAdapter(LocalDate.class, GsonConfiguration.jsonSerializerDate)
                 .registerTypeAdapter(LocalDateTime.class, GsonConfiguration.jsonDeserializerDateTime)
                 .registerTypeAdapter(LocalDate.class, GsonConfiguration.jsonDeserializerDate)
+                .registerTypeAdapter(DataScope.class, (JsonDeserializer<DataScope>) (json, type, context) ->
+                        DataScope.of(json.getAsInt()))
                 .registerTypeAdapterFactory(new JacksonCompatibleTypeAdapterFactory())
                 .create();
     }
@@ -68,14 +73,9 @@ public class SecurityUtils {
     public String getToken() {
         return Optional.ofNullable(ServletUtils.getHeaders())
                 .map(headers -> headers.get(CoreConstants.Headers.HTTP_HEADER_TOKEN_KEY))
-                .map(token -> token.replace(CoreConstants.Headers.TOKEN_PREFIX, ""))
+                .map(AuthenticationTokenUtils::resolve)
                 .map(this::normalizeToken)
-                .map(token -> {
-                    if (JWTUtil.verify(token, SecurityConstants.JWT.AUTH_JWT_SECRET_KEY.getBytes(StandardCharsets.UTF_8))) {
-                        return token;
-                    }
-                    return null;
-                })
+                .filter(this::isValidJwt)
                 .orElse(null);
     }
 
@@ -136,7 +136,7 @@ public class SecurityUtils {
     }
 
 
-    public <U extends Visitor> Subject<U> checkSubject(){
+    public <U extends Visitor> Subject<U> checkSubject() {
         return (Subject<U>) getSubject()
                 .orElseThrow(() -> new BusinessException(CommonErrorCode.E03001));
     }
@@ -188,11 +188,21 @@ public class SecurityUtils {
 
     private Optional<JSONObject> parsePayloads(String token) {
         String normalizedToken = normalizeToken(token);
-        if (!StringUtils.hasText(normalizedToken) ||
-                !JWTUtil.verify(normalizedToken, SecurityConstants.JWT.AUTH_JWT_SECRET_KEY.getBytes(StandardCharsets.UTF_8))) {
+        if (!isValidJwt(normalizedToken)) {
             return Optional.empty();
         }
         return Optional.ofNullable(JWTUtil.parseToken(normalizedToken).getPayloads());
+    }
+
+    private boolean isValidJwt(String token) {
+        if (!StringUtils.hasText(token) || StringUtils.countOccurrencesOf(token, ".") != 2) {
+            return false;
+        }
+        try {
+            return JWTUtil.verify(token, SecurityConstants.JWT.AUTH_JWT_SECRET_KEY.getBytes(StandardCharsets.UTF_8));
+        } catch (JWTException | IllegalArgumentException exception) {
+            return false;
+        }
     }
 
     private Optional<com.google.gson.JsonObject> readAccountSession(JSONObject payloads, String normalizedToken) {

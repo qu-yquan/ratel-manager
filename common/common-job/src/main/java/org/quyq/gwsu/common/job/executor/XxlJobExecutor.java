@@ -216,12 +216,12 @@ public class XxlJobExecutor implements ApplicationContextAware, SmartInitializin
 
                 String beanClassName = beanDefinition.getBeanClassName();
                 if (isExcluded(excludedPackageList, beanClassName)) {
-                    logger.debug(">>>>>>>>>>> xxl-job bean-definition scan, skip excluded-package beanName:{}, beanClassName:{}", beanName, beanClassName);
+                //    logger.debug(">>>>>>>>>>> xxl-job bean-definition scan, skip excluded-package beanName:{}, beanClassName:{}", beanName, beanClassName);
                     continue;
                 }
 
                 if (beanDefinition.isLazyInit()) {
-                    logger.debug(">>>>>>>>>>> xxl-job bean-definition scan, skip lazy-init beanName:{}", beanName);
+                 //   logger.debug(">>>>>>>>>>> xxl-job bean-definition scan, skip lazy-init beanName:{}", beanName);
                     continue;
                 }
             }

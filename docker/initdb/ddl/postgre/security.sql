@@ -1017,3 +1017,73 @@ COMMENT ON COLUMN security_business_function_table.delete_time IS '删除时间'
 CREATE UNIQUE INDEX uk_security_business_function_table_bt ON security_business_function_table (business_id, table_model_id);
 CREATE INDEX idx_security_business_function_table_business ON security_business_function_table (business_id);
 CREATE INDEX idx_security_business_function_table_table ON security_business_function_table (table_model_id);
+
+-- =============================================
+-- 表名：security_oauth_client
+-- 说明：OAuth应用配置表
+-- =============================================
+CREATE TABLE security_oauth_client
+(
+    id                             VARCHAR(24) PRIMARY KEY,
+    client_id                      VARCHAR(128) NOT NULL,
+    client_secret                  VARCHAR(128)          DEFAULT NULL,
+    client_name                    VARCHAR(128) NOT NULL,
+    client_type                    VARCHAR(32)  NOT NULL,
+    account_type                   VARCHAR(32)  NOT NULL DEFAULT 'MANAGER',
+    status                         VARCHAR(32)  NOT NULL DEFAULT 'ENABLED',
+    client_authentication_methods  TEXT         NOT NULL,
+    authorization_grant_types      TEXT         NOT NULL,
+    redirect_uris                  TEXT                   DEFAULT NULL,
+    post_logout_redirect_uris      TEXT                   DEFAULT NULL,
+    scopes                         TEXT         NOT NULL,
+    require_proof_key              INT2         NOT NULL DEFAULT 1,
+    require_authorization_consent  INT2         NOT NULL DEFAULT 1,
+    access_token_ttl_seconds       BIGINT       NOT NULL DEFAULT 7200,
+    refresh_token_ttl_seconds      BIGINT       NOT NULL DEFAULT 2592000,
+    authorization_code_ttl_seconds BIGINT       NOT NULL DEFAULT 300,
+    device_code_ttl_seconds        BIGINT       NOT NULL DEFAULT 300,
+    reuse_refresh_tokens           INT2         NOT NULL DEFAULT 0,
+    remark                         VARCHAR(500)          DEFAULT NULL,
+    tenant_id                      VARCHAR(50)           DEFAULT NULL,
+    create_op                      VARCHAR(50)           DEFAULT NULL,
+    create_time                    TIMESTAMP             DEFAULT CURRENT_TIMESTAMP,
+    modify_op                      VARCHAR(50)           DEFAULT NULL,
+    modify_time                    TIMESTAMP             DEFAULT NULL,
+    deleted                        INT2         NOT NULL DEFAULT 0,
+    delete_op                      VARCHAR(50)           DEFAULT NULL,
+    delete_time                    TIMESTAMP             DEFAULT NULL
+);
+
+COMMENT ON TABLE security_oauth_client IS 'OAuth应用配置表';
+COMMENT ON COLUMN security_oauth_client.id IS '主键ID';
+COMMENT ON COLUMN security_oauth_client.client_id IS 'OAuth客户端ID';
+COMMENT ON COLUMN security_oauth_client.client_secret IS 'OAuth客户端密钥密文';
+COMMENT ON COLUMN security_oauth_client.client_name IS '应用名称';
+COMMENT ON COLUMN security_oauth_client.client_type IS '客户端类型';
+COMMENT ON COLUMN security_oauth_client.account_type IS '账号类型';
+COMMENT ON COLUMN security_oauth_client.status IS '状态';
+COMMENT ON COLUMN security_oauth_client.client_authentication_methods IS '客户端认证方式，逗号分隔';
+COMMENT ON COLUMN security_oauth_client.authorization_grant_types IS '授权模式，逗号分隔';
+COMMENT ON COLUMN security_oauth_client.redirect_uris IS '重定向URI白名单，逗号分隔';
+COMMENT ON COLUMN security_oauth_client.post_logout_redirect_uris IS '退出后重定向URI白名单，逗号分隔';
+COMMENT ON COLUMN security_oauth_client.scopes IS '授权范围，逗号分隔';
+COMMENT ON COLUMN security_oauth_client.require_proof_key IS '是否要求PKCE：0-否 1-是';
+COMMENT ON COLUMN security_oauth_client.require_authorization_consent IS '是否要求授权确认：0-否 1-是';
+COMMENT ON COLUMN security_oauth_client.access_token_ttl_seconds IS 'Access Token有效期秒';
+COMMENT ON COLUMN security_oauth_client.refresh_token_ttl_seconds IS 'Refresh Token有效期秒';
+COMMENT ON COLUMN security_oauth_client.authorization_code_ttl_seconds IS '授权码有效期秒';
+COMMENT ON COLUMN security_oauth_client.device_code_ttl_seconds IS '设备码有效期秒';
+COMMENT ON COLUMN security_oauth_client.reuse_refresh_tokens IS '是否复用Refresh Token：0-否 1-是';
+COMMENT ON COLUMN security_oauth_client.remark IS '备注';
+COMMENT ON COLUMN security_oauth_client.tenant_id IS '租户ID';
+COMMENT ON COLUMN security_oauth_client.create_op IS '创建人';
+COMMENT ON COLUMN security_oauth_client.create_time IS '创建时间';
+COMMENT ON COLUMN security_oauth_client.modify_op IS '修改人';
+COMMENT ON COLUMN security_oauth_client.modify_time IS '修改时间';
+COMMENT ON COLUMN security_oauth_client.deleted IS '删除标识：0-未删除 1-已删除';
+COMMENT ON COLUMN security_oauth_client.delete_op IS '删除人';
+COMMENT ON COLUMN security_oauth_client.delete_time IS '删除时间';
+
+CREATE UNIQUE INDEX uk_security_oauth_client_client_id ON security_oauth_client (client_id) WHERE deleted = 0;
+CREATE INDEX idx_security_oauth_client_name ON security_oauth_client (client_name) WHERE deleted = 0;
+CREATE INDEX idx_security_oauth_client_status ON security_oauth_client (status);

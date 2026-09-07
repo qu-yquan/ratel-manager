@@ -11,6 +11,9 @@ import org.quyq.gwsu.common.authentication.dataresource.DataResourceScopeManager
 import org.quyq.gwsu.common.authentication.domain.WorkspaceInfo;
 import org.quyq.gwsu.common.authentication.login.LoginManager;
 import org.quyq.gwsu.common.authentication.login.domain.ThreePlatformLoginDTO;
+import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthAuthorizationViewProviderManager;
+import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthFrontendEndpointResolver;
+import org.quyq.gwsu.common.authentication.oauth.path.AuthenticationEndpointPathResolver;
 import org.quyq.gwsu.common.cache.utils.IDGenerationUtils;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.core.domain.visitor.UserInfo;
@@ -75,6 +78,15 @@ public class LoginWebConfiguration {
     @Resource
     private CaptchaServiceFacade captchaServiceFacade;
 
+    @Resource
+    private AuthenticationEndpointPathResolver endpointPathResolver;
+
+    @Resource
+    private OAuthFrontendEndpointResolver oauthFrontendEndpointResolver;
+
+    @Resource
+    private OAuthAuthorizationViewProviderManager oauthAuthorizationViewProviderManager;
+
 
     @Bean
     public RouterFunction<ServerResponse> loginRouters() {
@@ -110,6 +122,11 @@ public class LoginWebConfiguration {
                 .andRoute(RequestPredicates.GET(buildPath("/auth/captcha/get")), this::getCaptcha)
 
                 /**
+                 * OAuth 授权确认页面跳转入口。
+                 */
+                .andRoute(RequestPredicates.GET(buildPath("/oauth2/loginConsent")), this::oauthConsent)
+
+                /**
                  * 一次校验验证码
                  */
                 .andRoute(RequestPredicates.POST(buildPath("/auth/captcha/check")), this::checkCaptcha)
@@ -141,6 +158,14 @@ public class LoginWebConfiguration {
         String clientUid = request.param("clientUid").orElse(null);
         return ServerResponse.ok()
                 .body(R.ok(captchaServiceFacade.get(new CaptchaGetRequest(type, scene, clientUid))));
+    }
+
+    private ServerResponse oauthConsent(ServerRequest request) {
+        String authorizeUri = oauthFrontendEndpointResolver.apiUrl(buildPath("/oauth2/authorize"));
+        String frontendConsentUrl = oauthAuthorizationViewProviderManager
+                .resolve(request.param("client_id").orElse(null))
+                .consentPageUrl(request.params(), authorizeUri);
+        return ServerResponse.temporaryRedirect(URI.create(frontendConsentUrl)).build();
     }
 
     /**
@@ -289,11 +314,7 @@ public class LoginWebConfiguration {
 
 
     private String buildPath(String path) {
-        if (DeployUtils.isSingle()) {
-            return SecurityConstants.Authentication.AUTH_SERVER_PREFIX + path;
-        }
-
-        return path;
+        return endpointPathResolver.resolve(path);
     }
 
 }

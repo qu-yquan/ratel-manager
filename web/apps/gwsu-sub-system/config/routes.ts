@@ -8,6 +8,14 @@ export default [
     component: '@/pages/login',
   },
   {
+    path: '/oauth2/login',
+    component: '@/pages/oauth2/login',
+  },
+  {
+    path: '/oauth2/loginConsent',
+    component: '@/pages/oauth2/consent',
+  },
+  {
     path: '/login_headless',
     component: '@/pages/login_headless',
   },

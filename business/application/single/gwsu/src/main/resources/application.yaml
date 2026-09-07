@@ -60,6 +60,7 @@ ratel:
   security:
     ignore-urls:
       - /system/auth/**
+      - /system/oauth2/**
       - /kit/file/stream/*
     auth-allow-urls:
       - /modules/list

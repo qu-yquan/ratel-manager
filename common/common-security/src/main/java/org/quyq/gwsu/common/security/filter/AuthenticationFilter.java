@@ -28,6 +28,7 @@ import org.quyq.gwsu.common.security.domain.Subject;
 import org.quyq.gwsu.common.core.domain.visitor.Visitor;
 import org.quyq.gwsu.common.security.exception.SecurityException;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
+import org.quyq.gwsu.common.security.utils.AuthenticationTokenUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
@@ -367,12 +368,7 @@ public class AuthenticationFilter implements RequestResponseProcessor {
     }
 
     private String getToken(RequestResponseContext request) {
-        String authenInfo = request.getHeader(CoreConstants.Headers.HTTP_HEADER_TOKEN_KEY);
-        if (StringUtils.hasText(authenInfo)) {
-            return authenInfo.replace(CoreConstants.Headers.TOKEN_PREFIX, "");
-        }
-
-        return null;
+        return AuthenticationTokenUtils.resolve(request.getHeader(CoreConstants.Headers.HTTP_HEADER_TOKEN_KEY));
     }
 
 

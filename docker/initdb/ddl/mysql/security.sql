@@ -624,3 +624,43 @@ CREATE TABLE security_business_function_table
 CREATE UNIQUE INDEX uk_security_business_function_table_bt ON security_business_function_table (business_id, table_model_id);
 CREATE INDEX idx_security_business_function_table_business ON security_business_function_table (business_id);
 CREATE INDEX idx_security_business_function_table_table ON security_business_function_table (table_model_id);
+
+-- =============================================
+-- 表名：security_oauth_client
+-- 说明：OAuth应用配置表
+-- =============================================
+CREATE TABLE security_oauth_client
+(
+    id                            VARCHAR(24) PRIMARY KEY COMMENT '主键ID',
+    client_id                     VARCHAR(128) NOT NULL              COMMENT 'OAuth客户端ID',
+    client_secret                 VARCHAR(128)          DEFAULT NULL COMMENT 'OAuth客户端密钥密文',
+    client_name                   VARCHAR(128) NOT NULL              COMMENT '应用名称',
+    client_type                   VARCHAR(32)  NOT NULL              COMMENT '客户端类型',
+    account_type                  VARCHAR(32)  NOT NULL DEFAULT 'MANAGER' COMMENT '账号类型',
+    status                        VARCHAR(32)  NOT NULL DEFAULT 'ENABLED' COMMENT '状态',
+    client_authentication_methods TEXT         NOT NULL              COMMENT '客户端认证方式，逗号分隔',
+    authorization_grant_types     TEXT         NOT NULL              COMMENT '授权模式，逗号分隔',
+    redirect_uris                 TEXT                   DEFAULT NULL COMMENT '重定向URI白名单，逗号分隔',
+    post_logout_redirect_uris     TEXT                   DEFAULT NULL COMMENT '退出后重定向URI白名单，逗号分隔',
+    scopes                        TEXT         NOT NULL              COMMENT '授权范围，逗号分隔',
+    require_proof_key             SMALLINT     NOT NULL DEFAULT 1    COMMENT '是否要求PKCE：0-否 1-是',
+    require_authorization_consent SMALLINT     NOT NULL DEFAULT 1    COMMENT '是否要求授权确认：0-否 1-是',
+    access_token_ttl_seconds      BIGINT       NOT NULL DEFAULT 7200 COMMENT 'Access Token有效期秒',
+    refresh_token_ttl_seconds     BIGINT       NOT NULL DEFAULT 2592000 COMMENT 'Refresh Token有效期秒',
+    authorization_code_ttl_seconds BIGINT      NOT NULL DEFAULT 300  COMMENT '授权码有效期秒',
+    device_code_ttl_seconds       BIGINT       NOT NULL DEFAULT 300  COMMENT '设备码有效期秒',
+    reuse_refresh_tokens          SMALLINT     NOT NULL DEFAULT 0    COMMENT '是否复用Refresh Token：0-否 1-是',
+    remark                        VARCHAR(500)          DEFAULT NULL COMMENT '备注',
+    tenant_id                     VARCHAR(50)           DEFAULT NULL COMMENT '租户ID',
+    create_op                     VARCHAR(50)           DEFAULT NULL COMMENT '创建人',
+    create_time                   DATETIME              DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    modify_op                     VARCHAR(50)           DEFAULT NULL COMMENT '修改人',
+    modify_time                   DATETIME              DEFAULT NULL COMMENT '修改时间',
+    deleted                       SMALLINT     NOT NULL DEFAULT 0    COMMENT '删除标识：0-未删除 1-已删除',
+    delete_op                     VARCHAR(50)           DEFAULT NULL COMMENT '删除人',
+    delete_time                   DATETIME              DEFAULT NULL COMMENT '删除时间'
+) COMMENT 'OAuth应用配置表';
+
+CREATE UNIQUE INDEX uk_security_oauth_client_client_id ON security_oauth_client (client_id);
+CREATE INDEX idx_security_oauth_client_name ON security_oauth_client (client_name);
+CREATE INDEX idx_security_oauth_client_status ON security_oauth_client (status);

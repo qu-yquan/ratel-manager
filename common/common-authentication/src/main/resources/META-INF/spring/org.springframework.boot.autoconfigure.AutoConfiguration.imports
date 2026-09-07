@@ -1,3 +1,5 @@
 org.quyq.gwsu.common.authentication.config.AuthenticationConfiguration
 org.quyq.gwsu.common.authentication.config.LoginWebConfiguration
 org.quyq.gwsu.common.authentication.config.DataResourceConfiguration
+org.quyq.gwsu.common.authentication.oauth.config.OAuthAuthorizationServerConfiguration
+org.quyq.gwsu.common.authentication.oauth.config.OAuthSecurityConfiguration
