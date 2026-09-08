@@ -18,7 +18,7 @@ import java.util.Optional;
  *
  * @author Quyq
  */
-public class RatelOAuthAuthenticatedPrincipal implements OAuth2AuthenticatedPrincipal {
+public class CustomOAuthAuthenticatedPrincipal implements OAuth2AuthenticatedPrincipal {
 
     @Getter
     private final UserInfo userInfo;
@@ -31,7 +31,7 @@ public class RatelOAuthAuthenticatedPrincipal implements OAuth2AuthenticatedPrin
 
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public RatelOAuthAuthenticatedPrincipal(
+    public CustomOAuthAuthenticatedPrincipal(
             UserInfo userInfo,
             Subject<?> subject,
             OAuthUserSessionSnapshot userSessionSnapshot,

@@ -11,7 +11,6 @@ import org.quyq.gwsu.common.security.enums.VisitorType;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 
@@ -24,14 +23,14 @@ import java.util.Optional;
  *
  * @author Quyq
  */
-public class RatelOAuth2AccessTokenGenerator implements OAuth2TokenGenerator<OAuth2AccessToken> {
+public class CustomOAuth2AccessTokenGenerator implements OAuth2TokenGenerator<OAuth2AccessToken> {
 
     private final StringKeyGenerator sessionIdGenerator =
             new Base64StringKeyGenerator(Base64.getUrlEncoder().withoutPadding(), 32);
 
     private final OAuthClientAccountTypeResolver accountTypeResolver;
 
-    public RatelOAuth2AccessTokenGenerator(OAuthClientAccountTypeResolver accountTypeResolver) {
+    public CustomOAuth2AccessTokenGenerator(OAuthClientAccountTypeResolver accountTypeResolver) {
         this.accountTypeResolver = accountTypeResolver;
     }
 

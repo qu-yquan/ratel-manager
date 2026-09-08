@@ -32,13 +32,13 @@ import java.util.Optional;
  * @author Quyq
  */
 @Slf4j
-public class RatelSecurityContextAuthenticationFilter extends OncePerRequestFilter {
+public class CustomSecurityContextAuthenticationFilter extends OncePerRequestFilter {
 
     private final SecurityUtils securityUtils;
 
     private final OAuthUserSessionSnapshotResolver userSessionSnapshotResolver;
 
-    public RatelSecurityContextAuthenticationFilter(
+    public CustomSecurityContextAuthenticationFilter(
             SecurityUtils securityUtils,
             OAuthUserSessionSnapshotResolver userSessionSnapshotResolver) {
         this.securityUtils = securityUtils;
@@ -97,7 +97,7 @@ public class RatelSecurityContextAuthenticationFilter extends OncePerRequestFilt
                 : subject.getRoles().stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
                 .toList();
-        RatelOAuthAuthenticatedPrincipal principal = new RatelOAuthAuthenticatedPrincipal(
+        CustomOAuthAuthenticatedPrincipal principal = new CustomOAuthAuthenticatedPrincipal(
                 userInfo,
                 subject,
                 userSessionSnapshotResolver.resolve(token).orElse(null),

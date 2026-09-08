@@ -14,7 +14,7 @@ import java.util.Base64;
  *
  * @author Quyq
  */
-public class RatelOAuth2DeviceCodeGenerator implements OAuth2TokenGenerator<OAuth2DeviceCode> {
+public class CustomOAuth2DeviceCodeGenerator implements OAuth2TokenGenerator<OAuth2DeviceCode> {
 
     private final StringKeyGenerator deviceCodeGenerator =
             new Base64StringKeyGenerator(Base64.getUrlEncoder().withoutPadding(), 96);

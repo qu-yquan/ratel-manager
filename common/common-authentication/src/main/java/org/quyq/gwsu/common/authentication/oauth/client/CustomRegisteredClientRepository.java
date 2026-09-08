@@ -9,13 +9,13 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
  *
  * @author Quyq
  */
-public class RatelRegisteredClientRepository implements RegisteredClientRepository {
+public class CustomRegisteredClientRepository implements RegisteredClientRepository {
 
     private final OAuthClientInfoProvider clientInfoProvider;
 
     private final OAuthRegisteredClientConverter converter;
 
-    public RatelRegisteredClientRepository(
+    public CustomRegisteredClientRepository(
             OAuthClientInfoProvider clientInfoProvider,
             OAuthRegisteredClientConverter converter) {
         this.clientInfoProvider = clientInfoProvider;

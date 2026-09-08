@@ -15,14 +15,14 @@ import java.io.IOException;
  *
  * @author Quyq
  */
-public class RatelOAuth2AccessTokenResponseSuccessHandler implements AuthenticationSuccessHandler {
+public class CustomOAuth2AccessTokenResponseSuccessHandler implements AuthenticationSuccessHandler {
 
-    private final RatelOAuthSubjectWriter subjectWriter;
+    private final CustomOAuthSubjectWriter subjectWriter;
 
     private final OAuth2AccessTokenResponseAuthenticationSuccessHandler delegate =
             new OAuth2AccessTokenResponseAuthenticationSuccessHandler();
 
-    public RatelOAuth2AccessTokenResponseSuccessHandler(RatelOAuthSubjectWriter subjectWriter) {
+    public CustomOAuth2AccessTokenResponseSuccessHandler(CustomOAuthSubjectWriter subjectWriter) {
         this.subjectWriter = subjectWriter;
     }
 

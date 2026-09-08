@@ -12,7 +12,7 @@ import java.time.Instant;
  *
  * @author Quyq
  */
-public class RatelOAuth2UserCodeGenerator implements OAuth2TokenGenerator<OAuth2UserCode> {
+public class CustomOAuth2UserCodeGenerator implements OAuth2TokenGenerator<OAuth2UserCode> {
 
     private static final char[] CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
     private static final int CODE_LENGTH = 8;

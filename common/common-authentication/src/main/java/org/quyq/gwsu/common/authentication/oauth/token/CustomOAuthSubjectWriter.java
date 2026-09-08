@@ -8,13 +8,12 @@ import org.quyq.gwsu.common.authentication.domain.WorkspaceInfo;
 import org.quyq.gwsu.common.authentication.oauth.client.OAuthClientInfoProvider;
 import org.quyq.gwsu.common.authentication.oauth.client.OAuthClientAccountTypeResolver;
 import org.quyq.gwsu.common.authentication.oauth.domain.OAuthUserSessionSnapshot;
-import org.quyq.gwsu.common.authentication.oauth.store.RatelOAuth2AuthorizationService;
+import org.quyq.gwsu.common.authentication.oauth.store.CustomOAuth2AuthorizationService;
 import org.quyq.gwsu.common.core.domain.visitor.ClientInfo;
 import org.quyq.gwsu.common.core.domain.visitor.UserInfo;
 import org.quyq.gwsu.common.security.api.oauth.vo.OAuthClientInfoVO;
 import org.quyq.gwsu.common.security.constants.SecurityConstants;
 import org.quyq.gwsu.common.security.domain.Subject;
-import org.quyq.gwsu.common.security.enums.DataScope;
 import org.quyq.gwsu.common.security.enums.VisitorType;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
@@ -32,7 +31,7 @@ import java.util.Optional;
  *
  * @author Quyq
  */
-public class RatelOAuthSubjectWriter {
+public class CustomOAuthSubjectWriter {
 
     private final OAuth2AuthorizationService authorizationService;
 
@@ -40,7 +39,7 @@ public class RatelOAuthSubjectWriter {
 
     private final OAuthClientAccountTypeResolver accountTypeResolver;
 
-    public RatelOAuthSubjectWriter(
+    public CustomOAuthSubjectWriter(
             OAuth2AuthorizationService authorizationService,
             OAuthClientInfoProvider clientInfoProvider,
             OAuthClientAccountTypeResolver accountTypeResolver) {
@@ -92,7 +91,7 @@ public class RatelOAuthSubjectWriter {
         if (authorization == null) {
             return Optional.empty();
         }
-        return Optional.ofNullable(authorization.getAttribute(RatelOAuth2AuthorizationService.RATEL_SUBJECT_ATTRIBUTE));
+        return Optional.ofNullable(authorization.getAttribute(CustomOAuth2AuthorizationService.RATEL_SUBJECT_ATTRIBUTE));
     }
 
     private Optional<OAuthUserSessionSnapshot> userSessionSnapshot(OAuth2Authorization authorization) {
@@ -100,7 +99,7 @@ public class RatelOAuthSubjectWriter {
             return Optional.empty();
         }
         return Optional.ofNullable(authorization.getAttribute(
-                RatelOAuth2AuthorizationService.RATEL_USER_SESSION_SNAPSHOT_ATTRIBUTE));
+                CustomOAuth2AuthorizationService.RATEL_USER_SESSION_SNAPSHOT_ATTRIBUTE));
     }
 
     private void writeFallbackUserSession(Subject<ClientInfo> subject, SaSession tokenSession) {

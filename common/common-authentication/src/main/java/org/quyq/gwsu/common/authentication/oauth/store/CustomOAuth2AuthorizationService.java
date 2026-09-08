@@ -1,7 +1,6 @@
 package org.quyq.gwsu.common.authentication.oauth.store;
 
-import org.quyq.gwsu.common.authentication.oauth.security.RatelOAuthAuthenticatedPrincipal;
-import org.quyq.gwsu.common.authentication.oauth.domain.OAuthUserSessionSnapshot;
+import org.quyq.gwsu.common.authentication.oauth.security.CustomOAuthAuthenticatedPrincipal;
 import org.quyq.gwsu.common.security.domain.Subject;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.springframework.security.core.Authentication;
@@ -17,7 +16,7 @@ import java.util.Optional;
  *
  * @author Quyq
  */
-public class RatelOAuth2AuthorizationService implements OAuth2AuthorizationService {
+public class CustomOAuth2AuthorizationService implements OAuth2AuthorizationService {
 
     public static final String RATEL_SUBJECT_ATTRIBUTE = "ratel:subject";
 
@@ -27,7 +26,7 @@ public class RatelOAuth2AuthorizationService implements OAuth2AuthorizationServi
 
     private final SecurityUtils securityUtils;
 
-    public RatelOAuth2AuthorizationService(RatelOAuth2AuthorizationStore store, SecurityUtils securityUtils) {
+    public CustomOAuth2AuthorizationService(RatelOAuth2AuthorizationStore store, SecurityUtils securityUtils) {
         this.store = store;
         this.securityUtils = securityUtils;
     }
@@ -65,7 +64,7 @@ public class RatelOAuth2AuthorizationService implements OAuth2AuthorizationServi
         }
         if (authorization.getAttribute(RATEL_USER_SESSION_SNAPSHOT_ATTRIBUTE) == null) {
             currentPrincipal(authorization)
-                    .map(RatelOAuthAuthenticatedPrincipal::getUserSessionSnapshot)
+                    .map(CustomOAuthAuthenticatedPrincipal::getUserSessionSnapshot)
                     .ifPresent(snapshot -> builder.attribute(RATEL_USER_SESSION_SNAPSHOT_ATTRIBUTE, snapshot));
         }
         return builder.build();
@@ -73,17 +72,17 @@ public class RatelOAuth2AuthorizationService implements OAuth2AuthorizationServi
 
     private Optional<Subject<?>> currentSubject(OAuth2Authorization authorization) {
         Optional<Subject<?>> principalSubject = currentPrincipal(authorization)
-                .map(RatelOAuthAuthenticatedPrincipal::getSubject);
+                .map(CustomOAuthAuthenticatedPrincipal::getSubject);
         if (principalSubject.isPresent()) {
             return principalSubject;
         }
         return securityUtils.getSubject().map(subject -> subject);
     }
 
-    private Optional<RatelOAuthAuthenticatedPrincipal> currentPrincipal(OAuth2Authorization authorization) {
+    private Optional<CustomOAuthAuthenticatedPrincipal> currentPrincipal(OAuth2Authorization authorization) {
         Object principalAttribute = authorization.getAttribute(Principal.class.getName());
         if (principalAttribute instanceof Authentication authentication
-                && authentication.getPrincipal() instanceof RatelOAuthAuthenticatedPrincipal principal) {
+                && authentication.getPrincipal() instanceof CustomOAuthAuthenticatedPrincipal principal) {
             return Optional.of(principal);
         }
         return Optional.empty();

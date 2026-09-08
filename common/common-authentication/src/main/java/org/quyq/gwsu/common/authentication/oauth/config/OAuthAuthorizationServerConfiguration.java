@@ -5,23 +5,23 @@ import org.quyq.gwsu.common.authentication.oauth.client.OAuthClientInfoCache;
 import org.quyq.gwsu.common.authentication.oauth.client.OAuthClientInfoProvider;
 import org.quyq.gwsu.common.authentication.oauth.client.OAuthClientAccountTypeResolver;
 import org.quyq.gwsu.common.authentication.oauth.client.OAuthRegisteredClientConverter;
-import org.quyq.gwsu.common.authentication.oauth.client.RatelRegisteredClientRepository;
+import org.quyq.gwsu.common.authentication.oauth.client.CustomRegisteredClientRepository;
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthFrontendEndpointResolver;
 import org.quyq.gwsu.common.authentication.oauth.frontend.ManagerOAuthAuthorizationViewProvider;
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthAuthorizationViewProvider;
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthAuthorizationViewProviderManager;
 import org.quyq.gwsu.common.authentication.oauth.path.AuthenticationEndpointPathResolver;
 import org.quyq.gwsu.common.authentication.oauth.security.OAuthUserSessionSnapshotResolver;
-import org.quyq.gwsu.common.authentication.oauth.store.RatelOAuth2AuthorizationService;
+import org.quyq.gwsu.common.authentication.oauth.store.CustomOAuth2AuthorizationService;
 import org.quyq.gwsu.common.authentication.oauth.store.RatelOAuth2AuthorizationStore;
 import org.quyq.gwsu.common.authentication.oauth.store.RedisOAuth2AuthorizationStore;
 import org.quyq.gwsu.common.authentication.oauth.store.OAuth2AuthorizationSerializer;
-import org.quyq.gwsu.common.authentication.oauth.token.RatelOAuth2AccessTokenGenerator;
-import org.quyq.gwsu.common.authentication.oauth.token.RatelOAuth2AccessTokenResponseSuccessHandler;
-import org.quyq.gwsu.common.authentication.oauth.token.RatelOAuth2AuthorizationCodeGenerator;
-import org.quyq.gwsu.common.authentication.oauth.token.RatelOAuth2DeviceCodeGenerator;
-import org.quyq.gwsu.common.authentication.oauth.token.RatelOAuthSubjectWriter;
-import org.quyq.gwsu.common.authentication.oauth.token.RatelOAuth2UserCodeGenerator;
+import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuth2AccessTokenGenerator;
+import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuth2AccessTokenResponseSuccessHandler;
+import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuth2AuthorizationCodeGenerator;
+import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuth2DeviceCodeGenerator;
+import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuthSubjectWriter;
+import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuth2UserCodeGenerator;
 import org.quyq.gwsu.common.cache.utils.CacheUtils;
 import org.quyq.gwsu.common.security.api.oauth.OAuthClientApi;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
@@ -102,7 +102,7 @@ public class OAuthAuthorizationServerConfiguration {
     public RegisteredClientRepository registeredClientRepository(
             OAuthClientInfoProvider clientInfoProvider,
             OAuthRegisteredClientConverter converter) {
-        return new RatelRegisteredClientRepository(clientInfoProvider, converter);
+        return new CustomRegisteredClientRepository(clientInfoProvider, converter);
     }
 
     @Bean
@@ -131,35 +131,35 @@ public class OAuthAuthorizationServerConfiguration {
     }
 
     @Bean
-    public RatelOAuth2AuthorizationService oauth2AuthorizationService(
+    public CustomOAuth2AuthorizationService oauth2AuthorizationService(
             RatelOAuth2AuthorizationStore store,
             SecurityUtils securityUtils) {
-        return new RatelOAuth2AuthorizationService(store, securityUtils);
+        return new CustomOAuth2AuthorizationService(store, securityUtils);
     }
 
     @Bean
     public OAuth2TokenGenerator<OAuth2Token> oauth2TokenGenerator(
             OAuthClientAccountTypeResolver accountTypeResolver) {
         return new DelegatingOAuth2TokenGenerator(
-                new RatelOAuth2AuthorizationCodeGenerator(),
-                new RatelOAuth2DeviceCodeGenerator(),
-                new RatelOAuth2UserCodeGenerator(),
+                new CustomOAuth2AuthorizationCodeGenerator(),
+                new CustomOAuth2DeviceCodeGenerator(),
+                new CustomOAuth2UserCodeGenerator(),
                 new OAuth2RefreshTokenGenerator(),
-                new RatelOAuth2AccessTokenGenerator(accountTypeResolver));
+                new CustomOAuth2AccessTokenGenerator(accountTypeResolver));
     }
 
     @Bean
-    public RatelOAuthSubjectWriter ratelOAuthSubjectWriter(
-            RatelOAuth2AuthorizationService authorizationService,
+    public CustomOAuthSubjectWriter ratelOAuthSubjectWriter(
+            CustomOAuth2AuthorizationService authorizationService,
             OAuthClientInfoProvider clientInfoProvider,
             OAuthClientAccountTypeResolver accountTypeResolver) {
-        return new RatelOAuthSubjectWriter(authorizationService, clientInfoProvider, accountTypeResolver);
+        return new CustomOAuthSubjectWriter(authorizationService, clientInfoProvider, accountTypeResolver);
     }
 
     @Bean
-    public RatelOAuth2AccessTokenResponseSuccessHandler oauth2AccessTokenResponseSuccessHandler(
-            RatelOAuthSubjectWriter subjectWriter) {
-        return new RatelOAuth2AccessTokenResponseSuccessHandler(subjectWriter);
+    public CustomOAuth2AccessTokenResponseSuccessHandler oauth2AccessTokenResponseSuccessHandler(
+            CustomOAuthSubjectWriter subjectWriter) {
+        return new CustomOAuth2AccessTokenResponseSuccessHandler(subjectWriter);
     }
 
 }

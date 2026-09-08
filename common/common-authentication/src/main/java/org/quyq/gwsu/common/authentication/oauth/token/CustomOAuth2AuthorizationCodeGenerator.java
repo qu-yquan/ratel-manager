@@ -14,7 +14,7 @@ import java.util.Base64;
  *
  * @author Quyq
  */
-public class RatelOAuth2AuthorizationCodeGenerator implements OAuth2TokenGenerator<OAuth2AuthorizationCode> {
+public class CustomOAuth2AuthorizationCodeGenerator implements OAuth2TokenGenerator<OAuth2AuthorizationCode> {
 
     private final StringKeyGenerator authorizationCodeGenerator =
             new Base64StringKeyGenerator(Base64.getUrlEncoder().withoutPadding(), 96);

@@ -5,8 +5,8 @@ import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthAuthorizationView
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthFrontendEndpointResolver;
 import org.quyq.gwsu.common.authentication.oauth.security.OAuthLoginEntryPoint;
 import org.quyq.gwsu.common.authentication.oauth.security.OAuthUserSessionSnapshotResolver;
-import org.quyq.gwsu.common.authentication.oauth.security.RatelSecurityContextAuthenticationFilter;
-import org.quyq.gwsu.common.authentication.oauth.token.RatelOAuth2AccessTokenResponseSuccessHandler;
+import org.quyq.gwsu.common.authentication.oauth.security.CustomSecurityContextAuthenticationFilter;
+import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuth2AccessTokenResponseSuccessHandler;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -41,11 +41,11 @@ public class OAuthSecurityConfiguration {
             OAuthFrontendEndpointResolver frontendEndpointResolver,
             OAuthAuthorizationViewProviderManager viewProviderManager,
             OAuthUserSessionSnapshotResolver userSessionSnapshotResolver,
-            RatelOAuth2AccessTokenResponseSuccessHandler accessTokenResponseSuccessHandler) throws Exception {
+            CustomOAuth2AccessTokenResponseSuccessHandler accessTokenResponseSuccessHandler) throws Exception {
         http.securityMatcher(pathResolver.resolve("/oauth2/**"), pathResolver.resolve("/.well-known/**"))
                 .authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
                 .csrf(AbstractHttpConfigurer::disable)
-                .addFilterAfter(new RatelSecurityContextAuthenticationFilter(securityUtils, userSessionSnapshotResolver),
+                .addFilterAfter(new CustomSecurityContextAuthenticationFilter(securityUtils, userSessionSnapshotResolver),
                         SecurityContextHolderFilter.class)
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(
                         new OAuthLoginEntryPoint(frontendEndpointResolver, viewProviderManager)))
