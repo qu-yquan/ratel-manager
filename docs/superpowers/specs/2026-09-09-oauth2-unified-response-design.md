@@ -105,11 +105,13 @@ Spring Authorization Server 没有暴露 JWKS 响应处理器。使用仅匹配�
 
 ### 上下文接口
 
-安全中心新增免登录查询接口：
+认证模块通过 `LoginWebConfiguration` 新增公开查询接口：
 
 ```http
-GET /security/oauth/client/consent-context?clientId={clientId}&scope={scope1 scope2}
+GET /system/auth/oauth2/consent-context?clientId={clientId}&scope={scope1 scope2}
 ```
+
+`LoginWebConfiguration` 不直接访问安全中心数据库，而是调用扩展后的 `OAuthClientApi` 获取客户端及 Scope 授权上下文。该调用继续复用项目现有 `ApiClient` 机制，兼容单体部署的本地 Bean 调用和分布式部署的远程调用。安全中心不额外暴露需要配置免密规则的 Controller 接口。
 
 响应 `data` 包含：
 
