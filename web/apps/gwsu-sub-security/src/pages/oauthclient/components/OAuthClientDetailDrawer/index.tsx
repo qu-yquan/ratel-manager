@@ -55,7 +55,7 @@ const OAuthClientDetailDrawer: React.FC<OAuthClientDetailDrawerProps> = ({
           <Descriptions.Item label="客户端ID">{data.clientId}</Descriptions.Item>
           <Descriptions.Item label="应用名称">{data.clientName}</Descriptions.Item>
         <Descriptions.Item label="客户端类型">{clientTypeLabels.get(data.clientType) || data.clientType}</Descriptions.Item>
-        <Descriptions.Item label="账号类型">
+        <Descriptions.Item label="账号体系">
           {accountTypeLabels.get(data.accountType || '') || data.accountType || '-'}
         </Descriptions.Item>
         <Descriptions.Item label="状态">

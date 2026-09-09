@@ -5,8 +5,11 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import org.quyq.gwsu.common.security.api.oauth.dto.OAuthClientQueryDTO;
 import org.quyq.gwsu.common.security.api.oauth.dto.OAuthClientSaveDTO;
 import org.quyq.gwsu.common.security.api.oauth.vo.OAuthClientInfoVO;
+import org.quyq.gwsu.common.security.api.oauth.vo.OAuthConsentContextVO;
 import org.quyq.gwsu.common.security.api.oauth.vo.OAuthClientSecretVO;
 import org.quyq.gwsu.security.oauth.domain.SecurityOAuthClient;
+
+import java.util.List;
 
 /**
  * OAuth 应用配置服务。
@@ -19,10 +22,14 @@ public interface ISecurityOAuthClientService extends IService<SecurityOAuthClien
 
     OAuthClientInfoVO getByClientId(String clientId);
 
+    OAuthConsentContextVO getConsentContext(String clientId, String scope);
+
     IPage<OAuthClientInfoVO> pageByCondition(OAuthClientQueryDTO query);
 
     OAuthClientSecretVO saveOrUpdateClient(OAuthClientSaveDTO dto);
 
     OAuthClientSecretVO resetSecret(String id);
+
+    Boolean removeClients(List<String> ids);
 
 }

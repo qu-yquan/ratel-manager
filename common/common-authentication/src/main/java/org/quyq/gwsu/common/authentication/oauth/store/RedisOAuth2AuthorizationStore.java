@@ -1,16 +1,21 @@
 package org.quyq.gwsu.common.authentication.oauth.store;
 
 import org.quyq.gwsu.common.cache.utils.CacheUtils;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2DeviceCode;
+import org.springframework.security.oauth2.core.OAuth2RefreshToken;
 import org.springframework.security.oauth2.core.OAuth2UserCode;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
+import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -39,6 +44,8 @@ public class RedisOAuth2AuthorizationStore implements RatelOAuth2AuthorizationSt
     public void save(OAuth2Authorization authorization) {
         Duration ttl = ttl(authorization);
         cacheUtils.withRebel(() -> {
+            OAuth2Authorization previous = deserialize(cacheUtils.get(authKey(authorization.getId())));
+            removeReplacedTokenIndexes(previous, authorization);
             cacheUtils.set(authKey(authorization.getId()), serializer.serialize(authorization), ttl);
             tokenValues(authorization).forEach(token -> cacheUtils.set(tokenKey(token), authorization.getId(), ttl));
             return true;
@@ -60,14 +67,56 @@ public class RedisOAuth2AuthorizationStore implements RatelOAuth2AuthorizationSt
     }
 
     @Override
-    public OAuth2Authorization findByToken(String tokenValue) {
+    public OAuth2Authorization findByToken(String tokenValue, OAuth2TokenType tokenType) {
         return cacheUtils.withRebel(() -> {
             String id = cacheUtils.get(tokenKey(tokenValue));
             if (id == null) {
                 return null;
             }
-            return deserialize(cacheUtils.get(authKey(id)));
+            OAuth2Authorization authorization = deserialize(cacheUtils.get(authKey(id)));
+            return matches(authorization, tokenValue, tokenType) ? authorization : null;
         });
+    }
+
+    private void removeReplacedTokenIndexes(
+            OAuth2Authorization previous,
+            OAuth2Authorization current) {
+        if (previous == null) {
+            return;
+        }
+        Set<String> replacedTokenValues = new HashSet<>(tokenValues(previous));
+        replacedTokenValues.removeAll(tokenValues(current));
+        replacedTokenValues.forEach(token -> cacheUtils.deleteIfEquals(
+                tokenKey(token), current.getId()));
+    }
+
+    private boolean matches(
+            OAuth2Authorization authorization,
+            String tokenValue,
+            OAuth2TokenType tokenType) {
+        if (authorization == null || tokenValue == null) {
+            return false;
+        }
+        if (tokenType == null) {
+            return tokenValues(authorization).contains(tokenValue);
+        }
+        if (OAuth2TokenType.ACCESS_TOKEN.equals(tokenType)) {
+            return Objects.equals(tokenValue(authorization.getAccessToken()), tokenValue);
+        }
+        if (OAuth2TokenType.REFRESH_TOKEN.equals(tokenType)) {
+            return Objects.equals(tokenValue(authorization.getRefreshToken()), tokenValue);
+        }
+        return switch (tokenType.getValue()) {
+            case OAuth2ParameterNames.CODE, "authorization_code" ->
+                    Objects.equals(tokenValue(authorization.getToken(OAuth2AuthorizationCode.class)), tokenValue);
+            case OAuth2ParameterNames.DEVICE_CODE ->
+                    Objects.equals(tokenValue(authorization.getToken(OAuth2DeviceCode.class)), tokenValue);
+            case OAuth2ParameterNames.USER_CODE ->
+                    Objects.equals(tokenValue(authorization.getToken(OAuth2UserCode.class)), tokenValue);
+            case OAuth2ParameterNames.STATE -> Objects.equals(
+                    authorization.getAttribute(OAuth2ParameterNames.STATE), tokenValue);
+            default -> false;
+        };
     }
 
     private OAuth2Authorization deserialize(Object source) {

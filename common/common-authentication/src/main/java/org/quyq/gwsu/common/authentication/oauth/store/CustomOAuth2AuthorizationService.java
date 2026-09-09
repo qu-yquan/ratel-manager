@@ -48,7 +48,7 @@ public class CustomOAuth2AuthorizationService implements OAuth2AuthorizationServ
 
     @Override
     public OAuth2Authorization findByToken(String token, OAuth2TokenType tokenType) {
-        return store.findByToken(token);
+        return store.findByToken(token, tokenType);
     }
 
     private OAuth2Authorization withCurrentSubject(OAuth2Authorization authorization) {

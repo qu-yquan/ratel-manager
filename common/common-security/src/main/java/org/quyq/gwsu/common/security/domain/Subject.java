@@ -73,7 +73,7 @@ public class Subject<T extends Visitor> {
      */
     public <U extends UserInfo> Optional<U> userInfo() {
 
-        if (Objects.nonNull(detail) && detail instanceof UserInfo) {
+        if (detail instanceof UserInfo) {
             return Optional.of((U) detail);
         }
 
@@ -88,7 +88,7 @@ public class Subject<T extends Visitor> {
      */
     public <U extends ClientInfo> Optional<U> clientInfo() {
 
-        if (Objects.nonNull(detail) && detail instanceof ClientInfo) {
+        if (detail instanceof ClientInfo) {
             return Optional.of((U) detail);
         }
 

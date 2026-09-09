@@ -18,4 +18,8 @@ public interface OAuthAuthorizationViewProvider {
 
     String consentPageUrl(Map<String, List<String>> queryParams, String authorizeUri);
 
+    String deviceVerificationPageUrl(Map<String, List<String>> queryParams, String deviceVerificationUri);
+
+    String deviceConsentPageUrl(Map<String, List<String>> queryParams, String deviceVerificationUri);
+
 }

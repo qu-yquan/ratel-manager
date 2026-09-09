@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * @author Quyq
@@ -14,6 +16,9 @@ import java.util.Map;
 @EqualsAndHashCode(callSuper = true)
 @Data
 public abstract non-sealed class ClientInfo extends Visitor {
+
+    /** 当前访问令牌实际授权的 Scope。 */
+    private Set<String> authorizedScopes = new HashSet<>();
 
 
     /**

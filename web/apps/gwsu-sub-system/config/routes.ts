@@ -16,6 +16,14 @@ export default [
     component: '@/pages/oauth2/consent',
   },
   {
+    path: '/oauth2/loginDeviceVerification',
+    component: '@/pages/oauth2/deviceVerification',
+  },
+  {
+    path: '/oauth2/loginDeviceConsent',
+    component: '@/pages/oauth2/deviceConsent',
+  },
+  {
     path: '/login_headless',
     component: '@/pages/login_headless',
   },

@@ -17,6 +17,7 @@ import org.quyq.gwsu.common.security.api.oauth.enums.OAuthClientType;
 import org.quyq.gwsu.common.security.api.oauth.enums.OAuthGrantType;
 import org.quyq.gwsu.common.security.api.oauth.vo.OAuthClientInfoVO;
 import org.quyq.gwsu.common.security.api.oauth.vo.OAuthClientSecretVO;
+import org.quyq.gwsu.common.security.api.oauth.vo.OAuthConsentContextVO;
 import org.quyq.gwsu.common.security.enums.AccountType;
 import org.quyq.gwsu.security.oauth.domain.SecurityOAuthClient;
 import org.quyq.gwsu.security.oauth.service.ISecurityOAuthClientService;
@@ -57,6 +58,17 @@ public class SecurityOAuthClientController implements OAuthClientApi {
     @GetMapping("/clientId/{clientId}")
     public R<OAuthClientInfoVO> getByClientId(@PathVariable String clientId) {
         return R.ok(oauthClientService.getByClientId(clientId));
+    }
+
+    @Override
+    @LoginAllowAccess
+    @TableModelPermission
+    @Operation(summary = "获取OAuth应用授权上下文")
+    @GetMapping("/consent-context")
+    public R<OAuthConsentContextVO> getConsentContext(
+            @RequestParam String clientId,
+            @RequestParam(required = false) String scope) {
+        return R.ok(oauthClientService.getConsentContext(clientId, scope));
     }
 
     @Override
@@ -103,7 +115,7 @@ public class SecurityOAuthClientController implements OAuthClientApi {
     @Operation(summary = "批量删除OAuth应用")
     @DeleteMapping
     public R<Boolean> remove(@RequestBody List<String> ids) {
-        return R.ok(oauthClientService.removeByIds(ids));
+        return R.ok(oauthClientService.removeClients(ids));
     }
 
 }

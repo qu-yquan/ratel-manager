@@ -21,6 +21,11 @@ const requestInterceptors: RequestInterceptor[] = [];
 const responseInterceptors: ResponseInterceptor[] = [];
 const errorInterceptors: ErrorInterceptor[] = [];
 
+type InternalApiResponse<T = unknown> = ApiResponse<T> & {
+    httpStatus?: number;
+    skipUnauthorizedRedirect?: boolean;
+};
+
 // 默认配置
 const defaultConfig = {
     baseURL: '/api',
@@ -104,6 +109,9 @@ function initDefaultInterceptors() {
 
     // 默认请求拦截器 - 添加 token
     addRequestInterceptor((options) => {
+        if (options.skipAuth) {
+            return options;
+        }
         const tokenInfo = useUserStore.getState().getTokenInfo();
         if (tokenInfo?.token) {
             options.headers = {
@@ -117,7 +125,8 @@ function initDefaultInterceptors() {
     // 默认响应拦截器 - 处理业务错误
     addResponseInterceptor((response) => {
         // 获取 HTTP 状态码
-        const httpStatus = (response as ApiResponse<unknown> & { httpStatus?: number }).httpStatus || 200;
+        const internalResponse = response as InternalApiResponse;
+        const httpStatus = internalResponse.httpStatus || 200;
 
         // 处理 HTTP 500 等服务端错误
         if (httpStatus >= 500) {
@@ -138,6 +147,9 @@ function initDefaultInterceptors() {
 
         // 处理常见的业务错误码
         if (response.code === 401) {
+            if (internalResponse.skipUnauthorizedRedirect) {
+                throw new Error(response.msg || '请求失败');
+            }
             // 未授权，清除用户数据并跳转登录
             useUserStore.getState().clearUserData();
             // 清除无头浏览器 threadId
@@ -261,7 +273,9 @@ async function fetchRequest<T>(options: RequestOptions): Promise<ApiResponse<T>>
         }
 
         // 将 HTTP 状态码附加到响应对象上，供拦截器使用
-        (result as ApiResponse<T> & { httpStatus: number }).httpStatus = response.status;
+        const internalResult = result as InternalApiResponse<T>;
+        internalResult.httpStatus = response.status;
+        internalResult.skipUnauthorizedRedirect = options.skipUnauthorizedRedirect;
 
         return result;
     } catch (error) {

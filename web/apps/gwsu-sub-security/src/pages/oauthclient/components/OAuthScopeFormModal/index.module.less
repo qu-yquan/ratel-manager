@@ -1,0 +1,59 @@
+.resourceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.resourceTitle {
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.selectedCount {
+  color: var(--text-secondary-color);
+  font-size: 12px;
+}
+
+.accountSystemGroup {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+
+  :global(.ant-radio-button-wrapper) {
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+  }
+}
+
+.bindingGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.bindingPane {
+  min-width: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.paneHeader {
+  min-height: 30px;
+  color: var(--text-color);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.resourceActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+@media (max-width: 900px) {
+  .bindingGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

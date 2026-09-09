@@ -72,6 +72,17 @@ public class SecurityApiResourceController {
         return R.ok(apiResourceService.listByTagName(tagName));
     }
 
+    @Operation(summary = "根据ID批量查询接口资源")
+    @PostMapping("list/by-ids")
+    public R<List<ApiResourceVO>> listByIds(@RequestBody List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return R.ok(List.of());
+        }
+        return R.ok(apiResourceService.listByIds(ids).stream()
+                .map(SecurityApiResource::toVo)
+                .toList());
+    }
+
     @Operation(summary = "新增或更新")
     @PostMapping
     public R<Boolean> saveOrUpdate(@RequestBody SecurityApiResource entity) {

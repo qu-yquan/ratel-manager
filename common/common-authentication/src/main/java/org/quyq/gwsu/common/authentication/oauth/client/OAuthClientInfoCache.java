@@ -2,6 +2,7 @@ package org.quyq.gwsu.common.authentication.oauth.client;
 
 import org.quyq.gwsu.common.cache.utils.CacheUtils;
 import org.quyq.gwsu.common.security.api.oauth.vo.OAuthClientInfoVO;
+import org.quyq.gwsu.common.security.api.oauth.OAuthClientCacheKeys;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -14,8 +15,6 @@ import java.util.function.Supplier;
  */
 public class OAuthClientInfoCache {
 
-    private static final String ID_KEY_PREFIX = "authentication:oauth2:client:id:";
-    private static final String CLIENT_ID_KEY_PREFIX = "authentication:oauth2:client:client-id:";
     private static final Duration TTL = Duration.ofMinutes(5);
 
     private final CacheUtils cacheUtils;
@@ -25,17 +24,17 @@ public class OAuthClientInfoCache {
     }
 
     public Optional<OAuthClientInfoVO> getById(String id, Supplier<OAuthClientInfoVO> loader) {
-        return get(ID_KEY_PREFIX + id, loader);
+        return get(OAuthClientCacheKeys.byId(id), loader);
     }
 
     public Optional<OAuthClientInfoVO> getByClientId(String clientId, Supplier<OAuthClientInfoVO> loader) {
-        return get(CLIENT_ID_KEY_PREFIX + clientId, loader);
+        return get(OAuthClientCacheKeys.byClientId(clientId), loader);
     }
 
     public void evict(String id, String clientId) {
         cacheUtils.withRebel(() -> {
-            cacheUtils.delete(ID_KEY_PREFIX + id);
-            cacheUtils.delete(CLIENT_ID_KEY_PREFIX + clientId);
+            cacheUtils.delete(OAuthClientCacheKeys.byId(id));
+            cacheUtils.delete(OAuthClientCacheKeys.byClientId(clientId));
             return true;
         });
     }

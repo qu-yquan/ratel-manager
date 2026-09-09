@@ -664,3 +664,47 @@ CREATE TABLE security_oauth_client
 CREATE UNIQUE INDEX uk_security_oauth_client_client_id ON security_oauth_client (client_id);
 CREATE INDEX idx_security_oauth_client_name ON security_oauth_client (client_name);
 CREATE INDEX idx_security_oauth_client_status ON security_oauth_client (status);
+
+-- =============================================
+-- 表名：security_oauth_scope
+-- 说明：OAuth Scope权限组
+-- =============================================
+CREATE TABLE security_oauth_scope
+(
+    id             VARCHAR(24) PRIMARY KEY COMMENT '主键ID',
+    scope_code     VARCHAR(128) NOT NULL COMMENT 'Scope完整编码',
+    scope_name     VARCHAR(128) NOT NULL COMMENT 'Scope中文名称',
+    description    VARCHAR(500) DEFAULT NULL COMMENT '授权页中文描述',
+    account_type   VARCHAR(32)  NOT NULL COMMENT '账号体系',
+    status         VARCHAR(32)  NOT NULL DEFAULT 'ENABLED' COMMENT '状态',
+    tenant_id      VARCHAR(50)  DEFAULT NULL COMMENT '租户ID',
+    create_op      VARCHAR(50)  DEFAULT NULL COMMENT '创建人',
+    create_time    DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    modify_op      VARCHAR(50)  DEFAULT NULL COMMENT '修改人',
+    modify_time    DATETIME     DEFAULT NULL COMMENT '修改时间',
+    deleted        SMALLINT     NOT NULL DEFAULT 0 COMMENT '删除标识',
+    delete_op      VARCHAR(50)  DEFAULT NULL COMMENT '删除人',
+    delete_time    DATETIME     DEFAULT NULL COMMENT '删除时间'
+) COMMENT 'OAuth Scope权限组';
+
+CREATE UNIQUE INDEX uk_security_oauth_scope_code ON security_oauth_scope (scope_code);
+CREATE INDEX idx_security_oauth_scope_account_status ON security_oauth_scope (account_type, status);
+
+CREATE TABLE security_oauth_scope_resource
+(
+    id              VARCHAR(24) PRIMARY KEY COMMENT '主键ID',
+    scope_id        VARCHAR(24) NOT NULL COMMENT 'Scope ID',
+    api_resource_id VARCHAR(64) NOT NULL COMMENT '接口资源ID',
+    tenant_id       VARCHAR(50) DEFAULT NULL COMMENT '租户ID',
+    create_op       VARCHAR(50) DEFAULT NULL COMMENT '创建人',
+    create_time     DATETIME    DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    modify_op       VARCHAR(50) DEFAULT NULL COMMENT '修改人',
+    modify_time     DATETIME    DEFAULT NULL COMMENT '修改时间',
+    deleted         SMALLINT    NOT NULL DEFAULT 0 COMMENT '删除标识',
+    delete_op       VARCHAR(50) DEFAULT NULL COMMENT '删除人',
+    delete_time     DATETIME    DEFAULT NULL COMMENT '删除时间',
+    CONSTRAINT fk_oauth_scope_resource_scope FOREIGN KEY (scope_id) REFERENCES security_oauth_scope (id) ON DELETE CASCADE
+) COMMENT 'OAuth Scope与接口资源关联表';
+
+CREATE UNIQUE INDEX uk_oauth_scope_resource ON security_oauth_scope_resource (scope_id, api_resource_id);
+CREATE INDEX idx_oauth_scope_resource_api ON security_oauth_scope_resource (api_resource_id);

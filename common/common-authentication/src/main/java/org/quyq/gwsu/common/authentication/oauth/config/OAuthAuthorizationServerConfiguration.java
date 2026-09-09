@@ -11,6 +11,9 @@ import org.quyq.gwsu.common.authentication.oauth.frontend.ManagerOAuthAuthorizat
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthAuthorizationViewProvider;
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthAuthorizationViewProviderManager;
 import org.quyq.gwsu.common.authentication.oauth.path.AuthenticationEndpointPathResolver;
+import org.quyq.gwsu.common.authentication.oauth.response.OAuth2ResponseWriter;
+import org.quyq.gwsu.common.authentication.oauth.response.OAuth2UnifiedErrorResponseHandler;
+import org.quyq.gwsu.common.authentication.oauth.response.OAuth2UnifiedSuccessResponseHandler;
 import org.quyq.gwsu.common.authentication.oauth.security.OAuthUserSessionSnapshotResolver;
 import org.quyq.gwsu.common.authentication.oauth.store.CustomOAuth2AuthorizationService;
 import org.quyq.gwsu.common.authentication.oauth.store.RatelOAuth2AuthorizationStore;
@@ -35,6 +38,7 @@ import org.springframework.security.oauth2.server.authorization.settings.Authori
 import org.springframework.security.oauth2.server.authorization.token.DelegatingOAuth2TokenGenerator;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2RefreshTokenGenerator;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
@@ -108,13 +112,13 @@ public class OAuthAuthorizationServerConfiguration {
     @Bean
     public AuthorizationServerSettings authorizationServerSettings(AuthenticationEndpointPathResolver pathResolver) {
         return AuthorizationServerSettings.builder()
-                .authorizationEndpoint(pathResolver.resolve("/oauth2/authorize"))
-                .deviceAuthorizationEndpoint(pathResolver.resolve("/oauth2/device_authorization"))
-                .deviceVerificationEndpoint(pathResolver.resolve("/oauth2/device_verification"))
-                .tokenEndpoint(pathResolver.resolve("/oauth2/token"))
-                .tokenRevocationEndpoint(pathResolver.resolve("/oauth2/revoke"))
-                .tokenIntrospectionEndpoint(pathResolver.resolve("/oauth2/introspect"))
-                .jwkSetEndpoint(pathResolver.resolve("/oauth2/jwks"))
+                .authorizationEndpoint(pathResolver.resolve("/auth/oauth2/authorize"))
+                .deviceAuthorizationEndpoint(pathResolver.resolve("/auth/oauth2/device_authorization"))
+                .deviceVerificationEndpoint(pathResolver.resolve("/auth/oauth2/device_verification"))
+                .tokenEndpoint(pathResolver.resolve("/auth/oauth2/token"))
+                .tokenRevocationEndpoint(pathResolver.resolve("/auth/oauth2/revoke"))
+                .tokenIntrospectionEndpoint(pathResolver.resolve("/auth/oauth2/introspect"))
+                .jwkSetEndpoint(pathResolver.resolve("/auth/oauth2/jwks"))
                 .build();
     }
 
@@ -158,8 +162,27 @@ public class OAuthAuthorizationServerConfiguration {
 
     @Bean
     public CustomOAuth2AccessTokenResponseSuccessHandler oauth2AccessTokenResponseSuccessHandler(
-            CustomOAuthSubjectWriter subjectWriter) {
-        return new CustomOAuth2AccessTokenResponseSuccessHandler(subjectWriter);
+            CustomOAuthSubjectWriter subjectWriter,
+            OAuth2UnifiedSuccessResponseHandler successResponseHandler) {
+        return new CustomOAuth2AccessTokenResponseSuccessHandler(subjectWriter, successResponseHandler);
+    }
+
+    @Bean
+    public OAuth2ResponseWriter oauth2ResponseWriter(ObjectMapper objectMapper) {
+        return new OAuth2ResponseWriter(objectMapper);
+    }
+
+    @Bean
+    public OAuth2UnifiedSuccessResponseHandler oauth2UnifiedSuccessResponseHandler(
+            OAuth2ResponseWriter responseWriter) {
+        return new OAuth2UnifiedSuccessResponseHandler(responseWriter);
+    }
+
+    @Bean
+    public OAuth2UnifiedErrorResponseHandler oauth2UnifiedErrorResponseHandler(
+            OAuth2ResponseWriter responseWriter,
+            ObjectMapper objectMapper) {
+        return new OAuth2UnifiedErrorResponseHandler(responseWriter, objectMapper);
     }
 
 }

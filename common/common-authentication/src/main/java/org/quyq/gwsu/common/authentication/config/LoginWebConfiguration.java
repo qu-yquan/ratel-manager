@@ -14,6 +14,7 @@ import org.quyq.gwsu.common.authentication.login.domain.ThreePlatformLoginDTO;
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthAuthorizationViewProviderManager;
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthFrontendEndpointResolver;
 import org.quyq.gwsu.common.authentication.oauth.path.AuthenticationEndpointPathResolver;
+import org.quyq.gwsu.common.api.utils.FeignUtils;
 import org.quyq.gwsu.common.cache.utils.IDGenerationUtils;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.core.domain.visitor.UserInfo;
@@ -24,6 +25,8 @@ import org.quyq.gwsu.common.core.exception.errcode.CommonErrorCode;
 import org.quyq.gwsu.common.core.exception.handler.GlobalExceptionFunctionHandler;
 import org.quyq.gwsu.common.core.utils.AssertUtils;
 import org.quyq.gwsu.common.core.utils.DeployUtils;
+import org.quyq.gwsu.common.security.api.oauth.OAuthClientApi;
+import org.quyq.gwsu.common.security.api.oauth.vo.OAuthConsentContextVO;
 import org.quyq.gwsu.common.security.captcha.domain.CaptchaCheckRequest;
 import org.quyq.gwsu.common.security.captcha.domain.CaptchaGetRequest;
 import org.quyq.gwsu.common.security.captcha.enums.CaptchaType;
@@ -87,6 +90,9 @@ public class LoginWebConfiguration {
     @Resource
     private OAuthAuthorizationViewProviderManager oauthAuthorizationViewProviderManager;
 
+    @Resource
+    private OAuthClientApi oauthClientApi;
+
 
     @Bean
     public RouterFunction<ServerResponse> loginRouters() {
@@ -124,7 +130,24 @@ public class LoginWebConfiguration {
                 /**
                  * OAuth 授权确认页面跳转入口。
                  */
-                .andRoute(RequestPredicates.GET(buildPath("/oauth2/loginConsent")), this::oauthConsent)
+                .andRoute(RequestPredicates.GET(buildPath("/auth/oauth2/loginConsent")), this::oauthConsent)
+
+                /**
+                 * OAuth 设备码录入页面跳转入口。
+                 */
+                .andRoute(RequestPredicates.GET(buildPath("/auth/oauth2/device_verification")),
+                        this::oauthDeviceVerification)
+
+                /**
+                 * OAuth 设备授权确认页面跳转入口。
+                 */
+                .andRoute(RequestPredicates.GET(buildPath("/auth/oauth2/loginDeviceConsent")),
+                        this::oauthDeviceConsent)
+
+                /**
+                 * OAuth 授权页面所需的应用与Scope上下文。
+                 */
+                .andRoute(RequestPredicates.GET(buildPath("/auth/oauth2/consent-context")), this::oauthConsentContext)
 
                 /**
                  * 一次校验验证码
@@ -161,11 +184,36 @@ public class LoginWebConfiguration {
     }
 
     private ServerResponse oauthConsent(ServerRequest request) {
-        String authorizeUri = oauthFrontendEndpointResolver.apiUrl(buildPath("/oauth2/authorize"));
+        String authorizeUri = oauthFrontendEndpointResolver.apiUrl(buildPath("/auth/oauth2/authorize"));
         String frontendConsentUrl = oauthAuthorizationViewProviderManager
                 .resolve(request.param("client_id").orElse(null))
                 .consentPageUrl(request.params(), authorizeUri);
         return ServerResponse.temporaryRedirect(URI.create(frontendConsentUrl)).build();
+    }
+
+    private ServerResponse oauthDeviceVerification(ServerRequest request) {
+        String verificationUri = oauthFrontendEndpointResolver.apiUrl(
+                buildPath("/auth/oauth2/device_verification"));
+        String frontendUrl = oauthAuthorizationViewProviderManager
+                .resolve(null)
+                .deviceVerificationPageUrl(Collections.emptyMap(), verificationUri);
+        return ServerResponse.temporaryRedirect(URI.create(frontendUrl)).build();
+    }
+
+    private ServerResponse oauthDeviceConsent(ServerRequest request) {
+        String verificationUri = oauthFrontendEndpointResolver.apiUrl(
+                buildPath("/auth/oauth2/device_verification"));
+        String frontendUrl = oauthAuthorizationViewProviderManager
+                .resolve(request.param("client_id").orElse(null))
+                .deviceConsentPageUrl(request.params(), verificationUri);
+        return ServerResponse.temporaryRedirect(URI.create(frontendUrl)).build();
+    }
+
+    private ServerResponse oauthConsentContext(ServerRequest request) {
+        String clientId = AssertUtils.hasText(request.param("clientId").orElse(null), CommonErrorCode.E04004);
+        OAuthConsentContextVO context = FeignUtils.data(oauthClientApi.getConsentContext(
+                clientId, request.param("scope").orElse(null)));
+        return ServerResponse.ok().body(R.ok(context));
     }
 
     /**

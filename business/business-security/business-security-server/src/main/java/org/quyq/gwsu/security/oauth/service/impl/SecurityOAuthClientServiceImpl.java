@@ -7,8 +7,11 @@ import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
+import org.quyq.gwsu.common.cache.utils.CacheUtils;
 import org.quyq.gwsu.common.core.exception.BusinessException;
 import org.quyq.gwsu.common.core.utils.AssertUtils;
+import org.quyq.gwsu.common.security.api.oauth.OAuthClientCacheKeys;
+import org.quyq.gwsu.common.security.api.oauth.OAuthScopeConstants;
 import org.quyq.gwsu.common.security.api.oauth.dto.OAuthClientQueryDTO;
 import org.quyq.gwsu.common.security.api.oauth.dto.OAuthClientSaveDTO;
 import org.quyq.gwsu.common.security.api.oauth.enums.OAuthClientAuthenticationMethod;
@@ -17,17 +20,24 @@ import org.quyq.gwsu.common.security.api.oauth.enums.OAuthClientType;
 import org.quyq.gwsu.common.security.api.oauth.enums.OAuthGrantType;
 import org.quyq.gwsu.common.security.api.oauth.vo.OAuthClientInfoVO;
 import org.quyq.gwsu.common.security.api.oauth.vo.OAuthClientSecretVO;
+import org.quyq.gwsu.common.security.api.oauth.vo.OAuthConsentContextVO;
+import org.quyq.gwsu.common.security.api.oauth.vo.OAuthScopeVO;
 import org.quyq.gwsu.common.security.enums.AccountType;
 import org.quyq.gwsu.security.errcode.SecurityErrorCode;
 import org.quyq.gwsu.security.oauth.domain.SecurityOAuthClient;
 import org.quyq.gwsu.security.oauth.mapper.SecurityOAuthClientMapper;
 import org.quyq.gwsu.security.oauth.service.ISecurityOAuthClientService;
+import org.quyq.gwsu.security.oauth.service.ISecurityOAuthScopeService;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * OAuth 应用配置服务实现。
@@ -45,6 +55,9 @@ public class SecurityOAuthClientServiceImpl extends ServiceImpl<SecurityOAuthCli
     private static final long DEFAULT_AUTHORIZATION_CODE_TTL = 300L;
     private static final long DEFAULT_DEVICE_CODE_TTL = 300L;
 
+    private final ISecurityOAuthScopeService scopeService;
+    private final CacheUtils cacheUtils;
+
     @Override
     public OAuthClientInfoVO getInfoById(String id) {
         SecurityOAuthClient client = getById(id);
@@ -57,6 +70,41 @@ public class SecurityOAuthClientServiceImpl extends ServiceImpl<SecurityOAuthCli
                 .eq(SecurityOAuthClient::getClientId, clientId)
                 .eq(SecurityOAuthClient::getDeleted, false));
         return client == null ? null : client.toVo();
+    }
+
+    @Override
+    public OAuthConsentContextVO getConsentContext(String clientId, String requestedScope) {
+        SecurityOAuthClient client = getOne(new LambdaQueryWrapper<SecurityOAuthClient>()
+                .eq(SecurityOAuthClient::getClientId, clientId)
+                .eq(SecurityOAuthClient::getStatus, OAuthClientStatus.ENABLED)
+                .eq(SecurityOAuthClient::getDeleted, false));
+        if (client == null) {
+            throw new BusinessException(SecurityErrorCode.E08007);
+        }
+
+        List<String> configuredCodes = client.toVo().getScopes();
+        List<OAuthScopeVO> configuredScopes = scopeService.listByCodes(configuredCodes).stream()
+                .filter(scope -> scope.getStatus() == OAuthClientStatus.ENABLED)
+                .toList();
+        Map<String, OAuthScopeVO> scopeByCode = configuredScopes.stream()
+                .collect(Collectors.toMap(OAuthScopeVO::getScopeCode, Function.identity()));
+        boolean hasRequestedScope = StringUtils.hasText(requestedScope);
+        List<String> effectiveCodes = hasRequestedScope
+                ? List.of(requestedScope.trim().split("\\s+"))
+                : configuredScopes.stream().map(OAuthScopeVO::getScopeCode).toList();
+        AssertUtils.isTrue(!hasRequestedScope || scopeByCode.keySet().containsAll(effectiveCodes),
+                SecurityErrorCode.E08108);
+
+        List<OAuthScopeVO> effectiveScopes = effectiveCodes.stream()
+                .distinct()
+                .map(scopeByCode::get)
+                .toList();
+        OAuthConsentContextVO context = new OAuthConsentContextVO();
+        context.setClientId(client.getClientId());
+        context.setClientName(client.getClientName());
+        context.setScopes(effectiveScopes);
+        context.setCanAuthorize(!effectiveScopes.isEmpty());
+        return context;
     }
 
     @Override
@@ -91,6 +139,7 @@ public class SecurityOAuthClientServiceImpl extends ServiceImpl<SecurityOAuthCli
         }
 
         saveOrUpdate(entity);
+        evict(entity);
         return buildSecretVo(entity, plainSecret);
     }
 
@@ -105,7 +154,16 @@ public class SecurityOAuthClientServiceImpl extends ServiceImpl<SecurityOAuthCli
         String plainSecret = "cs_" + IdUtil.fastSimpleUUID();
         client.setClientSecret(encodeClientSecret(plainSecret));
         updateById(client);
+        evict(client);
         return buildSecretVo(client, plainSecret);
+    }
+
+    @Override
+    public Boolean removeClients(List<String> ids) {
+        List<SecurityOAuthClient> clients = listByIds(ids);
+        boolean removed = removeByIds(ids);
+        clients.forEach(this::evict);
+        return removed;
     }
 
     private String encodeClientSecret(String plainSecret) {
@@ -140,6 +198,17 @@ public class SecurityOAuthClientServiceImpl extends ServiceImpl<SecurityOAuthCli
         if (dto.getReuseRefreshTokens() == null) {
             dto.setReuseRefreshTokens(false);
         }
+        if (dto.getScopes() == null) {
+            dto.setScopes(List.of());
+        } else {
+            dto.setScopes(new LinkedHashSet<>(dto.getScopes()).stream().toList());
+        }
+        boolean hasUserAuthorizationGrant = dto.getAuthorizationGrantTypes() != null
+                && (dto.getAuthorizationGrantTypes().contains(OAuthGrantType.AUTHORIZATION_CODE)
+                || dto.getAuthorizationGrantTypes().contains(OAuthGrantType.DEVICE_CODE));
+        if (hasUserAuthorizationGrant && dto.getScopes().contains(OAuthScopeConstants.INHERIT_USER_PERMISSIONS)) {
+            dto.setRequireAuthorizationConsent(true);
+        }
         if (OAuthClientType.CONFIDENTIAL != dto.getClientType()) {
             dto.setRequireProofKey(true);
             dto.setClientAuthenticationMethods(List.of(OAuthClientAuthenticationMethod.NONE));
@@ -150,8 +219,8 @@ public class SecurityOAuthClientServiceImpl extends ServiceImpl<SecurityOAuthCli
         AssertUtils.hasText(dto.getClientName(), SecurityErrorCode.E08001);
         AssertUtils.notNull(dto.getClientType(), SecurityErrorCode.E08002);
         AssertUtils.notEmpty(dto.getAuthorizationGrantTypes(), SecurityErrorCode.E08003);
-        AssertUtils.notEmpty(dto.getScopes(), SecurityErrorCode.E08004);
         AssertUtils.notEmpty(dto.getClientAuthenticationMethods(), SecurityErrorCode.E08009);
+        validateScopes(dto.getAccountType(), dto.getScopes());
 
         boolean confidential = OAuthClientType.CONFIDENTIAL == dto.getClientType();
         boolean hasClientCredentials = dto.getAuthorizationGrantTypes().contains(OAuthGrantType.CLIENT_CREDENTIALS);
@@ -167,6 +236,16 @@ public class SecurityOAuthClientServiceImpl extends ServiceImpl<SecurityOAuthCli
                             || method == OAuthClientAuthenticationMethod.CLIENT_SECRET_POST);
             AssertUtils.isTrue(secretMethod, SecurityErrorCode.E08011);
         }
+    }
+
+    private void validateScopes(AccountType accountType, List<String> scopes) {
+        if (scopes.isEmpty()) {
+            return;
+        }
+        var availableCodes = scopeService.listOptions(accountType, OAuthClientStatus.ENABLED).stream()
+                .map(scope -> scope.getScopeCode())
+                .collect(java.util.stream.Collectors.toSet());
+        AssertUtils.isTrue(availableCodes.containsAll(scopes), SecurityErrorCode.E08108);
     }
 
     static void usePrimaryKeyAsClientId(SecurityOAuthClient entity) {
@@ -191,6 +270,9 @@ public class SecurityOAuthClientServiceImpl extends ServiceImpl<SecurityOAuthCli
         if (query.getClientType() != null) {
             wrapper.eq(SecurityOAuthClient::getClientType, query.getClientType());
         }
+        if (query.getAccountType() != null) {
+            wrapper.eq(SecurityOAuthClient::getAccountType, query.getAccountType());
+        }
         if (query.getStatus() != null) {
             wrapper.eq(SecurityOAuthClient::getStatus, query.getStatus());
         }
@@ -203,6 +285,14 @@ public class SecurityOAuthClientServiceImpl extends ServiceImpl<SecurityOAuthCli
         vo.setClientId(entity.getClientId());
         vo.setClientSecret(plainSecret);
         return vo;
+    }
+
+    private void evict(SecurityOAuthClient client) {
+        cacheUtils.withRebel(() -> {
+            cacheUtils.delete(OAuthClientCacheKeys.byId(client.getId()));
+            cacheUtils.delete(OAuthClientCacheKeys.byClientId(client.getClientId()));
+            return true;
+        });
     }
 
 }

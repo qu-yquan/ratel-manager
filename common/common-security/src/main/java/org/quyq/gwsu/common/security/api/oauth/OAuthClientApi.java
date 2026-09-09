@@ -6,7 +6,9 @@ import org.quyq.gwsu.common.core.domain.KeyValue;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.security.api.oauth.fallback.OAuthClientApiFallbackFactory;
 import org.quyq.gwsu.common.security.api.oauth.vo.OAuthClientInfoVO;
+import org.quyq.gwsu.common.security.api.oauth.vo.OAuthConsentContextVO;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 
@@ -27,6 +29,11 @@ public interface OAuthClientApi {
 
     @GetExchange("/clientId/{clientId}")
     R<OAuthClientInfoVO> getByClientId(@PathVariable("clientId") String clientId);
+
+    @GetExchange("/consent-context")
+    R<OAuthConsentContextVO> getConsentContext(
+            @RequestParam("clientId") String clientId,
+            @RequestParam(value = "scope", required = false) String scope);
 
     @GetExchange("/enums")
     R<Map<String, List<KeyValue<String, String>>>> enumOptions();

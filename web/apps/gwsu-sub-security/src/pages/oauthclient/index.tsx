@@ -9,6 +9,7 @@ import {
   Space,
   Switch,
   Table,
+  Tabs,
   Tag,
   type MenuProps,
 } from 'antd';
@@ -22,10 +23,13 @@ import {
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
+  SolutionOutlined,
 } from '@ant-design/icons';
 import {AuthGate, useAuth} from '@gwsu/core';
 import OAuthClientDetailDrawer from './components/OAuthClientDetailDrawer';
 import OAuthClientFormModal from './components/OAuthClientFormModal';
+import OAuthClientIntegrationGuideDrawer from './components/OAuthClientIntegrationGuideDrawer';
+import OAuthScopeManagement from './components/OAuthScopeManagement';
 import {toEnumOptions, toLabelMap} from './constants';
 import {useOAuthClient} from './hooks/useOAuthClient';
 import {PERM_ADD, PERM_EDIT, PERM_REMOVE, PERM_RESET_SECRET} from './permissionConstants';
@@ -35,6 +39,8 @@ import styles from './index.module.less';
 const OAuthClientPage: React.FC = () => {
   const {
     loading,
+    guideLoading,
+    apiBaseUrl,
     enumOptions,
     dataSource,
     total,
@@ -46,10 +52,12 @@ const OAuthClientPage: React.FC = () => {
     handleSaveOrUpdate,
     handleDelete,
     handleResetSecret,
+    handleLoadGuide,
   } = useOAuthClient();
 
   const canEdit = useAuth(PERM_EDIT);
   const canResetSecret = useAuth(PERM_RESET_SECRET);
+  const [activeTab, setActiveTab] = useState('clients');
   const [searchForm] = Form.useForm<OAuthClientQuery>();
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [detailVisible, setDetailVisible] = useState(false);
@@ -57,6 +65,8 @@ const OAuthClientPage: React.FC = () => {
   const [formVisible, setFormVisible] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [formData, setFormData] = useState<OAuthClientInfo | null>(null);
+  const [guideVisible, setGuideVisible] = useState(false);
+  const [guideData, setGuideData] = useState<OAuthClientInfo | null>(null);
   const clientTypeOptions = useMemo(() => toEnumOptions(enumOptions.clientTypes), [enumOptions.clientTypes]);
   const accountTypeOptions = useMemo(() => toEnumOptions(enumOptions.accountTypes), [enumOptions.accountTypes]);
   const statusOptions = useMemo(() => toEnumOptions(enumOptions.statuses), [enumOptions.statuses]);
@@ -104,6 +114,16 @@ const OAuthClientPage: React.FC = () => {
     setDetailData(record);
     setDetailVisible(true);
   }, []);
+
+  const handleViewGuide = useCallback(async (record: OAuthClientInfo) => {
+    if (!record.id) {
+      return;
+    }
+    setGuideData(null);
+    setGuideVisible(true);
+    const currentData = await handleLoadGuide(record.id);
+    setGuideData(currentData);
+  }, [handleLoadGuide]);
 
   const handleStatusChange = useCallback(async (record: OAuthClientInfo, checked: boolean) => {
     await handleSaveOrUpdate({...record, status: checked ? 'ENABLED' : 'DISABLED'});
@@ -165,7 +185,7 @@ const OAuthClientPage: React.FC = () => {
       render: (value: OAuthClientInfo['clientType']) => clientTypeLabels.get(value) || value,
     },
     {
-      title: '账号类型',
+      title: '账号体系',
       dataIndex: 'accountType',
       width: 110,
       render: (value: OAuthClientInfo['accountType']) => accountTypeLabels.get(value || '') || value || '-',
@@ -223,7 +243,7 @@ const OAuthClientPage: React.FC = () => {
     },
     {
       title: '操作',
-      width: 190,
+      width: 290,
       fixed: 'right',
       render: (_: unknown, record: OAuthClientInfo) => {
         const moreItems = getMoreItems(record);
@@ -231,6 +251,9 @@ const OAuthClientPage: React.FC = () => {
           <div className={styles.actionColumn}>
             <Button type="link" size="small" icon={<EyeOutlined/>} onClick={() => handleViewDetail(record)}>
               详情
+            </Button>
+            <Button type="link" size="small" icon={<SolutionOutlined/>} onClick={() => void handleViewGuide(record)}>
+              对接指南
             </Button>
             <Dropdown menu={{items: moreItems}} disabled={moreItems.length === 0}>
               <Button type="link" size="small" icon={<MoreOutlined/>}>
@@ -245,14 +268,13 @@ const OAuthClientPage: React.FC = () => {
 
   return (
     <div className={styles.oauthClientPage}>
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+        {key: 'clients', label: '应用列表'},
+        {key: 'scopes', label: 'Scope 管理'},
+      ]}/>
+      {activeTab === 'clients' && <>
       <div className={styles.searchBar}>
         <Form form={searchForm} layout="inline" component={false}>
-          <div className={styles.searchItem}>
-            <span className={styles.searchLabel}>客户端ID</span>
-            <Form.Item name="clientId" noStyle>
-              <Input placeholder="请输入客户端ID" allowClear style={{width: 180}} onPressEnter={handleSearch}/>
-            </Form.Item>
-          </div>
           <div className={styles.searchItem}>
             <span className={styles.searchLabel}>应用名称</span>
             <Form.Item name="clientName" noStyle>
@@ -263,6 +285,12 @@ const OAuthClientPage: React.FC = () => {
             <span className={styles.searchLabel}>客户端类型</span>
             <Form.Item name="clientType" noStyle>
               <Select placeholder="请选择" allowClear style={{width: 140}} options={clientTypeOptions}/>
+            </Form.Item>
+          </div>
+          <div className={styles.searchItem}>
+            <span className={styles.searchLabel}>账号体系</span>
+            <Form.Item name="accountType" noStyle>
+              <Select placeholder="请选择" allowClear style={{width: 140}} options={accountTypeOptions}/>
             </Form.Item>
           </div>
           <div className={styles.searchItem}>
@@ -302,7 +330,7 @@ const OAuthClientPage: React.FC = () => {
           loading={loading}
           columns={columns}
           dataSource={dataSource}
-          scroll={{x: 1610}}
+          scroll={{x: 1710}}
           rowSelection={{selectedRowKeys, onChange: setSelectedRowKeys}}
           pagination={{
             current: currentPage,
@@ -338,6 +366,26 @@ const OAuthClientPage: React.FC = () => {
         onClose={() => setFormVisible(false)}
         onSuccess={() => setFormVisible(false)}
       />
+      <OAuthClientIntegrationGuideDrawer
+        visible={guideVisible}
+        loading={guideLoading}
+        data={guideData}
+        apiBaseUrl={apiBaseUrl}
+        clientTypeLabels={clientTypeLabels}
+        accountTypeLabels={accountTypeLabels}
+        grantTypeLabels={grantTypeLabels}
+        authenticationMethodLabels={authenticationMethodLabels}
+        onClose={() => setGuideVisible(false)}
+      />
+      </>}
+      {activeTab === 'scopes' && (
+        <OAuthScopeManagement
+          accountTypeOptions={accountTypeOptions}
+          statusOptions={statusOptions}
+          accountTypeLabels={accountTypeLabels}
+          statusLabels={statusLabels}
+        />
+      )}
     </div>
   );
 };

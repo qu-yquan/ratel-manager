@@ -4,6 +4,11 @@
 
 import {get, post} from '@gwsu/core';
 
+const ANONYMOUS_REQUEST_OPTIONS = {
+    skipAuth: true,
+    skipUnauthorizedRedirect: true,
+};
+
 /**
  * 登录响应数据
  */
@@ -120,7 +125,8 @@ export interface HeadlessLoginParams {
 export async function login(params: LoginParams): Promise<LoginToken> {
     const response = await post<LoginToken>(
         `/system/auth/login/manager`,
-        params
+        params,
+        ANONYMOUS_REQUEST_OPTIONS,
     );
     return response.data;
 }
@@ -131,7 +137,8 @@ export async function login(params: LoginParams): Promise<LoginToken> {
 export async function getCaptcha(type?: CaptchaType): Promise<CaptchaGetResponse> {
     const response = await get<CaptchaGetResponse>(
         '/system/auth/captcha/get',
-        type ? {type} : undefined
+        type ? {type} : undefined,
+        ANONYMOUS_REQUEST_OPTIONS,
     );
     return response.data;
 }
@@ -140,7 +147,11 @@ export async function getCaptcha(type?: CaptchaType): Promise<CaptchaGetResponse
  * 一次校验验证码，成功后返回登录验证码Code
  */
 export async function checkCaptcha(params: CaptchaCheckParams): Promise<CaptchaCheckResponse> {
-    const response = await post<CaptchaCheckResponse>('/system/auth/captcha/check', params);
+    const response = await post<CaptchaCheckResponse>(
+        '/system/auth/captcha/check',
+        params,
+        ANONYMOUS_REQUEST_OPTIONS,
+    );
     return response.data;
 }
 
@@ -174,7 +185,11 @@ export function buildDingTalkCompleteParams(
 }
 
 export async function completeDingTalkLogin(params: DingTalkCompleteParams): Promise<LoginToken> {
-    const response = await post<LoginToken>('/system/auth/login/manager', params);
+    const response = await post<LoginToken>(
+        '/system/auth/login/manager',
+        params,
+        ANONYMOUS_REQUEST_OPTIONS,
+    );
     return response.data;
 }
 
@@ -185,7 +200,8 @@ export async function completeDingTalkLogin(params: DingTalkCompleteParams): Pro
 export async function headlessLogin(params: HeadlessLoginParams): Promise<LoginToken> {
     const response = await post<LoginToken>(
         `/system/auth/login/manager`,
-        params
+        params,
+        ANONYMOUS_REQUEST_OPTIONS,
     );
     return response.data;
 }
@@ -204,7 +220,11 @@ export interface DingTalkAuthUrl {
  * 获取钉钉快捷登录授权地址
  */
 export async function getDingTalkAuthUrl(): Promise<string> {
-    const response = await get<DingTalkAuthUrl>(`/system/auth/url/manager/dingtalk`);
+    const response = await get<DingTalkAuthUrl>(
+        `/system/auth/url/manager/dingtalk`,
+        undefined,
+        ANONYMOUS_REQUEST_OPTIONS,
+    );
     return response.data.url;
 }
 
@@ -220,6 +240,10 @@ export interface LoginConfigInfo {
  * 获取登录页基础配置信息（无需登录即可调用）
  */
 export async function getLoginConfigInfo(): Promise<LoginConfigInfo> {
-    const response = await get<LoginConfigInfo>('/system/auth/configInfo');
+    const response = await get<LoginConfigInfo>(
+        '/system/auth/configInfo',
+        undefined,
+        ANONYMOUS_REQUEST_OPTIONS,
+    );
     return response.data;
 }

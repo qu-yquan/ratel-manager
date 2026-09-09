@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import org.quyq.gwsu.common.core.domain.BaseDTO;
 import org.quyq.gwsu.common.security.api.oauth.enums.OAuthClientStatus;
 import org.quyq.gwsu.common.security.api.oauth.enums.OAuthClientType;
+import org.quyq.gwsu.common.security.enums.AccountType;
 
 /**
  * OAuth 应用查询条件。
@@ -25,6 +26,9 @@ public class OAuthClientQueryDTO extends BaseDTO {
 
     @Schema(description = "客户端类型")
     private OAuthClientType clientType;
+
+    @Schema(description = "账号类型")
+    private AccountType accountType;
 
     @Schema(description = "状态")
     private OAuthClientStatus status;

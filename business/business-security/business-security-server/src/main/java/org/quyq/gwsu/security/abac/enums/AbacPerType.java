@@ -18,7 +18,9 @@ package org.quyq.gwsu.security.abac.enums;
     /**
      * 菜单与API绑定关系变更
      */
-    MENU_API_CHANGE
+    MENU_API_CHANGE,
+    /** OAuth Scope绑定接口。 */
+    OAUTH_SCOPE
  ;
 
 }

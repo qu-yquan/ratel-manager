@@ -13,6 +13,10 @@ public class ManagerOAuthAuthorizationViewProvider extends AbstractOAuthAuthoriz
 
     private static final String CONSENT_PAGE_PATH = "/sub-system/oauth2/loginConsent";
 
+    private static final String DEVICE_VERIFICATION_PAGE_PATH = "/sub-system/oauth2/loginDeviceVerification";
+
+    private static final String DEVICE_CONSENT_PAGE_PATH = "/sub-system/oauth2/loginDeviceConsent";
+
     public ManagerOAuthAuthorizationViewProvider(OAuthFrontendEndpointResolver endpointResolver) {
         super(endpointResolver);
     }
@@ -30,6 +34,16 @@ public class ManagerOAuthAuthorizationViewProvider extends AbstractOAuthAuthoriz
     @Override
     protected String consentPagePath() {
         return CONSENT_PAGE_PATH;
+    }
+
+    @Override
+    protected String deviceVerificationPagePath() {
+        return DEVICE_VERIFICATION_PAGE_PATH;
+    }
+
+    @Override
+    protected String deviceConsentPagePath() {
+        return DEVICE_CONSENT_PAGE_PATH;
     }
 
 }

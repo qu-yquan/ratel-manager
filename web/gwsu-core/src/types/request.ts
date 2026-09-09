@@ -20,6 +20,10 @@ export interface RequestOptions {
   showError?: boolean;
   /** 是否显示加载状态 */
   showLoading?: boolean;
+  /** 是否跳过登录 Token 注入 */
+  skipAuth?: boolean;
+  /** 收到 401 时是否跳过全局登录失效处理 */
+  skipUnauthorizedRedirect?: boolean;
   /** 自定义错误提示信息 */
   errorMessage?: string;
 }

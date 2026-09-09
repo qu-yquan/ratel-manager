@@ -1,17 +1,31 @@
-import {useCallback, useRef, useState} from 'react';
-import {App} from 'antd';
+import React, {useCallback, useRef, useState} from 'react';
+import {App, Typography} from 'antd';
+import {fetchConfigsBatch} from '@gwsu/core';
 import type {OAuthClientEnums, OAuthClientInfo, OAuthClientQuery} from '../types';
 import {
   deleteOAuthClients,
+  getOAuthClientById,
   getOAuthClientEnums,
   getOAuthClientPage,
   resetOAuthClientSecret,
   saveOrUpdateOAuthClient,
 } from '../services/oauthClient';
 
+const renderSecretContent = (clientId: string, clientSecret: string) => (
+  React.createElement(
+    'div',
+    null,
+    React.createElement('div', null, `客户端ID：${clientId}`),
+    React.createElement('div', null, `客户端密钥：${clientSecret}`),
+    React.createElement(Typography.Text, {type: 'danger'}, '密钥只能查看一次，请妥善保管。'),
+  )
+);
+
 export function useOAuthClient() {
   const {message, modal} = App.useApp();
   const [loading, setLoading] = useState(false);
+  const [guideLoading, setGuideLoading] = useState(false);
+  const [apiBaseUrl, setApiBaseUrl] = useState(() => browserOrigin());
   const [dataSource, setDataSource] = useState<OAuthClientInfo[]>([]);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -41,6 +55,22 @@ export function useOAuthClient() {
     }
   }, []);
 
+  const fetchApiBaseUrl = useCallback(async () => {
+    try {
+      const configMap = await fetchConfigsBatch(['basic_url_config']);
+      const configValue = configMap.basic_url_config?.configValue;
+      if (!configValue) {
+        return;
+      }
+      const config = JSON.parse(configValue) as {apiBaseUrl?: string};
+      if (config.apiBaseUrl?.trim()) {
+        setApiBaseUrl(config.apiBaseUrl.trim());
+      }
+    } catch {
+      // 配置不可用时使用当前站点地址生成指南。
+    }
+  }, []);
+
   const fetchPage = useCallback(async (query?: OAuthClientQuery) => {
     if (query) {
       queryRef.current = query;
@@ -67,10 +97,22 @@ export function useOAuthClient() {
   const ensureInitialized = useCallback(() => {
     if (!initializedRef.current) {
       initializedRef.current = true;
-      fetchEnums();
-      fetchPage();
+      void fetchEnums();
+      void fetchApiBaseUrl();
+      void fetchPage();
     }
-  }, [fetchEnums, fetchPage]);
+  }, [fetchApiBaseUrl, fetchEnums, fetchPage]);
+
+  const handleLoadGuide = useCallback(async (id: string) => {
+    setGuideLoading(true);
+    try {
+      return await getOAuthClientById(id);
+    } catch {
+      return null;
+    } finally {
+      setGuideLoading(false);
+    }
+  }, []);
 
   const handlePageChange = useCallback((page: number, size: number) => {
     fetchPage({...queryRef.current, pageNum: page, pageSize: size});
@@ -83,7 +125,7 @@ export function useOAuthClient() {
       if (secret?.clientSecret) {
         modal.info({
           title: '客户端凭据',
-          content: `客户端ID：${secret.clientId}\n客户端密钥：${secret.clientSecret}`,
+          content: renderSecretContent(secret.clientId, secret.clientSecret),
         });
       }
       await fetchPage();
@@ -109,7 +151,7 @@ export function useOAuthClient() {
       const secret = await resetOAuthClientSecret(id);
       modal.info({
         title: '新客户端密钥',
-        content: `客户端ID：${secret.clientId}\n新客户端密钥：${secret.clientSecret}`,
+        content: renderSecretContent(secret.clientId, secret.clientSecret),
       });
       await fetchPage();
       return true;
@@ -120,6 +162,8 @@ export function useOAuthClient() {
 
   return {
     loading,
+    guideLoading,
+    apiBaseUrl,
     enumOptions,
     dataSource,
     total,
@@ -131,5 +175,10 @@ export function useOAuthClient() {
     handleSaveOrUpdate,
     handleDelete,
     handleResetSecret,
+    handleLoadGuide,
   };
+}
+
+function browserOrigin(): string {
+  return typeof window === 'undefined' ? '' : window.location.origin;
 }

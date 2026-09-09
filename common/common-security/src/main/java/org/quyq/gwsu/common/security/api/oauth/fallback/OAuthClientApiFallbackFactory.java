@@ -4,6 +4,7 @@ import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.core.domain.KeyValue;
 import org.quyq.gwsu.common.security.api.oauth.OAuthClientApi;
 import org.quyq.gwsu.common.security.api.oauth.vo.OAuthClientInfoVO;
+import org.quyq.gwsu.common.security.api.oauth.vo.OAuthConsentContextVO;
 import org.quyq.gwsu.common.api.fallback.FallbackFactory;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +29,11 @@ public class OAuthClientApiFallbackFactory implements FallbackFactory<OAuthClien
 
             @Override
             public R<OAuthClientInfoVO> getByClientId(String clientId) {
+                return R.fail("OAuth应用配置服务不可用: " + cause.getMessage());
+            }
+
+            @Override
+            public R<OAuthConsentContextVO> getConsentContext(String clientId, String scope) {
                 return R.fail("OAuth应用配置服务不可用: " + cause.getMessage());
             }
 

@@ -11,9 +11,9 @@ import lombok.Getter;
 @Getter
 public enum AccountType {
 
-    MANAGER("管理人员"),
+    MANAGER("管理端"),
 
-    USER("普通用户");
+    USER("官网端");
 
     private final String msg;
 

@@ -67,6 +67,15 @@ public enum SecurityErrorCode implements ReturnCode {
     E08010("公共客户端必须启用PKCE"),
     E08011("机密服务端应用必须启用客户端密钥认证方式"),
     E08012("OAuth客户端ID已存在"),
+    E08101("Scope编码格式不正确"),
+    E08102("Scope编码已存在"),
+    E08103("Scope不存在"),
+    E08104("Scope名称不能为空"),
+    E08105("Scope账号体系不能为空"),
+    E08106("Scope编码和账号体系创建后不可修改"),
+    E08107("Scope绑定了不存在的接口资源"),
+    E08108("客户端只能配置相同账号体系且已启用的Scope"),
+    E08109("该Scope编码为系统保留编码"),
 
     ;
 

@@ -1087,3 +1087,48 @@ COMMENT ON COLUMN security_oauth_client.delete_time IS '删除时间';
 CREATE UNIQUE INDEX uk_security_oauth_client_client_id ON security_oauth_client (client_id) WHERE deleted = 0;
 CREATE INDEX idx_security_oauth_client_name ON security_oauth_client (client_name) WHERE deleted = 0;
 CREATE INDEX idx_security_oauth_client_status ON security_oauth_client (status);
+
+CREATE TABLE security_oauth_scope
+(
+    id           VARCHAR(24) PRIMARY KEY,
+    scope_code   VARCHAR(128) NOT NULL,
+    scope_name   VARCHAR(128) NOT NULL,
+    description  VARCHAR(500) DEFAULT NULL,
+    account_type VARCHAR(32) NOT NULL,
+    status       VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+    tenant_id    VARCHAR(50) DEFAULT NULL,
+    create_op    VARCHAR(50) DEFAULT NULL,
+    create_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    modify_op    VARCHAR(50) DEFAULT NULL,
+    modify_time  TIMESTAMP DEFAULT NULL,
+    deleted      INT2 NOT NULL DEFAULT 0,
+    delete_op    VARCHAR(50) DEFAULT NULL,
+    delete_time  TIMESTAMP DEFAULT NULL
+);
+
+COMMENT ON TABLE security_oauth_scope IS 'OAuth Scope权限组';
+COMMENT ON COLUMN security_oauth_scope.scope_code IS 'Scope完整编码';
+COMMENT ON COLUMN security_oauth_scope.scope_name IS 'Scope中文名称';
+COMMENT ON COLUMN security_oauth_scope.description IS '授权页中文描述';
+CREATE UNIQUE INDEX uk_security_oauth_scope_code ON security_oauth_scope (scope_code) WHERE deleted = 0;
+CREATE INDEX idx_security_oauth_scope_account_status ON security_oauth_scope (account_type, status) WHERE deleted = 0;
+
+CREATE TABLE security_oauth_scope_resource
+(
+    id              VARCHAR(24) PRIMARY KEY,
+    scope_id        VARCHAR(24) NOT NULL,
+    api_resource_id VARCHAR(64) NOT NULL,
+    tenant_id       VARCHAR(50) DEFAULT NULL,
+    create_op       VARCHAR(50) DEFAULT NULL,
+    create_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    modify_op       VARCHAR(50) DEFAULT NULL,
+    modify_time     TIMESTAMP DEFAULT NULL,
+    deleted         INT2 NOT NULL DEFAULT 0,
+    delete_op       VARCHAR(50) DEFAULT NULL,
+    delete_time     TIMESTAMP DEFAULT NULL,
+    CONSTRAINT fk_oauth_scope_resource_scope FOREIGN KEY (scope_id) REFERENCES security_oauth_scope (id) ON DELETE CASCADE
+);
+
+COMMENT ON TABLE security_oauth_scope_resource IS 'OAuth Scope与接口资源关联表';
+CREATE UNIQUE INDEX uk_oauth_scope_resource ON security_oauth_scope_resource (scope_id, api_resource_id);
+CREATE INDEX idx_oauth_scope_resource_api ON security_oauth_scope_resource (api_resource_id);

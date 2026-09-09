@@ -1,0 +1,127 @@
+.guideContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summary {
+  :global(.ant-typography) {
+    margin-bottom: 0;
+  }
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.controlItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 280px;
+
+  :global(.ant-select) {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.controlLabel {
+  flex: 0 0 auto;
+  color: var(--text-secondary-color);
+  font-size: 13px;
+}
+
+.sectionContent {
+  min-width: 0;
+}
+
+.stepList {
+  margin: 0;
+  padding-left: 24px;
+}
+
+.stepItem {
+  margin-bottom: 24px;
+
+  :global(.ant-typography) {
+    margin-top: 0;
+  }
+}
+
+.requestSection {
+  margin-top: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.codeExamples {
+  margin: 12px 0 16px;
+}
+
+.codeExample {
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+
+  .codeHeader {
+    border-top: 0;
+  }
+}
+
+.requestHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--surface-color);
+}
+
+.codeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 4px 8px 4px 12px;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-secondary-color);
+  background: var(--surface-color);
+  font-size: 13px;
+
+  :global(.ant-typography) {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+}
+
+.codeBlock {
+  margin: 0;
+  padding: 14px;
+  overflow: auto;
+  color: var(--text-color);
+  background: var(--background-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre;
+}
+
+@media (max-width: 576px) {
+  .controlItem {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .requestHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -15,6 +15,8 @@ public abstract class AbstractOAuthAuthorizationViewProvider implements OAuthAut
 
     private static final String AUTHORIZE_URI_PARAMETER = "authorize_uri";
 
+    private static final String DEVICE_VERIFICATION_URI_PARAMETER = "device_verification_uri";
+
     private final OAuthFrontendEndpointResolver endpointResolver;
 
     protected AbstractOAuthAuthorizationViewProvider(OAuthFrontendEndpointResolver endpointResolver) {
@@ -33,8 +35,30 @@ public abstract class AbstractOAuthAuthorizationViewProvider implements OAuthAut
         return endpointResolver.frontendUrl(consentPagePath(), params);
     }
 
+    @Override
+    public final String deviceVerificationPageUrl(
+            Map<String, List<String>> queryParams,
+            String deviceVerificationUri) {
+        Map<String, List<String>> params = new LinkedHashMap<>(queryParams);
+        params.put(DEVICE_VERIFICATION_URI_PARAMETER, List.of(deviceVerificationUri));
+        return endpointResolver.frontendUrl(deviceVerificationPagePath(), params);
+    }
+
+    @Override
+    public final String deviceConsentPageUrl(
+            Map<String, List<String>> queryParams,
+            String deviceVerificationUri) {
+        Map<String, List<String>> params = new LinkedHashMap<>(queryParams);
+        params.put(DEVICE_VERIFICATION_URI_PARAMETER, List.of(deviceVerificationUri));
+        return endpointResolver.frontendUrl(deviceConsentPagePath(), params);
+    }
+
     protected abstract String loginPagePath();
 
     protected abstract String consentPagePath();
+
+    protected abstract String deviceVerificationPagePath();
+
+    protected abstract String deviceConsentPagePath();
 
 }

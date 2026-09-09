@@ -17,21 +17,33 @@ export function resolveOAuthRedirect(search: string): string | null {
 }
 
 export function resolveAuthorizeUri(search: string): string {
-    const authorizeUri = new URLSearchParams(search).get('authorize_uri');
-    if (!authorizeUri) {
-        return '/api/system/oauth2/authorize';
+    return resolveHttpUrlParameter(search, 'authorize_uri', '/api/system/auth/oauth2/authorize');
+}
+
+export function resolveDeviceVerificationUri(search: string): string {
+    return resolveHttpUrlParameter(
+        search,
+        'device_verification_uri',
+        '/api/system/auth/oauth2/device_verification',
+    );
+}
+
+function resolveHttpUrlParameter(search: string, parameter: string, fallback: string): string {
+    const value = new URLSearchParams(search).get(parameter);
+    if (!value) {
+        return fallback;
     }
     try {
-        const url = new URL(authorizeUri, browserOrigin());
+        const url = new URL(value, browserOrigin());
         if (url.protocol === 'http:' || url.protocol === 'https:') {
             return url.href;
         }
     } catch {
-        if (authorizeUri.startsWith('/') && !authorizeUri.startsWith('//')) {
-            return authorizeUri;
+        if (value.startsWith('/') && !value.startsWith('//')) {
+            return value;
         }
     }
-    return '/api/system/oauth2/authorize';
+    return fallback;
 }
 
 export function parseOAuthAuthorizeScopes(scope: string | null): string[] {
