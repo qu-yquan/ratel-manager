@@ -1,8 +1,10 @@
-# OAuth2 JSON 接口统一响应设计
+# OAuth2 统一响应与授权页面设计
 
 ## 背景与目标
 
 Spring Authorization Server 的 OAuth2 端点由安全过滤器直接输出响应，不经过普通 Controller，因此当前 JSON 是 OAuth2 标准对象，没有项目统一的 `R` 包装。
+
+现有授权页面还存在三个关联问题：公共接口请求会携带浏览器中已过期的管理端 Token，导致全局拦截器跳转到管理端登录页；未传 `scope` 时无法展示客户端已配置的权限；页面只能展示客户端 ID，不能展示应用名称。
 
 本次将 OAuth2 JSON 接口的成功和异常响应统一为：
 
@@ -99,6 +101,58 @@ Token 成功示例：
 
 Spring Authorization Server 没有暴露 JWKS 响应处理器。使用仅匹配配置中 JWKS 精确路径的响应包装过滤器，捕获成功或异常 JSON 后包装。过滤器必须跳过非 JSON、重定向和已经包装的响应。
 
+## 授权页面上下文
+
+### 上下文接口
+
+安全中心新增免登录查询接口：
+
+```http
+GET /security/oauth/client/consent-context?clientId={clientId}&scope={scope1 scope2}
+```
+
+响应 `data` 包含：
+
+```json
+{
+  "clientId": "2095864182254768128",
+  "clientName": "示例应用",
+  "scopes": [
+    {
+      "scopeCode": "manager.user.info",
+      "scopeName": "读取用户信息",
+      "description": "读取当前用户的基础信息"
+    }
+  ],
+  "canAuthorize": true
+}
+```
+
+接口规则：
+
+- 校验客户端存在且状态为启用。
+- 请求携带 `scope` 时，只返回该客户端已配置且本次申请的 Scope；非法 Scope 按 OAuth 参数错误处理，不得扩大权限范围。
+- 请求未携带 `scope` 时，以客户端已配置的全部 Scope 作为本次待授权权限。
+- 客户端没有配置任何 Scope 时返回空列表和 `canAuthorize=false`。
+- Scope 名称和中文描述由后端统一返回，包括内置 `inherit_user_permissions`。
+
+### 过期 Token 隔离
+
+`@gwsu/core` 请求配置增加两个可选能力：
+
+- `skipAuth`：请求拦截器不附加本地管理端 `Authorization` 请求头。
+- `skipUnauthorizedRedirect`：响应为 `401` 时不触发全局 `TOKEN_EXPIRED` 事件和登录页跳转，由调用页面自行展示错误。
+
+授权上下文请求同时启用这两个选项。该接口不依赖管理端 Token，因此浏览器残留过期 Token 不会劫持 OAuth 登录或授权页面；同时不主动清空管理端本地状态。
+
+### 授权页面行为
+
+- 标题和说明展示后端返回的 `clientName`，不再把 `clientId` 作为应用名称。
+- 页面优先展示上下文接口返回的 Scope。
+- 原授权请求未传 `scope` 时，展示客户端配置的全部 Scope，并将用户最终勾选的 Scope 提交给授权端点。
+- 客户端未配置任何 Scope 时，仅展示“未配置任何授权权限，请联系管理员”，同时隐藏“同意”和“拒绝”按钮，阻止继续授权。
+- 上下文加载失败时留在当前页面展示错误，不跳转管理端登录页，也不展示可提交按钮。
+
 ## 客户端影响
 
 这是有意的非标准外层协议变更。第三方客户端不能再直接从响应根节点读取 `access_token`、`active` 或 JWK Set，必须从 `data` 读取。
@@ -119,9 +173,13 @@ Spring Authorization Server 没有暴露 JWKS 响应处理器。使用仅匹配�
 - `/authorize` 和 `/device_verification` 的跳转或 HTML 不被包装。
 - 现有 Token 登录态写入和 Scope/角色继承测试继续通过。
 - 对接指南页面和静态 HTML 中的响应示例与新契约一致。
+- 授权上下文请求不携带本地 Token，`401` 不触发全局登录跳转。
+- 授权页展示应用名称和后端返回的中文 Scope 信息。
+- 未传 Scope 时回退到客户端全部配置；未配置权限时隐藏同意和拒绝按钮。
+- 客户端请求未分配的 Scope 时不能通过上下文接口扩大权限。
 
 ## 非目标
 
-- 不修改 OAuth2 请求参数和授权流程。
+- 不新增或重命名 OAuth2 标准请求参数，不改变授权码、设备码等协议流程。
 - 不包装授权页重定向、HTML 和表单响应。
 - 不为旧的无包装响应提供兼容开关；当前没有第三方调用方。
