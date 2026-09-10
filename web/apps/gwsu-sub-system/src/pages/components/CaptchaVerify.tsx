@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useLayoutEffect, useRef, useState} from 'react';
 import {App, Modal} from 'antd';
 import CryptoJS from 'crypto-js';
 import {
@@ -67,6 +67,8 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}
     const trackRef = useRef<HTMLDivElement | null>(null);
     const captchaImageRef = useRef<HTMLImageElement | null>(null);
     const jigsawImageRef = useRef<HTMLImageElement | null>(null);
+    const openRef = useRef(false);
+    const sessionSequenceRef = useRef(0);
     const requestSequenceRef = useRef(0);
 
     const resetCaptchaState = useCallback(() => {
@@ -79,10 +81,21 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}
         setClickPoints([]);
     }, []);
 
-    const refreshCaptcha = useCallback(async () => {
+    const isCurrentRequest = useCallback((sessionSequence: number, requestSequence: number) => (
+        openRef.current
+        && sessionSequence === sessionSequenceRef.current
+        && requestSequence === requestSequenceRef.current
+    ), []);
+
+    const refreshCaptcha = useCallback(async (sessionSequence = sessionSequenceRef.current) => {
+        if (!openRef.current || sessionSequence !== sessionSequenceRef.current) {
+            return;
+        }
+
         const requestSequence = ++requestSequenceRef.current;
         setCaptcha(null);
         setLoading(true);
+        setChecking(false);
         setSliderX(0);
         sliderXRef.current = 0;
         setDragging(false);
@@ -90,29 +103,39 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}
 
         try {
             const data = await getCaptcha();
-            if (requestSequence === requestSequenceRef.current) {
+            if (isCurrentRequest(sessionSequence, requestSequence)) {
                 setCaptcha(data);
             }
         } catch {
-            if (requestSequence === requestSequenceRef.current) {
+            if (isCurrentRequest(sessionSequence, requestSequence)) {
                 setCaptcha(null);
                 message.error('验证码加载失败，请稍后重试');
             }
         } finally {
-            if (requestSequence === requestSequenceRef.current) {
+            if (isCurrentRequest(sessionSequence, requestSequence)) {
                 setLoading(false);
             }
         }
-    }, [message]);
+    }, [isCurrentRequest, message]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
+        const sessionSequence = ++sessionSequenceRef.current;
+        requestSequenceRef.current += 1;
+        openRef.current = open;
+
         if (open) {
-            void refreshCaptcha();
-            return;
+            void refreshCaptcha(sessionSequence);
+        } else {
+            resetCaptchaState();
         }
 
-        requestSequenceRef.current += 1;
-        resetCaptchaState();
+        return () => {
+            if (sessionSequence === sessionSequenceRef.current) {
+                openRef.current = false;
+                sessionSequenceRef.current += 1;
+                requestSequenceRef.current += 1;
+            }
+        };
     }, [open, refreshCaptcha, resetCaptchaState]);
 
     const captchaData: CaptchaData | null = captcha?.data ?? null;
@@ -120,6 +143,9 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}
     const requiredClickCount = captchaData?.wordList?.length ?? 0;
 
     const submitCaptchaCheck = useCallback(async (plainPointJson: string) => {
+        if (!openRef.current) {
+            return;
+        }
         if (!captchaData?.captchaId) {
             message.warning('请先获取验证码');
             return;
@@ -127,6 +153,8 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}
 
         const pointJson = encryptText(plainPointJson, captchaData.secretKey);
         const captchaCode = buildCaptchaCode(captchaData, plainPointJson);
+        const sessionSequence = sessionSequenceRef.current;
+        const requestSequence = ++requestSequenceRef.current;
         setChecking(true);
         try {
             const result = await checkCaptcha({
@@ -134,18 +162,25 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}
                 captchaCode,
                 pointJson,
             });
+            if (!isCurrentRequest(sessionSequence, requestSequence)) {
+                return;
+            }
             onSuccess({
                 captchaId: result.captchaId,
                 captchaCode: result.captchaCode,
             });
             message.success('验证码校验通过');
         } catch {
-            await refreshCaptcha();
+            if (isCurrentRequest(sessionSequence, requestSequence)) {
+                await refreshCaptcha(sessionSequence);
+            }
         } finally {
-            setChecking(false);
-            setDragging(false);
+            if (isCurrentRequest(sessionSequence, requestSequence)) {
+                setChecking(false);
+                setDragging(false);
+            }
         }
-    }, [captchaData, message, onSuccess, refreshCaptcha]);
+    }, [captchaData, isCurrentRequest, message, onSuccess, refreshCaptcha]);
 
     const handleSliderPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
         if (!captchaData || checking) {
