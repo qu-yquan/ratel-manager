@@ -13,7 +13,7 @@ export default function OAuth2Login() {
     const [password, setPassword] = useState('admin123');
     const [loading, setLoading] = useState(false);
     const [projectName, setProjectName] = useState('Ratel');
-    const [captchaPass, setCaptchaPass] = useState<CaptchaPass | null>(null);
+    const [captchaOpen, setCaptchaOpen] = useState(false);
 
     useEffect(() => {
         getLoginConfigInfo().then((info) => {
@@ -37,16 +37,23 @@ export default function OAuth2Login() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (loading) return;
+
         if (!username.trim() || !password.trim()) {
             message.warning('请输入用户名和密码');
             return;
         }
 
-        if (!captchaPass) {
-            message.warning('请先完成安全验证');
+        if (!redirect) {
+            message.error('OAuth授权请求已失效，请从应用重新发起授权');
             return;
         }
 
+        setCaptchaOpen(true);
+    };
+
+    const handleCaptchaSuccess = async (captchaPass: CaptchaPass) => {
+        setCaptchaOpen(false);
         setLoading(true);
 
         try {
@@ -61,7 +68,7 @@ export default function OAuth2Login() {
 
             handleLoginSuccess();
         } catch {
-            setCaptchaPass(null);
+            // 错误提示已在 request.ts 中统一处理
         } finally {
             setLoading(false);
         }
@@ -124,8 +131,6 @@ export default function OAuth2Login() {
                         />
                     </div>
 
-                    <CaptchaVerify value={captchaPass} onChange={setCaptchaPass}/>
-
                     <button
                         type="submit"
                         className={`${styles.button} ${loading ? styles.buttonLoading : ''}`}
@@ -143,6 +148,13 @@ export default function OAuth2Login() {
                     </button>
                 </form>
             </div>
+            <CaptchaVerify
+                open={captchaOpen}
+                onCancel={() => setCaptchaOpen(false)}
+                onSuccess={(captchaPass) => {
+                    void handleCaptchaSuccess(captchaPass);
+                }}
+            />
         </div>
     );
 }
