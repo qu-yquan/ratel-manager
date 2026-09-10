@@ -1,10 +1,15 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {App} from 'antd';
 import {encryptPassword} from '@gwsu/core';
 import {getLoginConfigInfo, login, TerminalType} from '../../services/login';
 import CaptchaVerify, {CaptchaPass} from '../components/CaptchaVerify';
 import {resolveOAuthRedirect} from './utils';
 import styles from '../login.module.less';
+
+interface PendingCredentials {
+    username: string;
+    encryptedPassword: string;
+}
 
 export default function OAuth2Login() {
     const {message} = App.useApp();
@@ -14,6 +19,7 @@ export default function OAuth2Login() {
     const [loading, setLoading] = useState(false);
     const [projectName, setProjectName] = useState('Ratel');
     const [captchaOpen, setCaptchaOpen] = useState(false);
+    const pendingCredentialsRef = useRef<PendingCredentials | null>(null);
 
     useEffect(() => {
         getLoginConfigInfo().then((info) => {
@@ -34,34 +40,50 @@ export default function OAuth2Login() {
         window.location.href = redirect;
     }, [message, redirect]);
 
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
 
         if (loading) return;
 
-        if (!username.trim() || !password.trim()) {
+        const normalizedUsername = username.trim();
+        if (!normalizedUsername || !password.trim()) {
+            pendingCredentialsRef.current = null;
+            setCaptchaOpen(false);
             message.warning('请输入用户名和密码');
             return;
         }
 
         if (!redirect) {
+            pendingCredentialsRef.current = null;
+            setCaptchaOpen(false);
             message.error('OAuth授权请求已失效，请从应用重新发起授权');
             return;
         }
 
+        if (captchaOpen) return;
+
+        pendingCredentialsRef.current = {
+            username: normalizedUsername,
+            encryptedPassword: encryptPassword(password),
+        };
         setCaptchaOpen(true);
     };
 
     const handleCaptchaSuccess = async (captchaPass: CaptchaPass) => {
+        const pendingCredentials = pendingCredentialsRef.current;
+        pendingCredentialsRef.current = null;
         setCaptchaOpen(false);
+
+        if (!pendingCredentials) return;
+
         setLoading(true);
 
         try {
             await login({
                 type: 'password',
                 terminal: TerminalType.WEB,
-                username: username.trim(),
-                password: encryptPassword(password),
+                username: pendingCredentials.username,
+                password: pendingCredentials.encryptedPassword,
                 captchaId: captchaPass.captchaId,
                 captchaCode: captchaPass.captchaCode,
             });
@@ -72,6 +94,11 @@ export default function OAuth2Login() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleCaptchaCancel = () => {
+        pendingCredentialsRef.current = null;
+        setCaptchaOpen(false);
     };
 
     return (
@@ -150,7 +177,7 @@ export default function OAuth2Login() {
             </div>
             <CaptchaVerify
                 open={captchaOpen}
-                onCancel={() => setCaptchaOpen(false)}
+                onCancel={handleCaptchaCancel}
                 onSuccess={(captchaPass) => {
                     void handleCaptchaSuccess(captchaPass);
                 }}
