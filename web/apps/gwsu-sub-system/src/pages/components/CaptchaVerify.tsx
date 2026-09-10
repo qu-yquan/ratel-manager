@@ -3,6 +3,7 @@ import {App, Modal} from 'antd';
 import CryptoJS from 'crypto-js';
 import {
     CaptchaData,
+    CaptchaCheckResponse,
     CaptchaGetResponse,
     CaptchaType,
     checkCaptcha,
@@ -58,6 +59,7 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}
     const {message} = App.useApp();
     const [captcha, setCaptcha] = useState<CaptchaGetResponse | null>(null);
     const [loading, setLoading] = useState(false);
+    const [loadFailed, setLoadFailed] = useState(false);
     const [checking, setChecking] = useState(false);
     const [sliderX, setSliderX] = useState(0);
     const [dragging, setDragging] = useState(false);
@@ -74,6 +76,7 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}
     const resetCaptchaState = useCallback(() => {
         setCaptcha(null);
         setLoading(false);
+        setLoadFailed(false);
         setChecking(false);
         setSliderX(0);
         sliderXRef.current = 0;
@@ -95,6 +98,7 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}
         const requestSequence = ++requestSequenceRef.current;
         setCaptcha(null);
         setLoading(true);
+        setLoadFailed(false);
         setChecking(false);
         setSliderX(0);
         sliderXRef.current = 0;
@@ -109,6 +113,7 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}
         } catch {
             if (isCurrentRequest(sessionSequence, requestSequence)) {
                 setCaptcha(null);
+                setLoadFailed(true);
                 message.error('验证码加载失败，请稍后重试');
             }
         } finally {
@@ -156,24 +161,30 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}
         const sessionSequence = sessionSequenceRef.current;
         const requestSequence = ++requestSequenceRef.current;
         setChecking(true);
+        let result: CaptchaCheckResponse;
         try {
-            const result = await checkCaptcha({
+            result = await checkCaptcha({
                 captchaId: captchaData.captchaId,
                 captchaCode,
                 pointJson,
             });
-            if (!isCurrentRequest(sessionSequence, requestSequence)) {
-                return;
+        } catch {
+            if (isCurrentRequest(sessionSequence, requestSequence)) {
+                await refreshCaptcha(sessionSequence);
             }
+            return;
+        }
+
+        if (!isCurrentRequest(sessionSequence, requestSequence)) {
+            return;
+        }
+
+        try {
             onSuccess({
                 captchaId: result.captchaId,
                 captchaCode: result.captchaCode,
             });
             message.success('验证码校验通过');
-        } catch {
-            if (isCurrentRequest(sessionSequence, requestSequence)) {
-                await refreshCaptcha(sessionSequence);
-            }
         } finally {
             if (isCurrentRequest(sessionSequence, requestSequence)) {
                 setChecking(false);
@@ -275,8 +286,10 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}
                     </button>
                 </div>
 
-                {loading || !captchaData ? (
-                    <div className={styles.captchaLoading}>验证码加载中...</div>
+                {loading || loadFailed || !captchaData ? (
+                    <div className={styles.captchaLoading} aria-live="polite">
+                        {loadFailed ? '验证码加载失败，请点击换一张重试' : '验证码加载中...'}
+                    </div>
                 ) : isBlockPuzzle ? (
                     <>
                         <div className={styles.captchaImageBox}>
