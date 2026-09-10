@@ -1,5 +1,19 @@
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import type { AIChatPanelMode, AIChatPanelPosition, AIChatPanelState, AIChatViewMode, ViewConfig } from './types';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  ReactNode,
+} from 'react';
+import type {
+  AIChatPanelMode,
+  AIChatPanelPosition,
+  AIChatPanelState,
+  AIChatViewMode,
+  AIChatVisiblePanelMode,
+  ViewConfig,
+} from './types';
 import { fetchConfigsBatch } from '@gwsu/core';
 import type { ConfigVO } from '@gwsu/core';
 import { useViewConfigStore } from '@/stores/viewConfig';
@@ -9,6 +23,7 @@ const VIEW_CONFIG_KEY = 'assistant_view_config';
 
 const DEFAULT_PANEL_STATE: AIChatPanelState = {
   mode: 'fixed',
+  lastVisibleMode: 'fixed',
   position: { x: 20, y: 80 },
   width: 420,
   height: 520,
@@ -20,6 +35,12 @@ const DEFAULT_VIEW_CONFIG: ViewConfig = {
   showHistory: true,
   enableDragMode: false,
 };
+
+function isVisiblePanelMode(
+  mode: AIChatPanelMode | undefined,
+): mode is AIChatVisiblePanelMode {
+  return mode === 'fixed' || mode === 'draggable';
+}
 
 /**
  * 面板状态上下文值
@@ -71,7 +92,14 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_PANEL_STATE);
       if (saved) {
-        return { ...DEFAULT_PANEL_STATE, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved) as Partial<AIChatPanelState>;
+        const lastVisibleMode = isVisiblePanelMode(parsed.lastVisibleMode)
+          ? parsed.lastVisibleMode
+          : isVisiblePanelMode(parsed.mode)
+          ? parsed.mode
+          : DEFAULT_PANEL_STATE.lastVisibleMode;
+
+        return { ...DEFAULT_PANEL_STATE, ...parsed, lastVisibleMode };
       }
     } catch {
       // ignore
@@ -94,7 +122,9 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
         if (info?.configValue) {
           try {
             const parsed = JSON.parse(info.configValue) as Partial<ViewConfig>;
-            useViewConfigStore.getState().setViewConfig({ ...DEFAULT_VIEW_CONFIG, ...parsed });
+            useViewConfigStore
+              .getState()
+              .setViewConfig({ ...DEFAULT_VIEW_CONFIG, ...parsed });
           } catch {
             // 解析失败使用默认值
           }
@@ -112,7 +142,16 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
 
   // 设置面板模式
   const setPanelMode = useCallback((mode: AIChatPanelMode) => {
-    setPanelState((prev) => ({ ...prev, mode }));
+    setPanelState((prev) => ({
+      ...prev,
+      mode,
+      lastVisibleMode:
+        mode === 'hidden'
+          ? isVisiblePanelMode(prev.mode)
+            ? prev.mode
+            : prev.lastVisibleMode
+          : mode,
+    }));
   }, []);
 
   // 设置面板位置
@@ -120,12 +159,15 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
     setPanelState((prev) => ({ ...prev, position }));
   }, []);
 
-  // 切换面板显示/隐藏
+  // 切换面板显示/隐藏，重新打开时恢复关闭前的可见模式
   const togglePanel = useCallback(() => {
-    setPanelState((prev) => ({
-      ...prev,
-      mode: prev.mode === 'hidden' ? 'fixed' : 'hidden',
-    }));
+    setPanelState((prev) => {
+      if (prev.mode === 'hidden') {
+        return { ...prev, mode: prev.lastVisibleMode };
+      }
+
+      return { ...prev, mode: 'hidden', lastVisibleMode: prev.mode };
+    });
   }, []);
 
   const contextValue: PanelContextValue = {
@@ -140,7 +182,11 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
     viewConfig,
   };
 
-  return <PanelContext.Provider value={contextValue}>{children}</PanelContext.Provider>;
+  return (
+    <PanelContext.Provider value={contextValue}>
+      {children}
+    </PanelContext.Provider>
+  );
 };
 
 // 保持向后兼容的导出

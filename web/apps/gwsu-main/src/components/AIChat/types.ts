@@ -19,6 +19,9 @@ export interface ChatMessage {
  */
 export type AIChatPanelMode = 'fixed' | 'draggable' | 'hidden';
 
+/** AI 聊天面板可见时的显示模式 */
+export type AIChatVisiblePanelMode = Exclude<AIChatPanelMode, 'hidden'>;
+
 /**
  * AI 聊天面板位置
  */
@@ -33,6 +36,8 @@ export interface AIChatPanelPosition {
 export interface AIChatPanelState {
   /** 当前显示模式 */
   mode: AIChatPanelMode;
+  /** 关闭前最后一次使用的可见模式 */
+  lastVisibleMode: AIChatVisiblePanelMode;
   /** 拖拽模式下的位置 */
   position: AIChatPanelPosition;
   /** 面板宽度 */

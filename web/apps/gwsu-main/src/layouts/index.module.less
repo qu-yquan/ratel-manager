@@ -15,6 +15,9 @@
    - 弹窗(1030) > 面板(1029) > 遮罩层(1028) > 内容区(auto)
 */
 :global(:root) {
+  --app-header-height: 60px;
+  --ai-fixed-width: 420px;
+  --sidebar-width: 240px;
   --ai-panel-z-index: 1029;
   --ai-overlay-z-index: 1028;
 }
@@ -40,16 +43,14 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 60px;
+  height: var(--app-header-height);
   padding: 0 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: var(--surface-color);
   border-bottom: 1px solid var(--border-color);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
   z-index: 100;
   backdrop-filter: blur(8px);
 }
@@ -115,7 +116,7 @@
     color: var(--text-color, #374151);
   }
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     &:hover {
       background: rgba(255, 255, 255, 0.08);
     }
@@ -133,7 +134,7 @@
     background: oklch(96% 0.02 var(--brand-hue, 220));
   }
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     color: #60a5fa;
     background: rgba(96, 165, 250, 0.1);
 
@@ -165,13 +166,12 @@
   }
 }
 
-
 /* ============================================
    内容区域布局 - 更宽松的间距
    ============================================ */
 .contentLayout {
-  margin-top: 60px;
-  min-height: calc(100vh - 60px);
+  margin-top: var(--app-header-height);
+  min-height: calc(100vh - var(--app-header-height));
   display: flex;
   background: var(--background-color);
 }
@@ -189,12 +189,12 @@
   /* 固定模式 */
   &.fixed {
     position: fixed;
-    top: 60px;
+    top: var(--app-header-height);
     left: 0;
-    width: 420px;
+    width: var(--ai-fixed-width);
     min-width: 380px;
     max-width: 560px;
-    height: calc(100vh - 60px);
+    height: calc(100vh - var(--app-header-height));
     z-index: var(--ai-panel-z-index);
     border-right: 1px solid var(--border-color);
   }
@@ -203,10 +203,8 @@
   &.draggable {
     position: fixed;
     border-radius: 16px;
-    box-shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.05),
-      0 10px 15px -3px rgba(0, 0, 0, 0.08),
-      0 20px 25px -5px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 20px 25px -5px rgba(0, 0, 0, 0.06);
     border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
     z-index: var(--ai-panel-z-index);
     resize: both;
@@ -223,10 +221,10 @@
 
 /* AI 聊天固定模式占位 - 用于在内容区域保留空间 */
 .aiChatFixedPlaceholder {
-  width: 420px;
+  width: var(--ai-fixed-width);
   min-width: 380px;
   max-width: 560px;
-  height: calc(100vh - 60px);
+  height: calc(100vh - var(--app-header-height));
   flex-shrink: 0;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -257,10 +255,8 @@
   flex-direction: column;
   background: var(--surface-color, #ffffff);
   border-radius: 16px;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.05),
-    0 10px 15px -3px rgba(0, 0, 0, 0.08),
-    0 20px 25px -5px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 20px 25px -5px rgba(0, 0, 0, 0.06);
   border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
   z-index: var(--ai-panel-z-index);
   overflow: hidden;
@@ -311,9 +307,7 @@
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
-  box-shadow:
-    0 4px 12px rgba(26, 95, 180, 0.3),
-    0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(26, 95, 180, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1);
 
   &::before {
     content: '';
@@ -345,7 +339,8 @@
 }
 
 @keyframes guideBounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {

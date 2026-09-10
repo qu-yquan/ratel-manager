@@ -1,7 +1,4 @@
-import {
-  DownOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
+import { DownOutlined, SearchOutlined } from '@ant-design/icons';
 import { Input, Menu, Popover } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -10,14 +7,20 @@ import {
   transformToMenuItems,
   useMenuStore,
 } from '@gwsu/core';
-import type { MenuItem } from '@gwsu/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { history, useLocation } from 'umi';
+import {
+  filterMenus,
+  getAllMenuKeys,
+  getSiblingSubmenuKeys,
+} from '@/components/MenuNavigation/utils';
 import styles from './index.module.less';
 
 interface RouteSelectorProps {
   /** Tab 是否激活，非激活时隐藏箭头且不可弹出菜单 */
   isActive?: boolean;
+  /** 下拉导航用于 AI 固定模式，纯标签用于已有侧栏的模式 */
+  navigationMode?: 'dropdown' | 'label';
 }
 
 /**
@@ -25,7 +28,10 @@ interface RouteSelectorProps {
  * 显示当前路由名称，点击展开菜单树供导航
  * 替代传统左侧菜单栏，节省空间
  */
-const RouteSelector: React.FC<RouteSelectorProps> = ({ isActive = true }) => {
+const RouteSelector: React.FC<RouteSelectorProps> = ({
+  isActive = true,
+  navigationMode = 'dropdown',
+}) => {
   const location = useLocation();
   const { menus } = useMenuStore();
   const [open, setOpen] = useState(false);
@@ -68,17 +74,28 @@ const RouteSelector: React.FC<RouteSelectorProps> = ({ isActive = true }) => {
     }
   }, [selectedOpenKeys, open]);
 
-  // 菜单弹出时，自动展开选中项所在目录
-  const handleOpenChange = useCallback((newOpen: boolean) => {
-    if (!isActive) return;
-    setOpen(newOpen);
-    if (newOpen) {
-      // 打开时展开选中项所在目录
-      setOpenKeys(selectedOpenKeys);
-    } else {
+  // 切换到侧栏导航后关闭顶部弹层，避免恢复固定模式时意外重新打开
+  useEffect(() => {
+    if (navigationMode === 'label') {
+      setOpen(false);
       setSearchValue('');
     }
-  }, [isActive, selectedOpenKeys]);
+  }, [navigationMode]);
+
+  // 菜单弹出时，自动展开选中项所在目录
+  const handleOpenChange = useCallback(
+    (newOpen: boolean) => {
+      if (!isActive) return;
+      setOpen(newOpen);
+      if (newOpen) {
+        // 打开时展开选中项所在目录
+        setOpenKeys(selectedOpenKeys);
+      } else {
+        setSearchValue('');
+      }
+    },
+    [isActive, selectedOpenKeys],
+  );
 
   // 目录展开/收起回调 - 手风琴模式：同层级互斥，只允许一个目录展开
   const handleOpenKeysChange: MenuProps['onOpenChange'] = useCallback(
@@ -103,14 +120,11 @@ const RouteSelector: React.FC<RouteSelectorProps> = ({ isActive = true }) => {
   );
 
   // 菜单点击
-  const handleMenuClick: MenuProps['onClick'] = useCallback(
-    ({ key }:{key:any}) => {
-      history.push(key);
-      setOpen(false);
-      setSearchValue('');
-    },
-    [],
-  );
+  const handleMenuClick: MenuProps['onClick'] = useCallback(({ key }) => {
+    history.push(key);
+    setOpen(false);
+    setSearchValue('');
+  }, []);
 
   // 搜索输入
   const handleSearchChange = useCallback(
@@ -118,12 +132,13 @@ const RouteSelector: React.FC<RouteSelectorProps> = ({ isActive = true }) => {
       const value = e.target.value;
       setSearchValue(value);
       if (value) {
-        setOpenKeys(getAllKeys(filteredMenus));
+        const searchedMenus = filterMenus(menus, value.trim().toLowerCase());
+        setOpenKeys(getAllMenuKeys(searchedMenus));
       } else {
         setOpenKeys(selectedOpenKeys);
       }
     },
-    [filteredMenus, selectedOpenKeys],
+    [menus, selectedOpenKeys],
   );
 
   // 弹出内容
@@ -145,7 +160,7 @@ const RouteSelector: React.FC<RouteSelectorProps> = ({ isActive = true }) => {
           <Menu
             mode="inline"
             selectedKeys={[location.pathname]}
-            openKeys={searchValue ? getAllKeys(filteredMenus) : openKeys}
+            openKeys={searchValue ? getAllMenuKeys(filteredMenus) : openKeys}
             onOpenChange={handleOpenKeysChange}
             items={menuItems}
             onClick={handleMenuClick}
@@ -160,10 +175,12 @@ const RouteSelector: React.FC<RouteSelectorProps> = ({ isActive = true }) => {
   );
 
   // 非激活态：仅显示标签，不渲染 Popover（防止误触弹出菜单）
-  if (!isActive) {
+  if (!isActive || navigationMode === 'label') {
     return (
       <div className={styles.selector}>
-        <span className={styles.selectorLabel}>{currentLabel || '界面'}</span>
+        <span className={styles.selectorLabel}>
+          {navigationMode === 'label' ? '界面' : currentLabel || '界面'}
+        </span>
       </div>
     );
   }
@@ -175,16 +192,15 @@ const RouteSelector: React.FC<RouteSelectorProps> = ({ isActive = true }) => {
       content={dropdownContent}
       trigger="click"
       placement="bottomLeft"
-      classNames={
-        {
-          root: styles.popover
-        }
-      }
+      classNames={{
+        root: styles.popover,
+      }}
       destroyOnHidden
     >
       <div className={styles.selector}>
         <span className={styles.selectorLabel}>{currentLabel || '界面'}</span>
         <DownOutlined
+          aria-hidden="true"
           className={`${styles.selectorArrow} ${
             open ? styles.selectorArrowOpen : ''
           }`}
@@ -193,62 +209,5 @@ const RouteSelector: React.FC<RouteSelectorProps> = ({ isActive = true }) => {
     </Popover>
   );
 };
-
-/**
- * 获取同层级其他目录的 key（手风琴模式：展开一个时关闭同层级其他）
- */
-function getSiblingSubmenuKeys(items: MenuItem[], targetKey: string): string[] {
-  // 当前层级的所有目录 key
-  const submenuKeys = items
-    .filter((m) => m.menuType === 1 && m.children?.length)
-    .map((m) => m.path);
-
-  // 目标在当前层级，返回同层级其他目录
-  if (submenuKeys.includes(targetKey)) {
-    return submenuKeys.filter((k) => k !== targetKey);
-  }
-
-  // 递归查找子层级
-  for (const item of items) {
-    if (item.children?.length) {
-      const result = getSiblingSubmenuKeys(item.children, targetKey);
-      if (result.length > 0) return result;
-    }
-  }
-  return [];
-}
-
-/**
- * 搜索过滤菜单树
- */
-function filterMenus(menus: MenuItem[], keyword: string): MenuItem[] {
-  const result: MenuItem[] = [];
-  for (const menu of menus) {
-    if (menu.menuType === 3 || !menu.visible || menu.position !== 1) continue;
-    const nameMatch = menu.menuName.toLowerCase().includes(keyword);
-    const filteredChildren = menu.children ? filterMenus(menu.children, keyword) : [];
-    if (nameMatch || filteredChildren.length > 0) {
-      result.push({
-        ...menu,
-        children: nameMatch ? menu.children : filteredChildren,
-      });
-    }
-  }
-  return result;
-}
-
-/**
- * 获取所有目录的 key，搜索时全部展开
- */
-function getAllKeys(menus: MenuItem[]): string[] {
-  const keys: string[] = [];
-  for (const menu of menus) {
-    if (menu.menuType === 1 && menu.children?.length) {
-      keys.push(menu.path);
-      keys.push(...getAllKeys(menu.children));
-    }
-  }
-  return keys;
-}
 
 export default RouteSelector;
