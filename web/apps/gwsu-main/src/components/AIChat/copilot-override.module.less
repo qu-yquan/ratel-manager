@@ -14,7 +14,8 @@
   height: calc(100vh - 60px);
   background: var(--surface-color, #ffffff);
   border-right: 1px solid var(--border-color, #e1e5eb);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.2s ease, border-radius 0.2s ease,
+    box-shadow 0.2s ease, background-color 0.2s ease;
   position: fixed;
   top: 60px;
   left: 0;
@@ -41,6 +42,8 @@
   border-right: none;
   width: 420px;
   height: 520px;
+  will-change: transform;
+  backface-visibility: hidden;
 
   background: rgba(255, 255, 255, 0.65);
 
@@ -50,10 +53,11 @@
     -webkit-backdrop-filter: blur(16px);
   }
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     background: rgba(0, 0, 0, 0.6);
 
-    @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    @supports (backdrop-filter: blur(1px)) or
+      (-webkit-backdrop-filter: blur(1px)) {
       background: rgba(0, 0, 0, 0.2);
     }
 
@@ -132,6 +136,10 @@
   }
 }
 
+.draggingWrapperActive {
+  transition: none;
+}
+
 .hiddenWrapper {
   visibility: hidden;
   pointer-events: none;
@@ -153,7 +161,7 @@
   min-height: 60px;
   flex-shrink: 0;
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     background: linear-gradient(
       to bottom,
       var(--surface-color, #1e293b),
@@ -161,6 +169,12 @@
     );
     border-bottom-color: var(--border-color, #334155);
   }
+}
+
+.draggableWrapper .chatHeader {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
 
 .chatHeader.dragging {
@@ -187,6 +201,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  cursor: default;
 }
 
 .actionButton {
@@ -207,7 +222,7 @@
   background: oklch(95% 0.02 var(--brand-hue, 220));
   color: var(--primary-color, #1a5fb4);
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     background: rgba(255, 255, 255, 0.08);
   }
 }
@@ -241,7 +256,7 @@
 }
 
 /* 隐藏 V2 CopilotChat 默认的 header */
-.copilotChat :global([data-slot="copilot-modal-header"]),
+.copilotChat :global([data-slot='copilot-modal-header']),
 .copilotChat :global(.copilot-chat-header),
 .copilotChat :global(.copilotKitHeader) {
   display: none !important;
@@ -254,14 +269,14 @@
 
 /* 消息内容区内边距 - 覆盖 v2 的 cpk:sm:px-0，在桌面端也保持间距 */
 /* DOM 结构: [data-testid="copilot-chat"] > ... > div.cpk:px-4.cpk:sm:px-0 > [data-testid="copilot-scroll-content"] */
-.copilotChat :global([data-testid="copilot-scroll-content"]) {
+.copilotChat :global([data-testid='copilot-scroll-content']) {
   padding-left: 20px;
   padding-right: 20px;
 }
 
 /* 输入区域内边距 - 覆盖 v2 的 cpk:sm:px-0 */
 /* DOM 结构: [data-testid="copilot-input-overlay"] > div > div.cpk:px-4.cpk:sm:px-0 > .copilotKitInput */
-.copilotChat :global([data-testid="copilot-input-overlay"] > div > div) {
+.copilotChat :global([data-testid='copilot-input-overlay'] > div > div) {
   padding-left: 20px !important;
   padding-right: 20px !important;
 }
@@ -290,7 +305,7 @@
   border-bottom-right-radius: 6px;
   box-shadow: 0 2px 12px rgba(26, 95, 180, 0.2);
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     background: linear-gradient(
       135deg,
       var(--primary-color, #60a5fa) 0%,
@@ -311,20 +326,17 @@
   border-radius: 20px;
   border-bottom-left-radius: 6px;
   padding: 14px 18px;
-  box-shadow:
-    0 10px 30px rgba(15, 23, 42, 0.04),
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04),
     0 1px 2px rgba(15, 23, 42, 0.04);
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     background: linear-gradient(
       180deg,
       rgba(30, 41, 59, 0.88) 0%,
       rgba(17, 24, 39, 0.88) 100%
     );
     border-color: rgba(148, 163, 184, 0.16);
-    box-shadow:
-      0 12px 30px rgba(0, 0, 0, 0.18),
-      0 1px 2px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12);
   }
 }
 
@@ -335,30 +347,24 @@
   font-size: 14px;
   line-height: 1.9;
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     color: rgba(226, 232, 240, 0.94);
   }
 }
 
-.copilotChat
-  :global(.copilotKitAssistantMessage > div:first-child h1),
-.copilotChat
-  :global(.copilotKitAssistantMessage > div:first-child h2),
-.copilotChat
-  :global(.copilotKitAssistantMessage > div:first-child h3),
-.copilotChat
-  :global(.copilotKitAssistantMessage > div:first-child h4),
-.copilotChat
-  :global(.copilotKitAssistantMessage > div:first-child h5),
-.copilotChat
-  :global(.copilotKitAssistantMessage > div:first-child h6) {
+.copilotChat :global(.copilotKitAssistantMessage > div:first-child h1),
+.copilotChat :global(.copilotKitAssistantMessage > div:first-child h2),
+.copilotChat :global(.copilotKitAssistantMessage > div:first-child h3),
+.copilotChat :global(.copilotKitAssistantMessage > div:first-child h4),
+.copilotChat :global(.copilotKitAssistantMessage > div:first-child h5),
+.copilotChat :global(.copilotKitAssistantMessage > div:first-child h6) {
   color: #142033;
   font-weight: 700;
   line-height: 1.55;
   letter-spacing: -0.01em;
   margin: 1.15em 0 0.55em;
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     color: #f8fafc;
   }
 }
@@ -394,7 +400,7 @@
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 14px;
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     background: rgba(30, 41, 59, 0.45);
     border-color: rgba(148, 163, 184, 0.14);
   }
@@ -405,8 +411,7 @@
   padding-left: 0.15em;
 }
 
-.copilotChat
-  :global(.copilotKitAssistantMessage > div:first-child li > p) {
+.copilotChat :global(.copilotKitAssistantMessage > div:first-child li > p) {
   margin: 0.2em 0;
 }
 
@@ -418,7 +423,7 @@
   background: rgba(244, 248, 252, 0.9);
   border-radius: 0 12px 12px 0;
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     color: rgba(203, 213, 225, 0.9);
     background: rgba(255, 255, 255, 0.04);
     border-left-color: rgba(125, 168, 219, 0.48);
@@ -436,8 +441,7 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.copilotChat
-  :global(.copilotKitAssistantMessage > div:first-child pre code) {
+.copilotChat :global(.copilotKitAssistantMessage > div:first-child pre code) {
   display: block;
   padding: 0;
   background: transparent;
@@ -456,7 +460,7 @@
   font-size: 0.92em;
   border: 1px solid rgba(59, 130, 246, 0.12);
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     background: rgba(96, 165, 250, 0.12);
     color: #bfdbfe;
     border-color: rgba(96, 165, 250, 0.16);
@@ -484,23 +488,30 @@
   table-layout: auto;
   background: var(--surface-color, #ffffff);
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     background: rgba(15, 23, 42, 0.5);
   }
 }
 
-.copilotChat :global(.copilotKitAssistantMessage > div:first-child table::-webkit-scrollbar) {
+.copilotChat
+  :global(
+    .copilotKitAssistantMessage > div:first-child table::-webkit-scrollbar
+  ) {
   height: 10px;
 }
 
 .copilotChat
-  :global(.copilotKitAssistantMessage > div:first-child table::-webkit-scrollbar-track) {
+  :global(
+    .copilotKitAssistantMessage > div:first-child table::-webkit-scrollbar-track
+  ) {
   background: rgba(148, 163, 184, 0.12);
   border-radius: 999px;
 }
 
 .copilotChat
-  :global(.copilotKitAssistantMessage > div:first-child table::-webkit-scrollbar-thumb) {
+  :global(
+    .copilotKitAssistantMessage > div:first-child table::-webkit-scrollbar-thumb
+  ) {
   background: rgba(100, 116, 139, 0.42);
   border-radius: 999px;
 }
@@ -510,7 +521,9 @@
 }
 
 .copilotChat
-  :global([data-streamdown='table-wrapper'] > .flex.items-center.justify-end.gap-1) {
+  :global(
+    [data-streamdown='table-wrapper'] > .flex.items-center.justify-end.gap-1
+  ) {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -520,7 +533,11 @@
 }
 
 .copilotChat
-  :global([data-streamdown='table-wrapper'] > .flex.items-center.justify-end.gap-1 > .relative) {
+  :global(
+    [data-streamdown='table-wrapper']
+      > .flex.items-center.justify-end.gap-1
+      > .relative
+  ) {
   position: relative;
   display: inline-flex;
   flex: 0 0 auto;
@@ -531,7 +548,12 @@
 }
 
 .copilotChat
-  :global([data-streamdown='table-wrapper'] > .flex.items-center.justify-end.gap-1 > .relative > button) {
+  :global(
+    [data-streamdown='table-wrapper']
+      > .flex.items-center.justify-end.gap-1
+      > .relative
+      > button
+  ) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -543,10 +565,7 @@
   background: rgba(248, 250, 252, 0.96);
   color: #526277;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
-  transition:
-    background 0.2s ease,
-    color 0.2s ease,
-    border-color 0.2s ease,
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
     transform 0.2s ease;
 
   &:hover {
@@ -565,48 +584,72 @@
 }
 
 .copilotChat
-  :global([data-streamdown='table-wrapper'] > .flex.items-center.justify-end.gap-1 > .relative > button > svg) {
+  :global(
+    [data-streamdown='table-wrapper']
+      > .flex.items-center.justify-end.gap-1
+      > .relative
+      > button
+      > svg
+  ) {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
 }
 
 .copilotChat
-  :global([data-streamdown='table-wrapper'] > .flex.items-center.justify-end.gap-1 > .relative > .absolute.top-full.right-0) {
+  :global(
+    [data-streamdown='table-wrapper']
+      > .flex.items-center.justify-end.gap-1
+      > .relative
+      > .absolute.top-full.right-0
+  ) {
   top: calc(100% + 6px);
   right: 0;
   z-index: 30;
   border-color: rgba(148, 163, 184, 0.22);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.98);
-  box-shadow:
-    0 12px 28px rgba(15, 23, 42, 0.12),
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12),
     0 2px 8px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(12px);
 
   :global([data-theme='midnight']) & {
     background: rgba(15, 23, 42, 0.96);
     border-color: rgba(148, 163, 184, 0.18);
-    box-shadow:
-      0 16px 32px rgba(0, 0, 0, 0.28),
-      0 2px 8px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.18);
   }
 }
 
 .copilotChat
-  :global([data-streamdown='table-wrapper'] > .flex.items-center.justify-end.gap-1 > .relative:has(> button[title='Copy table']) > .absolute.top-full.right-0) {
+  :global(
+    [data-streamdown='table-wrapper']
+      > .flex.items-center.justify-end.gap-1
+      > .relative:has(> button[title='Copy table'])
+      > .absolute.top-full.right-0
+  ) {
   left: 0;
   right: auto;
 }
 
 .copilotChat
-  :global([data-streamdown='table-wrapper'] > .flex.items-center.justify-end.gap-1 > .relative:has(> button[title='Download table']) > .absolute.top-full.right-0) {
+  :global(
+    [data-streamdown='table-wrapper']
+      > .flex.items-center.justify-end.gap-1
+      > .relative:has(> button[title='Download table'])
+      > .absolute.top-full.right-0
+  ) {
   left: auto;
   right: 0;
 }
 
 .copilotChat
-  :global([data-streamdown='table-wrapper'] > .flex.items-center.justify-end.gap-1 > .relative > .absolute.top-full.right-0 > button) {
+  :global(
+    [data-streamdown='table-wrapper']
+      > .flex.items-center.justify-end.gap-1
+      > .relative
+      > .absolute.top-full.right-0
+      > button
+  ) {
   display: block;
   width: 100%;
   min-width: 120px;
@@ -618,9 +661,7 @@
   font-size: 13px;
   line-height: 1.4;
   box-shadow: none;
-  transition:
-    background 0.2s ease,
-    color 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 
   &:hover {
     background: rgba(37, 99, 235, 0.08);
@@ -638,9 +679,7 @@
   }
 }
 
-
-.copilotChat
-  :global([data-streamdown='table-wrapper'] > .overflow-x-auto) {
+.copilotChat :global([data-streamdown='table-wrapper'] > .overflow-x-auto) {
   overflow-x: scroll !important;
   overflow-y: hidden;
   scrollbar-gutter: stable;
@@ -655,24 +694,36 @@
 }
 
 .copilotChat
-  :global([data-streamdown='table-wrapper'] > .overflow-x-auto::-webkit-scrollbar) {
+  :global(
+    [data-streamdown='table-wrapper'] > .overflow-x-auto::-webkit-scrollbar
+  ) {
   height: 10px;
 }
 
 .copilotChat
-  :global([data-streamdown='table-wrapper'] > .overflow-x-auto::-webkit-scrollbar-track) {
+  :global(
+    [data-streamdown='table-wrapper']
+      > .overflow-x-auto::-webkit-scrollbar-track
+  ) {
   background: rgba(148, 163, 184, 0.12);
   border-radius: 999px;
 }
 
 .copilotChat
-  :global([data-streamdown='table-wrapper'] > .overflow-x-auto::-webkit-scrollbar-thumb) {
+  :global(
+    [data-streamdown='table-wrapper']
+      > .overflow-x-auto::-webkit-scrollbar-thumb
+  ) {
   background: rgba(100, 116, 139, 0.42);
   border-radius: 999px;
 }
 
 .copilotChat
-  :global([data-streamdown='table-wrapper'] > .overflow-x-auto > table[data-streamdown='table-wrapper']) {
+  :global(
+    [data-streamdown='table-wrapper']
+      > .overflow-x-auto
+      > table[data-streamdown='table-wrapper']
+  ) {
   display: table;
   width: max-content;
   min-width: 100%;
@@ -702,13 +753,14 @@
   color: #334155;
   font-weight: 600;
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     background: rgba(255, 255, 255, 0.06);
     color: #e2e8f0;
   }
 }
 
-.copilotChat :global(.copilotKitAssistantMessage > div:first-child tr:last-child td) {
+.copilotChat
+  :global(.copilotKitAssistantMessage > div:first-child tr:last-child td) {
   border-bottom: none;
 }
 
@@ -733,7 +785,7 @@
   color: #142033;
   font-weight: 700;
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     color: #f8fafc;
   }
 }
@@ -755,7 +807,7 @@
   }
 }
 
-.copilotChat :global([data-testid="copilot-assistant-toolbar"]) {
+.copilotChat :global([data-testid='copilot-assistant-toolbar']) {
   width: 100%;
   display: flex !important;
   flex-direction: row !important;
@@ -767,7 +819,7 @@
   border-top: 1px solid rgba(148, 163, 184, 0.16);
 }
 
-.copilotChat :global([data-testid="copilot-assistant-toolbar"] > div) {
+.copilotChat :global([data-testid='copilot-assistant-toolbar'] > div) {
   display: inline-flex !important;
   flex-direction: row !important;
   flex-wrap: nowrap !important;
@@ -776,17 +828,17 @@
   padding: 4px 0;
 }
 
-.copilotChat :global([data-testid="copilot-assistant-toolbar"] > div > *),
-.copilotChat :global([data-testid="copilot-assistant-toolbar"] button),
-.copilotChat :global([data-testid="copilot-assistant-toolbar"] a) {
+.copilotChat :global([data-testid='copilot-assistant-toolbar'] > div > *),
+.copilotChat :global([data-testid='copilot-assistant-toolbar'] button),
+.copilotChat :global([data-testid='copilot-assistant-toolbar'] a) {
   display: inline-flex !important;
   flex-direction: row !important;
   align-items: center;
   justify-content: center;
 }
 
-.copilotChat :global([data-testid="copilot-assistant-toolbar"] button),
-.copilotChat :global([data-testid="copilot-assistant-toolbar"] a) {
+.copilotChat :global([data-testid='copilot-assistant-toolbar'] button),
+.copilotChat :global([data-testid='copilot-assistant-toolbar'] a) {
   min-width: 32px;
   height: 32px;
   padding: 0 8px;
@@ -795,10 +847,7 @@
   background: rgba(248, 250, 252, 0.96);
   color: #526277;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  transition:
-    background 0.2s ease,
-    color 0.2s ease,
-    border-color 0.2s ease,
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
     transform 0.2s ease;
 
   &:hover {
@@ -808,7 +857,7 @@
     transform: translateY(-1px);
   }
 
-  :global([data-theme="midnight"]) & {
+  :global([data-theme='midnight']) & {
     background: rgba(30, 41, 59, 0.82);
     color: rgba(226, 232, 240, 0.88);
     border-color: rgba(148, 163, 184, 0.18);
@@ -816,19 +865,20 @@
   }
 }
 
-.copilotChat :global([data-testid="copilot-assistant-toolbar"] button svg) {
+.copilotChat :global([data-testid='copilot-assistant-toolbar'] button svg) {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
 }
 
-.copilotChat :global([data-testid="copilot-copy-button"]) {
+.copilotChat :global([data-testid='copilot-copy-button']) {
   color: #3f5368;
 }
 
 /* 工具调用的 assistant 消息 - 隐藏空的文本内容区 */
 /* DOM 结构: .copilotKitAssistantMessage > div.cpk:prose > div.space-y-4:empty */
-.copilotChat :global(.copilotKitAssistantMessage > div:first-child:has(> div:empty)) {
+.copilotChat
+  :global(.copilotKitAssistantMessage > div:first-child:has(> div:empty)) {
   display: none;
 }
 

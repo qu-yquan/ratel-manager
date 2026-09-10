@@ -19,7 +19,11 @@ import {
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import Draggable, { DraggableEvent, DraggableData } from 'react-draggable';
-import type { ButtonHTMLAttributes, CSSProperties, MouseEventHandler } from 'react';
+import type {
+  ButtonHTMLAttributes,
+  CSSProperties,
+  MouseEventHandler,
+} from 'react';
 import {
   fetchConfigsBatch,
   FileScope,
@@ -137,7 +141,9 @@ function createOneMonthLaterIsoString(): string {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
-function buildHeadlessInputContent(payload: HeadlessBridgePayload): InputContent[] {
+function buildHeadlessInputContent(
+  payload: HeadlessBridgePayload,
+): InputContent[] {
   const content: InputContent[] = [];
   const text = payload.text?.trim();
   if (text) {
@@ -154,11 +160,20 @@ function buildHeadlessInputContent(payload: HeadlessBridgePayload): InputContent
     if (!mimeType) {
       throw new Error('Headless 资源缺少 mimeType');
     }
-    const source = { type: 'url' as const, value: resource.url.trim(), mimeType };
+    const source = {
+      type: 'url' as const,
+      value: resource.url.trim(),
+      mimeType,
+    };
     const metadata = {
-      ...(resource.fileId?.trim() ? { fileId: resource.fileId.trim(), id: resource.fileId.trim() } : {}),
+      ...(resource.fileId?.trim()
+        ? { fileId: resource.fileId.trim(), id: resource.fileId.trim() }
+        : {}),
       ...(resource.fileName?.trim()
-        ? { fileName: resource.fileName.trim(), filename: resource.fileName.trim() }
+        ? {
+            fileName: resource.fileName.trim(),
+            filename: resource.fileName.trim(),
+          }
         : {}),
     };
     if (mimeType?.startsWith('image/')) {
@@ -196,7 +211,8 @@ function parseModelLlmConfig(configValue?: string): ModelLlmConfig {
       generateOptions: {
         ...defaults.generateOptions,
         ...parsed.generateOptions,
-        additionalBodyParams: parsed.generateOptions?.additionalBodyParams ?? {},
+        additionalBodyParams:
+          parsed.generateOptions?.additionalBodyParams ?? {},
       },
     };
   } catch {
@@ -359,9 +375,10 @@ export function CopilotChatPanel({
         throw new Error('Headless 消息不能为空');
       }
       const text = payload.text?.trim() ?? '';
-      const hasResources = (payload.resources ?? []).some((item) => !!item?.url);
-      const normalizedContent =
-        hasResources || !text ? content : text;
+      const hasResources = (payload.resources ?? []).some(
+        (item) => !!item?.url,
+      );
+      const normalizedContent = hasResources || !text ? content : text;
       agent.addMessage({
         id: crypto.randomUUID(),
         role: 'user',
@@ -571,11 +588,8 @@ export function CopilotChatPanel({
       return undefined;
     }
 
-    const {
-      maxUploadCount,
-      maxUploadSizeMb,
-      allowedUploadFormats,
-    } = llmConfig.multimodalOptions;
+    const { maxUploadCount, maxUploadSizeMb, allowedUploadFormats } =
+      llmConfig.multimodalOptions;
 
     return {
       enabled: true,
@@ -598,7 +612,9 @@ export function CopilotChatPanel({
             },
           });
           selectedAttachmentCountRef.current += 1;
-          const resourceUrl = `${trimTrailingSlash(apiBaseUrl)}/kit/file/stream/${fileInfo.fileId}`;
+          const resourceUrl = `${trimTrailingSlash(
+            apiBaseUrl,
+          )}/kit/file/stream/${fileInfo.fileId}`;
           return {
             type: 'url' as const,
             value: resourceUrl,
@@ -754,6 +770,7 @@ export function CopilotChatPanel({
     <Draggable
       nodeRef={nodeRef}
       handle={`.${styles.chatHeader}`}
+      cancel={`.${styles.chatHeaderActions}`}
       position={isDraggableMode ? panelState.position : { x: 0, y: 0 }}
       onStart={isDraggableMode ? handleDragStart : undefined}
       onStop={isDraggableMode ? handleDragStop : undefined}
@@ -770,7 +787,9 @@ export function CopilotChatPanel({
         }}
         className={`${styles.copilotChatWrapper} ${
           isHidden ? styles.hiddenWrapper : ''
-        } ${isDraggableMode ? styles.draggableWrapper : ''} ${className || ''}`}
+        } ${isDraggableMode ? styles.draggableWrapper : ''} ${
+          isDragging ? styles.draggingWrapperActive : ''
+        } ${className || ''}`}
         style={
           isDraggableMode
             ? {
