@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {App} from 'antd';
+import {App, Modal} from 'antd';
 import CryptoJS from 'crypto-js';
 import {
     CaptchaData,
@@ -21,8 +21,9 @@ export interface CaptchaPass {
 }
 
 interface CaptchaVerifyProps {
-    value: CaptchaPass | null;
-    onChange: (value: CaptchaPass | null) => void;
+    open: boolean;
+    onCancel: () => void;
+    onSuccess: (value: CaptchaPass) => void;
 }
 
 const BLOCK_PUZZLE_TYPE = 'blockPuzzle';
@@ -53,10 +54,9 @@ function buildCaptchaCode(data: CaptchaData, plainPointJson: string) {
     return encryptText(`${captchaToken(data)}---${plainPointJson}`, data.secretKey);
 }
 
-const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({value, onChange}) => {
+const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({open, onCancel, onSuccess}) => {
     const {message} = App.useApp();
     const [captcha, setCaptcha] = useState<CaptchaGetResponse | null>(null);
-    const [panelOpen, setPanelOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [checking, setChecking] = useState(false);
     const [sliderX, setSliderX] = useState(0);
@@ -67,36 +67,53 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({value, onChange}) => {
     const trackRef = useRef<HTMLDivElement | null>(null);
     const captchaImageRef = useRef<HTMLImageElement | null>(null);
     const jigsawImageRef = useRef<HTMLImageElement | null>(null);
-    const previousValueRef = useRef<CaptchaPass | null>(null);
+    const requestSequenceRef = useRef(0);
 
-    const refreshCaptcha = useCallback(async () => {
-        setLoading(true);
-        onChange(null);
+    const resetCaptchaState = useCallback(() => {
+        setCaptcha(null);
+        setLoading(false);
+        setChecking(false);
         setSliderX(0);
         sliderXRef.current = 0;
+        setDragging(false);
+        setClickPoints([]);
+    }, []);
+
+    const refreshCaptcha = useCallback(async () => {
+        const requestSequence = ++requestSequenceRef.current;
+        setCaptcha(null);
+        setLoading(true);
+        setSliderX(0);
+        sliderXRef.current = 0;
+        setDragging(false);
         setClickPoints([]);
 
         try {
             const data = await getCaptcha();
-            setCaptcha(data);
+            if (requestSequence === requestSequenceRef.current) {
+                setCaptcha(data);
+            }
         } catch {
-            setCaptcha(null);
-            message.error('验证码加载失败，请稍后重试');
+            if (requestSequence === requestSequenceRef.current) {
+                setCaptcha(null);
+                message.error('验证码加载失败，请稍后重试');
+            }
         } finally {
-            setLoading(false);
+            if (requestSequence === requestSequenceRef.current) {
+                setLoading(false);
+            }
         }
-    }, [message, onChange]);
+    }, [message]);
 
     useEffect(() => {
-        void refreshCaptcha();
-    }, [refreshCaptcha]);
-
-    useEffect(() => {
-        if (previousValueRef.current && !value) {
+        if (open) {
             void refreshCaptcha();
+            return;
         }
-        previousValueRef.current = value;
-    }, [refreshCaptcha, value]);
+
+        requestSequenceRef.current += 1;
+        resetCaptchaState();
+    }, [open, refreshCaptcha, resetCaptchaState]);
 
     const captchaData: CaptchaData | null = captcha?.data ?? null;
     const isBlockPuzzle = captchaData?.captchaType === BLOCK_PUZZLE_TYPE || captcha?.type === CaptchaType.BLOCK_PUZZLE;
@@ -117,11 +134,10 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({value, onChange}) => {
                 captchaCode,
                 pointJson,
             });
-            onChange({
+            onSuccess({
                 captchaId: result.captchaId,
                 captchaCode: result.captchaCode,
             });
-            setPanelOpen(false);
             message.success('验证码校验通过');
         } catch {
             await refreshCaptcha();
@@ -129,10 +145,10 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({value, onChange}) => {
             setChecking(false);
             setDragging(false);
         }
-    }, [captchaData, message, onChange, refreshCaptcha]);
+    }, [captchaData, message, onSuccess, refreshCaptcha]);
 
     const handleSliderPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-        if (!captchaData || value || checking) {
+        if (!captchaData || checking) {
             return;
         }
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -173,7 +189,7 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({value, onChange}) => {
     };
 
     const handleClickWord = async (event: React.MouseEvent<HTMLImageElement>) => {
-        if (!captchaData || value || checking || requiredClickCount <= 0) {
+        if (!captchaData || checking || requiredClickCount <= 0) {
             return;
         }
 
@@ -192,107 +208,107 @@ const CaptchaVerify: React.FC<CaptchaVerifyProps> = ({value, onChange}) => {
         }
     };
 
-    const openCaptchaPanel = async () => {
-        setPanelOpen((open) => !open);
-        if (!captcha) {
-            await refreshCaptcha();
+    const handleCancel = () => {
+        if (!checking) {
+            onCancel();
         }
     };
 
     return (
-        <div className={styles.captchaGroup}>
-            <button
-                type="button"
-                className={`${styles.captchaTrigger} ${value ? styles.captchaTriggerPassed : ''}`}
-                onClick={openCaptchaPanel}
-                disabled={loading || checking}
-                aria-expanded={panelOpen}
-            >
-                <span>{value ? '安全验证已通过' : '点击完成安全验证'}</span>
-                <span className={styles.captchaTriggerStatus}>
-                    {loading ? '加载中' : value ? '通过' : '必填'}
-                </span>
-            </button>
-
-            {panelOpen && (
-                <div className={styles.captchaPanel}>
-                    <div className={styles.captchaPanelHeader}>
-                        <span>{isBlockPuzzle ? '拖动滑块完成拼图' : '请依次点击文字'}</span>
-                        <button type="button" className={styles.captchaRefresh} onClick={refreshCaptcha}>
-                            换一张
-                        </button>
-                    </div>
-
-                    {loading || !captchaData ? (
-                        <div className={styles.captchaLoading}>验证码加载中...</div>
-                    ) : isBlockPuzzle ? (
-                        <>
-                            <div className={styles.captchaImageBox}>
-                                <img
-                                    ref={captchaImageRef}
-                                    src={imageSource(captchaData.originalImageBase64)}
-                                    className={styles.captchaImage}
-                                    alt="滑块验证码背景"
-                                    draggable={false}
-                                />
-                                <img
-                                    ref={jigsawImageRef}
-                                    src={imageSource(captchaData.jigsawImageBase64)}
-                                    className={styles.jigsawImage}
-                                    alt="滑块拼图"
-                                    draggable={false}
-                                    style={{transform: `translateX(${sliderX}px)`}}
-                                />
-                            </div>
-                            <div ref={trackRef} className={styles.sliderTrack}>
-                                <div className={styles.sliderProgress} style={{width: `${sliderX + 42}px`}}/>
-                                <button
-                                    type="button"
-                                    className={styles.sliderHandle}
-                                    style={{transform: `translateX(${sliderX}px)`}}
-                                    onPointerDown={handleSliderPointerDown}
-                                    onPointerMove={handleSliderPointerMove}
-                                    onPointerUp={handleSliderPointerUp}
-                                    disabled={checking}
-                                    aria-label="拖动滑块完成安全验证"
-                                >
-                                    {checking ? '...' : '→'}
-                                </button>
-                                <span className={styles.sliderText}>向右拖动滑块</span>
-                            </div>
-                        </>
-                    ) : (
-                        <div className={styles.clickWordBox}>
-                            <div className={styles.wordTip}>
-                                请依次点击：{captchaData.wordList?.join('、') || '图中文字'}
-                            </div>
-                            <div className={styles.clickImageWrap}>
-                                <img
-                                    ref={captchaImageRef}
-                                    src={imageSource(captchaData.originalImageBase64)}
-                                    className={styles.captchaImage}
-                                    alt="文字点选验证码"
-                                    draggable={false}
-                                    onClick={handleClickWord}
-                                />
-                                {clickPoints.map((point, index) => (
-                                    <span
-                                        key={`${point.x}-${point.y}-${index}`}
-                                        className={styles.clickMarker}
-                                        style={{
-                                            left: `${point.x / (captchaImageRef.current?.naturalWidth || 1) * 100}%`,
-                                            top: `${point.y / (captchaImageRef.current?.naturalHeight || 1) * 100}%`,
-                                        }}
-                                    >
-                                        {index + 1}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+        <Modal
+            title="安全验证"
+            open={open}
+            onCancel={handleCancel}
+            footer={null}
+            centered
+            width={420}
+            maskClosable={!checking}
+            keyboard={!checking}
+            closable={!checking}
+        >
+            <div className={styles.captchaPanel} aria-busy={loading || checking}>
+                <div className={styles.captchaPanelHeader}>
+                    <span>{isBlockPuzzle ? '拖动滑块完成拼图' : '请依次点击文字'}</span>
+                    <button
+                        type="button"
+                        className={styles.captchaRefresh}
+                        onClick={() => void refreshCaptcha()}
+                        disabled={loading || checking}
+                        aria-label="更换验证码"
+                    >
+                        换一张
+                    </button>
                 </div>
-            )}
-        </div>
+
+                {loading || !captchaData ? (
+                    <div className={styles.captchaLoading}>验证码加载中...</div>
+                ) : isBlockPuzzle ? (
+                    <>
+                        <div className={styles.captchaImageBox}>
+                            <img
+                                ref={captchaImageRef}
+                                src={imageSource(captchaData.originalImageBase64)}
+                                className={styles.captchaImage}
+                                alt="滑块验证码背景"
+                                draggable={false}
+                            />
+                            <img
+                                ref={jigsawImageRef}
+                                src={imageSource(captchaData.jigsawImageBase64)}
+                                className={styles.jigsawImage}
+                                alt="滑块拼图"
+                                draggable={false}
+                                style={{transform: `translateX(${sliderX}px)`}}
+                            />
+                        </div>
+                        <div ref={trackRef} className={styles.sliderTrack}>
+                            <div className={styles.sliderProgress} style={{width: `${sliderX + 42}px`}}/>
+                            <button
+                                type="button"
+                                className={styles.sliderHandle}
+                                style={{transform: `translateX(${sliderX}px)`}}
+                                onPointerDown={handleSliderPointerDown}
+                                onPointerMove={handleSliderPointerMove}
+                                onPointerUp={handleSliderPointerUp}
+                                disabled={checking}
+                                aria-label="拖动滑块完成安全验证"
+                            >
+                                {checking ? '...' : '→'}
+                            </button>
+                            <span className={styles.sliderText}>向右拖动滑块</span>
+                        </div>
+                    </>
+                ) : (
+                    <div className={styles.clickWordBox}>
+                        <div className={styles.wordTip}>
+                            请依次点击：{captchaData.wordList?.join('、') || '图中文字'}
+                        </div>
+                        <div className={styles.clickImageWrap}>
+                            <img
+                                ref={captchaImageRef}
+                                src={imageSource(captchaData.originalImageBase64)}
+                                className={styles.captchaImage}
+                                alt="文字点选验证码"
+                                draggable={false}
+                                onClick={handleClickWord}
+                            />
+                            {clickPoints.map((point, index) => (
+                                <span
+                                    key={`${point.x}-${point.y}-${index}`}
+                                    className={styles.clickMarker}
+                                    style={{
+                                        left: `${point.x / (captchaImageRef.current?.naturalWidth || 1) * 100}%`,
+                                        top: `${point.y / (captchaImageRef.current?.naturalHeight || 1) * 100}%`,
+                                    }}
+                                >
+                                    {index + 1}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </Modal>
     );
 };
 
