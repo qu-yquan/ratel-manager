@@ -27,6 +27,10 @@ export default function Login() {
     const [captchaOpen, setCaptchaOpen] = useState(false);
     const pendingCredentialsRef = useRef<PendingCredentials | null>(null);
 
+    useEffect(() => () => {
+        pendingCredentialsRef.current = null;
+    }, []);
+
     /** 登录页加载时获取项目配置信息 */
     useEffect(() => {
         getLoginConfigInfo().then((info) => {

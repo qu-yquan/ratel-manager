@@ -21,6 +21,10 @@ export default function OAuth2Login() {
     const [captchaOpen, setCaptchaOpen] = useState(false);
     const pendingCredentialsRef = useRef<PendingCredentials | null>(null);
 
+    useEffect(() => () => {
+        pendingCredentialsRef.current = null;
+    }, []);
+
     useEffect(() => {
         getLoginConfigInfo().then((info) => {
             if (info.projectName) {
