@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {LinkOutlined, SafetyCertificateOutlined, UserAddOutlined} from '@ant-design/icons';
 import {Alert, App, Form, Input, Modal, Tabs} from 'antd';
 import {encryptPassword} from '@gwsu/core';
@@ -9,7 +9,7 @@ import {
     LoginToken,
     TerminalType,
 } from '../../services/login';
-import CaptchaVerify, {CaptchaPass} from './CaptchaVerify';
+import CaptchaVerify, {type CaptchaPass} from './CaptchaVerify';
 import styles from './DingTalkFirstLoginModal.module.less';
 
 type AccountMethod = 'binding' | 'create';
@@ -27,6 +27,11 @@ interface AccountFormValues {
     confirmPassword?: string;
 }
 
+interface BindingCredentials {
+    username: string;
+    encryptedPassword: string;
+}
+
 const DingTalkFirstLoginModal: React.FC<DingTalkFirstLoginModalProps> = ({
     open,
     temporaryVoucher,
@@ -37,63 +42,113 @@ const DingTalkFirstLoginModal: React.FC<DingTalkFirstLoginModalProps> = ({
     const [form] = Form.useForm<AccountFormValues>();
     const [method, setMethod] = useState<AccountMethod>('binding');
     const [submitting, setSubmitting] = useState(false);
-    const [captchaPass, setCaptchaPass] = useState<CaptchaPass | null>(null);
+    const [captchaOpen, setCaptchaOpen] = useState(false);
+    const bindingCredentialsRef = useRef<BindingCredentials | null>(null);
+    const validationSequenceRef = useRef(0);
+
+    const clearBindingVerification = () => {
+        validationSequenceRef.current += 1;
+        bindingCredentialsRef.current = null;
+        setCaptchaOpen(false);
+    };
 
     useEffect(() => {
+        clearBindingVerification();
         if (open) {
             setMethod('binding');
-            setCaptchaPass(null);
             form.resetFields();
         }
+
+        return () => {
+            validationSequenceRef.current += 1;
+            bindingCredentialsRef.current = null;
+        };
     }, [form, open]);
+
+    useEffect(() => {
+        if (!temporaryVoucher) {
+            clearBindingVerification();
+        }
+    }, [temporaryVoucher]);
 
     const handleMethodChange = (activeKey: string) => {
         setMethod(activeKey as AccountMethod);
-        setCaptchaPass(null);
+        clearBindingVerification();
         form.resetFields();
     };
 
     const handleSubmit = async () => {
-        if (!temporaryVoucher) {
+        if (submitting || captchaOpen) {
+            return;
+        }
+        const currentTemporaryVoucher = temporaryVoucher;
+        if (!currentTemporaryVoucher) {
+            message.error('临时凭证已失效，请重新进行钉钉登录');
+            return;
+        }
+        const validationSequence = ++validationSequenceRef.current;
+
+        try {
+            const values = await form.validateFields();
+            if (validationSequence !== validationSequenceRef.current) {
+                return;
+            }
+            if (method === 'binding') {
+                bindingCredentialsRef.current = {
+                    username: values.username.trim(),
+                    encryptedPassword: encryptPassword(values.password),
+                };
+                setCaptchaOpen(true);
+                return;
+            }
+
+            setSubmitting(true);
+            const finalToken = await completeDingTalkLogin(
+                buildDingTalkCompleteParams('create', currentTemporaryVoucher, {
+                    username: values.username.trim(),
+                    password: encryptPassword(values.password),
+                }),
+            );
+            await onSuccess(finalToken);
+        } catch {
+            // 请求层统一展示后端业务错误；保留弹框和表单以便用户修正后重试。
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleCaptchaSuccess = async (captchaPass: CaptchaPass) => {
+        const bindingCredentials = bindingCredentialsRef.current;
+        clearBindingVerification();
+
+        if (!bindingCredentials || submitting) {
+            return;
+        }
+        const currentTemporaryVoucher = temporaryVoucher;
+        if (!currentTemporaryVoucher) {
             message.error('临时凭证已失效，请重新进行钉钉登录');
             return;
         }
 
+        setSubmitting(true);
         try {
-            const values = await form.validateFields();
-            setSubmitting(true);
-            let finalToken: LoginToken;
-            if (method === 'binding') {
-                if (!captchaPass) {
-                    message.warning('请先完成安全验证');
-                    return;
-                }
-                // 仅用于证明已有账号身份，不写入前端登录状态。
-                const passwordToken = await login({
-                    type: 'password',
-                    terminal: TerminalType.WEB,
-                    username: values.username.trim(),
-                    password: encryptPassword(values.password),
-                    captchaId: captchaPass.captchaId,
-                    captchaCode: captchaPass.captchaCode,
-                });
-                finalToken = await completeDingTalkLogin(
-                    buildDingTalkCompleteParams('binding', temporaryVoucher, {
-                        bindingToken: passwordToken.token,
-                    }),
-                );
-            } else {
-                finalToken = await completeDingTalkLogin(
-                    buildDingTalkCompleteParams('create', temporaryVoucher, {
-                        username: values.username.trim(),
-                        password: encryptPassword(values.password),
-                    }),
-                );
-            }
+            // 仅用于证明已有账号身份，不写入前端登录状态。
+            const passwordToken = await login({
+                type: 'password',
+                terminal: TerminalType.WEB,
+                username: bindingCredentials.username,
+                password: bindingCredentials.encryptedPassword,
+                captchaId: captchaPass.captchaId,
+                captchaCode: captchaPass.captchaCode,
+            });
+            const finalToken = await completeDingTalkLogin(
+                buildDingTalkCompleteParams('binding', currentTemporaryVoucher, {
+                    bindingToken: passwordToken.token,
+                }),
+            );
             await onSuccess(finalToken);
         } catch {
             // 请求层统一展示后端业务错误；保留弹框和表单以便用户修正后重试。
-            setCaptchaPass(null);
         } finally {
             setSubmitting(false);
         }
@@ -130,11 +185,6 @@ const DingTalkFirstLoginModal: React.FC<DingTalkFirstLoginModalProps> = ({
                     placeholder="请输入密码"
                 />
             </Form.Item>
-            {method === 'binding' && (
-                <Form.Item label="安全验证" required>
-                    <CaptchaVerify value={captchaPass} onChange={setCaptchaPass}/>
-                </Form.Item>
-            )}
             {method === 'create' && (
                 <Form.Item
                     label="确认密码"
@@ -178,6 +228,7 @@ const DingTalkFirstLoginModal: React.FC<DingTalkFirstLoginModalProps> = ({
             onOk={handleSubmit}
             onCancel={() => {
                 if (!submitting) {
+                    clearBindingVerification();
                     onCancel();
                 }
             }}
@@ -200,6 +251,12 @@ const DingTalkFirstLoginModal: React.FC<DingTalkFirstLoginModalProps> = ({
                 showIcon
                 className={styles.notice}
                 message="账号关联后，下次可直接使用钉钉快捷登录"
+            />
+
+            <CaptchaVerify
+                open={captchaOpen}
+                onCancel={clearBindingVerification}
+                onSuccess={handleCaptchaSuccess}
             />
 
             <Tabs
