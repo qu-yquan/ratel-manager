@@ -43,7 +43,7 @@
         <sa-token.version>1.45.0</sa-token.version>
         <gson-javatime.version>1.1.2</gson-javatime.version>
         <jsqlparser.version>5.2</jsqlparser.version>
-        <agentscope.version>2.0.2</agentscope.version>
+        <agentscope.version>2.0.3</agentscope.version>
         <spring-ai.version>2.0.0-M1</spring-ai.version>
         <spring-ai-alibaba.version>2.0.0-M1.1</spring-ai-alibaba.version>
         <tika.version>3.3.1</tika.version>

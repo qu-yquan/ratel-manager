@@ -7,6 +7,7 @@ import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.ToolUseBlock;
 import io.agentscope.core.state.AgentStateStore;
+import io.agentscope.harness.agent.HarnessAgent;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
 import lombok.*;
@@ -289,12 +290,17 @@ public abstract class AguiController implements DisposableBean {
         if (StringUtils.hasText(threadId)) {
             AIRunnerInstanceWrapper currEmitter = getCurrEmitter(threadId);
             if (Objects.nonNull(currEmitter)) {
-                //TODO 目前框架不支持中断指定threadId的内容 ，等待框架更新
-//                Agent agent = processor.resolveAgent(agentId, RuntimeContext.builder()
-//                        .sessionId(threadId)
-//                        .userId(userId)
-//                        .build());
-//                agent.interrupt();
+                RuntimeContext context = RuntimeContext.builder()
+                        .sessionId(threadId)
+                        .userId(userId)
+                        .build();
+                Agent agent = processor.resolveAgent(agentId, context);
+                if(agent instanceof HarnessAgent ha){
+                    ha.interrupt(context);
+                }else {
+                    agent.interrupt();
+                }
+
 
                 currEmitter.emitter().complete();
             }
