@@ -1,10 +1,24 @@
 import { LogoutOutlined, SettingOutlined } from '@ant-design/icons';
 import { App, Avatar, Dropdown, Tooltip } from 'antd';
-import { useUserStore, useMenuStore, useHeadlessStore, MenuPosition, getIconComponent } from '@gwsu/core';
+import { useAgent } from '@copilotkit/react-core/v2';
+import {
+  useUserStore,
+  useMenuStore,
+  useHeadlessStore,
+  MenuPosition,
+  getIconComponent,
+  EventType,
+  emitEvent,
+} from '@gwsu/core';
 import type { MenuItem } from '@gwsu/core';
 import { history } from 'umi';
 import { logout } from '@/services/auth';
 import { useOperationTabStore } from '@/stores/operationTab';
+import { useForwardedPropsStore } from '@/stores/forwardedProps';
+import { clearAgentOutput } from '@/services/agent-output';
+import { clearAskUserQuestion } from '@/services/ask-user-question';
+import { clearHumanApproval } from '@/services/human-approval';
+import { AI_CHAT_PANEL_STATE_STORAGE_KEY } from '@/components/AIChat/AIChatContext';
 import styles from './index.module.less';
 
 /** 获取用户名首字母（支持中文取第一个字） */
@@ -19,11 +33,15 @@ function getInitial(name: string): string {
  */
 function extractHeaderMenus(menus: MenuItem[]): MenuItem[] {
   return menus
-    .filter((m) => m.menuType !== 3 && m.visible && m.position === MenuPosition.HEADER)
+    .filter(
+      (m) =>
+        m.menuType !== 3 && m.visible && m.position === MenuPosition.HEADER,
+    )
     .sort((a, b) => a.sort - b.sort);
 }
 
 export default function UserDropdown() {
+  const { agent } = useAgent({ agentId: 'brain' });
   const userInfo = useUserStore((s) => s.userInfo);
   const menus = useMenuStore((s) => s.menus);
   const { message, modal } = App.useApp();
@@ -50,8 +68,24 @@ export default function UserDropdown() {
           useUserStore.getState().logout();
           useMenuStore.getState().clearMenus();
           useHeadlessStore.getState().clearThreadId();
+          useHeadlessStore.getState().setHeadless(false);
+          useForwardedPropsStore.setState({
+            operationMode: 'human',
+            exitReason: '',
+            extras: {},
+          });
+          useOperationTabStore.getState().setActiveTab('interface');
+          clearHumanApproval();
+          clearAskUserQuestion();
+          clearAgentOutput();
+          agent.abortRun();
+          agent.setMessages([]);
+          localStorage.removeItem(AI_CHAT_PANEL_STATE_STORAGE_KEY);
+          document.body.removeAttribute('data-headless-chat-ready');
+          emitEvent(EventType.LOGOUT);
           message.success('退出成功');
-          const loginPath = process.env.UMI_APP_LOGIN_PATH || '/sub-system/login';
+          const loginPath =
+            process.env.UMI_APP_LOGIN_PATH || '/sub-system/login';
           history.push(loginPath);
         } catch {
           // 错误提示已在 request.ts 中统一处理
@@ -108,7 +142,9 @@ export default function UserDropdown() {
           onClick={() => handleMenuClick(menu)}
         >
           {getIconComponent(menu.icon) ? (
-            <span className={styles.menuItemIcon}>{getIconComponent(menu.icon)}</span>
+            <span className={styles.menuItemIcon}>
+              {getIconComponent(menu.icon)}
+            </span>
           ) : (
             <span className={styles.menuItemDot} />
           )}

@@ -1,13 +1,21 @@
 package org.quyq.gwsu.security.brain.service.agent;
 
 import io.agentscope.core.ReActAgent;
-import io.agentscope.core.agent.Agent;
+import io.agentscope.core.agent.RuntimeContext;
+import io.agentscope.core.event.AgentEventEmitter;
+import io.agentscope.core.event.AgentResultEvent;
+import io.agentscope.core.event.CustomEvent;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.MsgRole;
+import io.agentscope.core.message.TextBlock;
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.skill.AgentSkill;
 import io.agentscope.core.skill.SkillBox;
 import io.agentscope.core.skill.repository.ClasspathSkillRepository;
 import io.agentscope.core.state.AgentStateStore;
+import io.agentscope.core.tool.AgentTool;
+import io.agentscope.core.tool.ToolCallParam;
 import io.agentscope.core.tool.Toolkit;
-import io.agentscope.core.tool.subagent.SubAgentConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.common.ai.AgentException;
@@ -16,23 +24,33 @@ import org.quyq.gwsu.common.ai.skill.InMemoryAgentSkillRepository;
 import org.quyq.gwsu.security.brain.service.middleware.OutputViewEventHandlerMiddleware;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
- * 视图输出智能体
+ * 隔离执行的视图输出智能体工具
  * 将回复内容以精美的可视化界面展示给用户
  * 输出 json-render spec，通过 AGENT_OUTPUT 自定义事件发送到前端
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OutputViewAgent {
+public class OutputViewAgent implements AgentTool {
 
     public static final String AGENT_NAME = "OutputViewAgent";
 
     private static final String SKILL_RESOURCE_PATH = "skills";
+    private static final String SESSION_PREFIX = "output-view--";
+    private static final String DESCRIPTION = """
+            前端展示工具：将数据以可视化UI展示给用户。调用时必须传入「标题」和「展示的数据内容」（如SQL查询结果、统计表格等）。数据格式建议Markdown表格或JSON。
+            注意：调用此工具后，内容已直接在可视化面板中展示给用户，你不需要再以文字形式重复输出相同信息。
+            ⚠️ 覆盖机制：每次调用本工具会整体替换前一次的展示内容，而非追加。因此在同一轮对话中，禁止对本工具发起多次调用；正确的做法是将所有需要展示的数据汇集后，一次性调用本工具完整输出，包括想要展示多项内容。
+            """;
 
 
     private final ObjectProvider<Toolkit> toolkitProvider;
@@ -42,7 +60,7 @@ public class OutputViewAgent {
     /**
      * 构建视图输出智能体
      */
-    public Agent build() {
+    private ReActAgent build() {
         Toolkit toolkit = toolkitProvider.getIfAvailable(Toolkit::new);
 
         // 构建技能盒子
@@ -60,6 +78,87 @@ public class OutputViewAgent {
                         skillBox.getAllSkillIds().stream().map(skillBox::getSkill).toList(),
                         false))
                 .build();
+    }
+
+    @Override
+    public String getName() {
+        return AGENT_NAME;
+    }
+
+    @Override
+    public String getDescription() {
+        return DESCRIPTION;
+    }
+
+    @Override
+    public Map<String, Object> getParameters() {
+        return Map.of(
+                "type", "object",
+                "properties", Map.of(
+                        "session_id", Map.of(
+                                "type", "string",
+                                "description", "需要继续上一次输出会话时传入其 session_id"),
+                        "message", Map.of(
+                                "type", "string",
+                                "description", "需要可视化展示的完整内容")),
+                "required", List.of("message"));
+    }
+
+    @Override
+    public Mono<ToolResultBlock> callAsync(ToolCallParam param) {
+        return Mono.deferContextual(contextView -> {
+            Map<String, Object> input = param.getInput() != null ? param.getInput() : Map.of();
+            String message = valueAsString(input.get("message"));
+            if (!StringUtils.hasText(message)) {
+                return Mono.just(ToolResultBlock.error("Message is required"));
+            }
+
+            RuntimeContext childContext = createChildContext(
+                    param.getRuntimeContext(),
+                    valueAsString(input.get("session_id")));
+            ReActAgent agent = build();
+            Msg request = Msg.builder()
+                    .role(MsgRole.USER)
+                    .content(TextBlock.builder().text(message).build())
+                    .build();
+            AgentEventEmitter parentEmitter = AgentEventEmitter.fromContext(contextView).orElse(null);
+
+            return agent.streamEvents(request, childContext)
+                    .doOnNext(event -> {
+                        if (parentEmitter != null && event instanceof CustomEvent customEvent) {
+                            parentEmitter.emit(new CustomEvent(
+                                    customEvent.getName(),
+                                    customEvent.getValue()));
+                        }
+                    })
+                    .ofType(AgentResultEvent.class)
+                    .map(AgentResultEvent::getResult)
+                    .last()
+                    .map(result -> ToolResultBlock.text("session_id: %s\n\n%s".formatted(
+                            childContext.getSessionId(),
+                            result.getTextContent() != null ? result.getTextContent() : "(No response)")))
+                    .doOnCancel(() -> agent.interrupt(childContext));
+        });
+    }
+
+    static RuntimeContext createChildContext(RuntimeContext parentContext, String requestedSessionId) {
+        RuntimeContext.Builder builder = parentContext != null
+                ? RuntimeContext.builder(parentContext)
+                : RuntimeContext.builder();
+        String sessionId = StringUtils.hasText(requestedSessionId)
+                ? requestedSessionId.trim()
+                : UUID.randomUUID().toString();
+        if (!sessionId.startsWith(SESSION_PREFIX)) {
+            sessionId = SESSION_PREFIX + sessionId;
+        }
+        return builder
+                .sessionId(sessionId)
+                .agentState(null)
+                .build();
+    }
+
+    private String valueAsString(Object value) {
+        return value instanceof String text ? text : null;
     }
 
     /**
@@ -176,18 +275,4 @@ public class OutputViewAgent {
     }
 
 
-    /**
-     * 获取子智能体配置（供其他智能体调用）
-     */
-    public SubAgentConfig getSubAgentConfig() {
-        return SubAgentConfig.builder()
-                .toolName(AGENT_NAME)
-                .description("""
-                        前端展示工具：将数据以可视化UI展示给用户。调用时必须传入「标题」和「展示的数据内容」（如SQL查询结果、统计表格等）。数据格式建议Markdown表格或JSON。
-                        注意：调用此工具后，内容已直接在可视化面板中展示给用户，你不需要再以文字形式重复输出相同信息。
-                        ⚠️ 覆盖机制：每次调用本工具会整体替换前一次的展示内容，而非追加。因此在同一轮对话中，禁止对本工具发起多次调用；正确的做法是将所有需要展示的数据汇集后，一次性调用本工具完整输出，包括想要展示多项内容。
-                        """)
-                .forwardEvents(true)
-                .build();
-    }
 }

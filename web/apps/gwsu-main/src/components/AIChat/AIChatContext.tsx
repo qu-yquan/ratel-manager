@@ -18,7 +18,7 @@ import { fetchConfigsBatch } from '@gwsu/core';
 import type { ConfigVO } from '@gwsu/core';
 import { useViewConfigStore } from '@/stores/viewConfig';
 
-const STORAGE_KEY_PANEL_STATE = 'gwsu-ai-chat-panel-state';
+export const AI_CHAT_PANEL_STATE_STORAGE_KEY = 'gwsu-ai-chat-panel-state';
 const VIEW_CONFIG_KEY = 'assistant_view_config';
 
 const DEFAULT_PANEL_STATE: AIChatPanelState = {
@@ -90,7 +90,7 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
   const [panelState, setPanelState] = useState<AIChatPanelState>(() => {
     // 从 localStorage 恢复面板状态
     try {
-      const saved = localStorage.getItem(STORAGE_KEY_PANEL_STATE);
+      const saved = localStorage.getItem(AI_CHAT_PANEL_STATE_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<AIChatPanelState>;
         const lastVisibleMode = isVisiblePanelMode(parsed.lastVisibleMode)
@@ -137,7 +137,10 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
 
   // 保存面板状态到 localStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_PANEL_STATE, JSON.stringify(panelState));
+    localStorage.setItem(
+      AI_CHAT_PANEL_STATE_STORAGE_KEY,
+      JSON.stringify(panelState),
+    );
   }, [panelState]);
 
   // 设置面板模式

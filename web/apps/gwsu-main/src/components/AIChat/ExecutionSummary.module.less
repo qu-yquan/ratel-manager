@@ -1,0 +1,194 @@
+.summary {
+  margin: 2px 6px 6px;
+  color: var(--text-secondary-color);
+}
+
+.summaryButton {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 30px;
+  padding: 3px 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+.statusIcon {
+  display: inline-flex;
+  color: var(--text-secondary-color);
+  font-size: 13px;
+}
+
+.running .statusIcon {
+  color: var(--primary-color);
+}
+
+.statusLabel {
+  color: var(--text-secondary-color);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.duration,
+.count {
+  font-size: 12px;
+  color: var(--text-secondary-color);
+  opacity: 0.78;
+}
+
+.count::before {
+  margin-right: 7px;
+  content: '·';
+}
+
+.chevron {
+  margin-left: auto;
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.chevronExpanded {
+  transform: rotate(90deg);
+}
+
+.details {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.2s ease;
+}
+
+.detailsExpanded {
+  grid-template-rows: 1fr;
+}
+
+.detailsInner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.detailSection {
+  margin: 3px 0 7px 22px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border-color);
+}
+
+.detailTitle {
+  margin-bottom: 6px;
+  color: var(--text-secondary-color);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reasoningContent {
+  margin: 0 0 6px;
+  color: var(--text-secondary-color);
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.toolList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.toolItem {
+  font-size: 12px;
+}
+
+.toolHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  cursor: pointer;
+  list-style: none;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+}
+
+.toolName {
+  color: var(--text-color);
+}
+
+.toolIdentity {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.toolName,
+.toolDescription {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolDescription {
+  margin-top: 1px;
+  color: var(--text-secondary-color);
+  font-size: 11px;
+  opacity: 0.78;
+}
+
+.skillIcon {
+  color: var(--warning-color);
+}
+
+.subagentIcon {
+  color: var(--info-color);
+}
+
+.toolStatus {
+  margin-left: auto;
+  color: var(--success-color);
+  font-size: 11px;
+}
+
+.toolStatusError {
+  color: var(--error-color);
+}
+
+.toolDetail {
+  padding: 4px 0 6px 18px;
+}
+
+.codeBlock {
+  max-height: 140px;
+  margin: 0 0 4px;
+  padding: 7px 9px;
+  overflow: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--background-color);
+  color: var(--text-secondary-color);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.errorBlock {
+  color: var(--error-color);
+}

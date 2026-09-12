@@ -147,9 +147,9 @@ public class BrainServiceImpl implements IBrainService {
 
 
     private Agent getAgent(Toolkit toolkit) {
-        //内容输出子智能体
+        // 注册隔离执行的内容输出智能体工具
         toolkit.registration()
-                .subAgent(outputViewAgent::build, outputViewAgent.getSubAgentConfig())
+                .agentTool(outputViewAgent)
                 .apply();
 
 

@@ -12,6 +12,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 历史会话 Redis 索引服务。
@@ -155,12 +156,16 @@ public class BrainHistorySessionIndexService {
     }
 
     public record StoredMessageEntry(
+            String type,
             String id,
             String parentId,
             String timestamp,
             String role,
             String content,
-            String toolCallId) {
+            String toolCallId,
+            String name,
+            Map<String, Object> input,
+            String output) {
     }
 
     private record FileSessionLog(String path, String modifiedAt, String content) {

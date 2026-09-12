@@ -71,10 +71,24 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
         if (entry == null) {
             return List.of();
         }
-        return sessionIndexService.loadMessages(userId, entry).stream()
+        List<BrainHistorySessionIndexService.StoredMessageEntry> messages = sessionIndexService
+                .loadMessages(userId, entry).stream()
                 .filter(message -> !sessionIndexService.isCondensedSummaryPrompt(message))
-                .map(this::toAguiMessage)
                 .toList();
+        List<AguiMessage> restoredMessages = new ArrayList<>(messages.size());
+        for (int index = 0; index < messages.size(); index++) {
+            BrainHistorySessionIndexService.StoredMessageEntry message = messages.get(index);
+            if (isStructuredToolUse(message)) {
+                restoredMessages.add(toStructuredToolUseMessage(message));
+            } else if (isStructuredToolResult(message)) {
+                restoredMessages.add(toStructuredToolResultMessage(message));
+            } else if ("assistant".equals(normalizeRole(message.role()))) {
+                restoredMessages.add(toAssistantMessage(message, resolveFollowingToolCallIds(messages, index)));
+            } else {
+                restoredMessages.add(toAguiMessage(message));
+            }
+        }
+        return restoredMessages;
     }
 
     @Override
@@ -102,9 +116,6 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
 
     private AguiMessage toAguiMessage(BrainHistorySessionIndexService.StoredMessageEntry entry) {
         String role = normalizeRole(entry.role());
-        if ("assistant".equals(role)) {
-            return toAssistantMessage(entry);
-        }
         if ("tool".equals(role)) {
             return toToolMessage(entry);
         }
@@ -116,14 +127,87 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
                 entry.toolCallId());
     }
 
-    private AguiMessage toAssistantMessage(BrainHistorySessionIndexService.StoredMessageEntry entry) {
-        RestoredAssistantMessage restored = restoreAssistantMessage(entry);
+    private boolean isStructuredToolUse(BrainHistorySessionIndexService.StoredMessageEntry entry) {
+        return "tool_use".equalsIgnoreCase(entry.type());
+    }
+
+    private boolean isStructuredToolResult(BrainHistorySessionIndexService.StoredMessageEntry entry) {
+        return "tool_result".equalsIgnoreCase(entry.type());
+    }
+
+    private AguiMessage toStructuredToolUseMessage(
+            BrainHistorySessionIndexService.StoredMessageEntry entry) {
+        String messageId = StringUtils.hasText(entry.id()) ? entry.id() : Instant.now().toString();
+        String toolCallId = StringUtils.hasText(entry.toolCallId()) ? entry.toolCallId() : messageId;
+        String toolName = StringUtils.hasText(entry.name()) ? entry.name() : "unknown_tool";
+        AguiToolCall toolCall = new AguiToolCall(
+                toolCallId,
+                new AguiFunctionCall(toolName, serializeToolInput(entry.input())));
+        return new AguiMessage(messageId, "assistant", null, List.of(toolCall), null);
+    }
+
+    private AguiMessage toStructuredToolResultMessage(
+            BrainHistorySessionIndexService.StoredMessageEntry entry) {
+        String messageId = StringUtils.hasText(entry.id()) ? entry.id() : Instant.now().toString();
+        String toolCallId = StringUtils.hasText(entry.toolCallId()) ? entry.toolCallId() : messageId;
+        return new AguiMessage(
+                messageId,
+                "tool",
+                new AguiTextContent(entry.output() != null ? entry.output() : ""),
+                null,
+                toolCallId);
+    }
+
+    private String serializeToolInput(java.util.Map<String, Object> input) {
+        if (input == null || input.isEmpty()) {
+            return "{}";
+        }
+        try {
+            return OBJECT_MAPPER.writeValueAsString(input);
+        } catch (Exception ignored) {
+            return "{}";
+        }
+    }
+
+    private AguiMessage toAssistantMessage(
+            BrainHistorySessionIndexService.StoredMessageEntry entry,
+            List<String> followingToolCallIds) {
+        RestoredAssistantMessage restored = restoreAssistantMessage(entry, followingToolCallIds);
         return new AguiMessage(
                 StringUtils.hasText(entry.id()) ? entry.id() : Instant.now().toString(),
                 "assistant",
                 StringUtils.hasText(restored.content()) ? new AguiTextContent(restored.content()) : null,
                 restored.toolCalls().isEmpty() ? null : restored.toolCalls(),
                 null);
+    }
+
+    /**
+     * 工具结果紧跟在发起调用的助手消息之后，且保留了每个调用的真实 ID。
+     * 历史恢复时按顺序回填这些 ID，确保一条消息中的多个调用都能与结果正确关联。
+     */
+    private List<String> resolveFollowingToolCallIds(
+            List<BrainHistorySessionIndexService.StoredMessageEntry> messages,
+            int assistantIndex) {
+        List<String> toolCallIds = new ArrayList<>();
+        for (int index = assistantIndex + 1; index < messages.size(); index++) {
+            BrainHistorySessionIndexService.StoredMessageEntry message = messages.get(index);
+            if (isStructuredToolUse(message)) {
+                continue;
+            }
+            if (isStructuredToolResult(message)) {
+                if (StringUtils.hasText(message.toolCallId())) {
+                    toolCallIds.add(message.toolCallId());
+                }
+                continue;
+            }
+            if (!"tool".equals(normalizeRole(message.role()))) {
+                break;
+            }
+            if (StringUtils.hasText(message.toolCallId())) {
+                toolCallIds.add(message.toolCallId());
+            }
+        }
+        return toolCallIds;
     }
 
     private AguiMessage toToolMessage(BrainHistorySessionIndexService.StoredMessageEntry entry) {
@@ -138,7 +222,9 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
     /**
      * AgentScope 会话日志是可读文本，这里把其中的 [tool_call: Name(args)] 恢复成 AG-UI toolCalls。
      */
-    private RestoredAssistantMessage restoreAssistantMessage(BrainHistorySessionIndexService.StoredMessageEntry entry) {
+    private RestoredAssistantMessage restoreAssistantMessage(
+            BrainHistorySessionIndexService.StoredMessageEntry entry,
+            List<String> followingToolCallIds) {
         String content = entry.content();
         if (!StringUtils.hasText(content) || !content.contains(TOOL_CALL_PREFIX)) {
             return new RestoredAssistantMessage(content, List.of());
@@ -156,7 +242,12 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
             }
             text.append(content, cursor, markerStart);
 
-            ToolCallMarker marker = parseToolCallMarker(content, markerStart, entry, toolIndex);
+            ToolCallMarker marker = parseToolCallMarker(
+                    content,
+                    markerStart,
+                    entry,
+                    followingToolCallIds,
+                    toolIndex);
             if (marker == null) {
                 text.append(content.substring(markerStart));
                 break;
@@ -173,6 +264,7 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
             String content,
             int markerStart,
             BrainHistorySessionIndexService.StoredMessageEntry entry,
+            List<String> followingToolCallIds,
             int toolIndex) {
         int nameStart = markerStart + TOOL_CALL_PREFIX.length();
         int nameEnd = findToolNameEnd(content, nameStart);
@@ -207,9 +299,17 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
             return null;
         }
 
-        String toolCallId = toolIndex == 0 && StringUtils.hasText(entry.toolCallId())
-                ? entry.toolCallId()
-                : "%s-tool-%d".formatted(StringUtils.hasText(entry.id()) ? entry.id() : "history", toolIndex);
+        String toolCallId;
+        if (toolIndex < followingToolCallIds.size()
+                && StringUtils.hasText(followingToolCallIds.get(toolIndex))) {
+            toolCallId = followingToolCallIds.get(toolIndex);
+        } else if (toolIndex == 0 && StringUtils.hasText(entry.toolCallId())) {
+            toolCallId = entry.toolCallId();
+        } else {
+            toolCallId = "%s-tool-%d".formatted(
+                    StringUtils.hasText(entry.id()) ? entry.id() : "history",
+                    toolIndex);
+        }
         AguiToolCall toolCall = new AguiToolCall(toolCallId, new AguiFunctionCall(toolName, arguments));
         return new ToolCallMarker(toolCall, cursor + 1);
     }

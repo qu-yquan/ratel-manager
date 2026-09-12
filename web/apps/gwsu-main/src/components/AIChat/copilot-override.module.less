@@ -283,8 +283,8 @@
 
 /* 消息项间距 */
 .copilotChat :global([data-message-id]) {
-  margin-top: 8px;
-  margin-bottom: 8px;
+  margin-top: 5px;
+  margin-bottom: 5px;
 }
 
 /* 消息列表上下内边距 */
@@ -315,37 +315,43 @@
   }
 }
 
-/* 助手消息气泡样式 */
+/* 助手正文采用轻量阅读区：以柔和引导线串联内容，不形成独立卡片 */
 .copilotChat :global(.copilotKitAssistantMessage) > :global(:first-child) {
+  padding: 10px 14px 7px;
+  border: 0;
+  border-left: 2px solid
+    color-mix(in srgb, var(--primary-color) 24%, transparent);
+  border-radius: 0 10px 10px 0;
   background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.98) 0%,
-    rgba(247, 250, 253, 0.98) 100%
+    90deg,
+    color-mix(in srgb, var(--primary-color) 5%, transparent),
+    transparent 72%
   );
-  border: 1px solid rgba(32, 50, 74, 0.08);
-  border-radius: 20px;
-  border-bottom-left-radius: 6px;
-  padding: 14px 18px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04),
-    0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
 
   :global([data-theme='midnight']) & {
-    background: linear-gradient(
-      180deg,
-      rgba(30, 41, 59, 0.88) 0%,
-      rgba(17, 24, 39, 0.88) 100%
+    border-left-color: color-mix(
+      in srgb,
+      var(--primary-color) 38%,
+      transparent
     );
-    border-color: rgba(148, 163, 184, 0.16);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12);
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--primary-color) 9%, transparent),
+      transparent 72%
+    );
+    box-shadow: none;
   }
 }
 
 .copilotChat
   :global(.copilotKitAssistantMessage > div:first-child > div:first-child) {
   max-width: 720px;
-  color: #253246;
+  color: var(--text-color, #253246);
   font-size: 14px;
-  line-height: 1.9;
+  line-height: 1.76;
+  letter-spacing: 0.006em;
+  text-wrap: pretty;
 
   :global([data-theme='midnight']) & {
     color: rgba(226, 232, 240, 0.94);
@@ -382,9 +388,14 @@
 }
 
 .copilotChat :global(.copilotKitAssistantMessage > div:first-child p) {
-  margin: 0.45em 0 0.9em;
+  margin: 0.28em 0 0.68em;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.copilotChat
+  :global(.copilotKitAssistantMessage > div:first-child p:first-child) {
+  margin-top: 0;
 }
 
 .copilotChat
@@ -394,15 +405,14 @@
 
 .copilotChat :global(.copilotKitAssistantMessage > div:first-child ul),
 .copilotChat :global(.copilotKitAssistantMessage > div:first-child ol) {
-  margin: 0.7em 0 1em;
-  padding: 12px 16px 12px 2.2em;
-  background: rgba(248, 250, 252, 0.94);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 14px;
+  margin: 0.55em 0 0.8em;
+  padding: 2px 8px 2px 1.8em;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
 
   :global([data-theme='midnight']) & {
-    background: rgba(30, 41, 59, 0.45);
-    border-color: rgba(148, 163, 184, 0.14);
+    background: transparent;
   }
 }
 
@@ -809,15 +819,30 @@
 }
 
 .copilotChat :global([data-testid='copilot-assistant-toolbar']) {
-  width: 100%;
+  width: auto;
   display: flex !important;
   flex-direction: row !important;
   align-items: center;
   justify-content: flex-start;
-  margin-top: 10px;
-  padding-top: 10px;
-  padding-left: 2px;
-  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  margin: 0 0 2px 6px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.copilotChat
+  :global(
+    .copilotKitAssistantMessage:hover [data-testid='copilot-assistant-toolbar']
+  ),
+.copilotChat
+  :global(
+    .copilotKitAssistantMessage:focus-within
+      [data-testid='copilot-assistant-toolbar']
+  ) {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .copilotChat :global([data-testid='copilot-assistant-toolbar'] > div) {
@@ -825,8 +850,8 @@
   flex-direction: row !important;
   flex-wrap: nowrap !important;
   align-items: center;
-  gap: 6px;
-  padding: 4px 0;
+  gap: 3px;
+  padding: 0;
 }
 
 .copilotChat :global([data-testid='copilot-assistant-toolbar'] > div > *),
@@ -840,29 +865,29 @@
 
 .copilotChat :global([data-testid='copilot-assistant-toolbar'] button),
 .copilotChat :global([data-testid='copilot-assistant-toolbar'] a) {
-  min-width: 32px;
-  height: 32px;
-  padding: 0 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(248, 250, 252, 0.96);
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
   color: #526277;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
-    transform 0.2s ease;
+  box-shadow: none;
+  transition: background 0.18s ease, color 0.18s ease;
 
   &:hover {
-    background: #ffffff;
+    background: var(--background-color, #f8fafc);
     color: var(--primary-color, #1a5fb4);
-    border-color: rgba(26, 95, 180, 0.22);
-    transform: translateY(-1px);
   }
 
   :global([data-theme='midnight']) & {
-    background: rgba(30, 41, 59, 0.82);
+    background: transparent;
     color: rgba(226, 232, 240, 0.88);
-    border-color: rgba(148, 163, 184, 0.18);
     box-shadow: none;
+  }
+
+  :global([data-theme='midnight']) &:hover {
+    background: rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -876,6 +901,13 @@
   color: #3f5368;
 }
 
+@media (hover: none) {
+  .copilotChat :global([data-testid='copilot-assistant-toolbar']) {
+    opacity: 0.58;
+    pointer-events: auto;
+  }
+}
+
 /* 工具调用的 assistant 消息 - 隐藏空的文本内容区 */
 /* DOM 结构: .copilotKitAssistantMessage > div.cpk:prose > div.space-y-4:empty */
 .copilotChat
@@ -885,7 +917,7 @@
 
 @media (max-width: 768px) {
   .copilotChat :global(.copilotKitAssistantMessage) > :global(:first-child) {
-    padding: 12px 14px;
+    padding: 8px 9px 5px;
   }
 
   .copilotChat
