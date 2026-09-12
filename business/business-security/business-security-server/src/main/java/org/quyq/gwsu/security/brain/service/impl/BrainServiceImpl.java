@@ -206,7 +206,7 @@ public class BrainServiceImpl implements IBrainService {
                 .disableShellTool()
                 .disableMemoryTools()
                 .build();
-        //TODO 下个版本(v2.0.1)agentscope会支持配置不启用默认子智能体功能，升级后需要去除，改用框架提供的能力
+        // AgentScope 2.0.3 仍无法单独关闭内置 general-purpose；disableSubagents() 会同时关闭 doOddJobs。
         removeGeneralPurposeSubagent(agent);
         return agent;
     }
