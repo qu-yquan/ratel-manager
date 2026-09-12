@@ -18,7 +18,6 @@ import org.quyq.gwsu.common.ai.agui.model.AIRunnerInstanceWrapper;
 import org.quyq.gwsu.common.ai.agui.model.CopilotKitInfo;
 import org.quyq.gwsu.common.ai.agui.model.RunAgentInput;
 import org.quyq.gwsu.common.ai.agui.processor.AguiRequestProcessor;
-import org.quyq.gwsu.common.ai.agui.push.AguiEventPusher;
 import org.quyq.gwsu.common.ai.agui.utils.WebToolUtils;
 import org.quyq.gwsu.common.ai.agui.web.WebToolCallbackRequest;
 import org.quyq.gwsu.common.ai.constants.AIConstants;
@@ -44,7 +43,10 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.Disposable;
 import reactor.util.context.Context;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -74,8 +76,6 @@ public abstract class AguiController implements DisposableBean {
 
     private RedisMessageListenerContainer listenerContainer = null;
 
-    private final List<AguiEventPusher> pushers = new ArrayList<>();
-
 
     @Setter
     private AgentStateStore agentStateStore;
@@ -83,10 +83,6 @@ public abstract class AguiController implements DisposableBean {
 
     public static AIRunnerInstanceWrapper getCurrEmitter(String threadId) {
         return CURR_EMITTER.get(threadId);
-    }
-
-    public void addPusher(AguiEventPusher pusher) {
-        pushers.add(pusher);
     }
 
 
@@ -234,7 +230,7 @@ public abstract class AguiController implements DisposableBean {
     protected SseEmitter handlerAgentConnect(ChatDTO request) {
         SseEmitter emitter = new SseEmitter(sseTimeout);
         RunAgentInput body = request.body();
-        AIRunnerInstanceWrapper wrapper = new AIRunnerInstanceWrapper(request.body(), emitter, false, pushers);
+        AIRunnerInstanceWrapper wrapper = new AIRunnerInstanceWrapper(request.body(), emitter, false);
         executorService.submit(() -> {
             wrapper.sendEvent(new AguiEvent.RunStarted(body.threadId(), body.runId()));
             wrapper.sendEvent(new AguiEvent.RunFinished(body.threadId(), body.runId()));
@@ -295,9 +291,9 @@ public abstract class AguiController implements DisposableBean {
                         .userId(userId)
                         .build();
                 Agent agent = processor.resolveAgent(agentId, context);
-                if(agent instanceof HarnessAgent ha){
+                if (agent instanceof HarnessAgent ha) {
                     ha.interrupt(context);
-                }else {
+                } else {
                     agent.interrupt();
                 }
 
@@ -325,7 +321,7 @@ public abstract class AguiController implements DisposableBean {
         //传递到reactor中，保证tid正确
         Observation observation = ObservationThreadLocalAccessor.getInstance().getValue();
 
-        AIRunnerInstanceWrapper wrapper = new AIRunnerInstanceWrapper(input, emitter, isHeadless(), pushers);
+        AIRunnerInstanceWrapper wrapper = new AIRunnerInstanceWrapper(input, emitter, isHeadless());
         RuntimeContext runtimeContext =
                 buildRuntimeContext(threadId, userId, input.forwardedProps(), wrapper);
         executorService.submit(

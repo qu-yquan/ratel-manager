@@ -23,8 +23,7 @@ public record AIRunnerInstanceWrapper(
         RunAgentInput input ,
         SseEmitter emitter ,
         //是否是无头浏览器访问
-        boolean headless,
-        List<AguiEventPusher> pushers
+        boolean headless
 ) {
 
     public static final AguiEventEncoder ENCODER = new AguiEventEncoder();
@@ -37,11 +36,6 @@ public record AIRunnerInstanceWrapper(
         try {
             String jsonData = ENCODER.encodeToJson(event);
             emitter.send(SseEmitter.event().data(jsonData, MediaType.APPLICATION_JSON));
-
-            if(Objects.isNull(input) || !headless || CollectionUtils.isEmpty(pushers)) {
-                return;
-            }
-            pushers.forEach(pusher -> pusher.push(input, event));
 
         } catch (IOException e) {
             log.debug("Failed to send SSE event: {}", e.getMessage());

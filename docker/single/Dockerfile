@@ -6,7 +6,7 @@ FROM eclipse-temurin:25-jre AS jre-source
 # ================================================
 # 第二阶段：最终镜像（基于 Playwright 官方镜像，已包含所有浏览器依赖）
 # ================================================
-FROM mcr.microsoft.com/playwright/java:v1.60.0-noble
+FROM mcr.microsoft.com/playwright/java:v1.62.0-noble
 
 # 复制 Java 运行时（替换 Playwright 镜像自带的 JDK）
 COPY --from=jre-source /opt/java/openjdk /opt/java/openjdk

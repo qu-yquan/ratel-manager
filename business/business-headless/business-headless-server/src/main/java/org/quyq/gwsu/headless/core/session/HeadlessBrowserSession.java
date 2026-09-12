@@ -4,8 +4,6 @@ import com.microsoft.playwright.*;
 import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
 import org.quyq.gwsu.common.ai.agui.tool.AskUserQuestionTool;
-import org.quyq.gwsu.common.cache.utils.CacheUtils;
-import org.quyq.gwsu.common.core.utils.ThreadPoolUtil;
 import org.quyq.gwsu.common.security.constants.SecurityConstants;
 import org.quyq.gwsu.headless.api.dto.HeadlessDTO;
 import org.quyq.gwsu.headless.core.HeadlessAgentListener;
@@ -15,7 +13,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -30,11 +29,10 @@ import java.util.function.Consumer;
  * - 支持从浏览器提取 token 和 threadId，保存到 Redis
  * <p>
  * SSE 事件接收策略：
- * 1. page.route() 拦截 agent/run 请求，从请求体中提取 threadId
- * 2. 启动单线程消费 Redis List（brain_sse_event_list_{threadId}），再放行请求
- * 3. 通过 rPop 阻塞消费 List 中的消息，反序列化为 AguiEvent 后分发给 listener
- * 4. 收到 RunFinished 事件后停止消费
- * 5. Session 关闭时删除 Redis List 数据
+ * 1. 页面加载前注入 fetch 拦截器，仅镜像 agent/run 的 SSE 响应
+ * 2. 浏览器通过 ReadableStream 实时解析 SSE，并由 exposeFunction 回调 Java
+ * 3. Java 持续驱动 Playwright 消息循环，按序分发 AguiEvent 给 listener
+ * 4. 收到 RunFinished、流异常或超时后结束本次等待
  * <p>
  * 审批/提问交互策略：
  * - 审批和回答问题由 HeadlessBrowserManager 的 approval()/userAnswer() 独立发起
@@ -46,14 +44,13 @@ public class HeadlessBrowserSession implements AutoCloseable {
 
     private static final String SSE_URL_PATTERN = "/brain/run/copilotKit";
     private static final long HEADLESS_REQUEST_TIMEOUT_MS = 30_000;
+    private static final long PLAYWRIGHT_EVENT_PUMP_INTERVAL_MS = 100;
 
     private final BrowserContext context;
     private final Page page;
     private final HeadlessSseEventParser parser = new HeadlessSseEventParser();
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final CacheUtils cacheUtils;
-
-    public static final String BRAIN_SSE_EVENT_LIST_PREFIX = "brain_sse_event_list:";
+    private final PlaywrightSseBridge sseBridge;
 
     /**
      * SSE 等待超时（毫秒），从配置注入
@@ -68,9 +65,10 @@ public class HeadlessBrowserSession implements AutoCloseable {
     /**
      * 串行化同一会话的 Playwright Page 调用。
      * <p>
-     * Redis 事件消费者会触发录屏和截图；Playwright Java 不支持这些操作与消息发送并发执行。
+     * SSE 回调会触发录屏和截图；Playwright Java 不支持这些操作与消息发送并发执行。
+     * 录屏帧也由 SSE 事件泵在持锁期间采集，避免跨线程调用 Page。
      */
-    private final ReentrantLock pageOperationLock = new ReentrantLock();
+    private final ReentrantLock pageOperationLock = new ReentrantLock(true);
 
     /**
      * 当前活跃的事件收集器（每次 sendMessage 重建）
@@ -97,17 +95,7 @@ public class HeadlessBrowserSession implements AutoCloseable {
     private final ConcurrentHashMap<String, StringBuilder> toolCallArgsBuffer = new ConcurrentHashMap<>();
 
     /**
-     * 消息消费线程池（单线程），保证事件按序处理
-     */
-    private volatile ExecutorService messageConsumer = null;
-
-    /**
-     * 当前消费的 Redis List key，Session 关闭时删除
-     */
-    private volatile String currentListKey = null;
-
-    /**
-     * 当前 SSE 会话的 threadId，从拦截的请求中提取
+     * 当前 SSE 会话的 threadId，从流元数据或事件中提取
      */
     private volatile String currentThreadId = null;
 
@@ -118,10 +106,9 @@ public class HeadlessBrowserSession implements AutoCloseable {
      */
     private volatile boolean tokenExpired = false;
 
-    public HeadlessBrowserSession(BrowserContext context, long sseTimeoutMs, CacheUtils cacheUtils) {
+    public HeadlessBrowserSession(BrowserContext context, long sseTimeoutMs) {
         this.context = context;
         this.sseTimeoutMs = sseTimeoutMs;
-        this.cacheUtils = cacheUtils;
 
         // 1. 创建 Page
         this.page = context.newPage();
@@ -129,26 +116,20 @@ public class HeadlessBrowserSession implements AutoCloseable {
         // 2. 创建页面操作包装器
         this.pageWrapper = new HeadlessPageWrapper(context, page, pageOperationLock);
 
-        // 2. page.route() 拦截 SSE 请求，提取 threadId 并订阅 Redis
-        page.route("**" + SSE_URL_PATTERN + "**", route -> {
-            String postData = route.request().postData();
-            boolean isSse = postData != null && postData.contains("agent/run");
-
-            if (isSse) {
-                String threadId = extractThreadId(postData);
-                if (threadId != null) {
-                    this.currentThreadId = threadId;
-                    log.info("[HeadlessSSE] 检测到agent/run请求, threadId={}", threadId);
-                    startMessageConsumer(threadId);
-                } else {
-                    log.warn("[HeadlessSSE] 无法从请求体中提取threadId");
-                }
+        // 3. 页面脚本执行前安装 SSE 流桥接器
+        this.sseBridge = new PlaywrightSseBridge(page, new PlaywrightSseBridge.Listener() {
+            @Override
+            public void onEvent(String streamId, String eventJson) {
+                handleBrowserSseEvent(streamId, eventJson);
             }
 
-            route.fallback();
+            @Override
+            public void onSignal(PlaywrightSseBridge.StreamSignal signal) {
+                handleBrowserSseSignal(signal);
+            }
         });
 
-        // 2.1 监听 SSE 请求的响应，检测 401 标记 token 失效
+        // 3.1 监听 SSE 请求的响应，检测 401 标记 token 失效
         page.onResponse(response -> {
             if (response.url().contains(SSE_URL_PATTERN) && response.status() == 401) {
                 this.tokenExpired = true;
@@ -156,7 +137,7 @@ public class HeadlessBrowserSession implements AutoCloseable {
             }
         });
 
-        // 3. 转发浏览器控制台日志（调试用）
+        // 4. 转发浏览器控制台日志（调试用）
         page.onConsoleMessage(msg -> {
             String text = msg.text();
             if (text != null && text.startsWith("[Headless")) {
@@ -363,14 +344,14 @@ public class HeadlessBrowserSession implements AutoCloseable {
             currentListener.set(listener);
 
             try {
-                triggerAssistant(message);
+                triggerAssistant(message, collector);
             } catch (Exception e) {
                 collector.signalError(e);
                 notifyListenerError(e);
                 return collector.getEvents();
             }
 
-            collector.awaitCompletion(sseTimeoutMs);
+            awaitSseCompletion(collector);
             return collector.getEvents();
         } finally {
             sendLock.unlock();
@@ -385,8 +366,7 @@ public class HeadlessBrowserSession implements AutoCloseable {
      * 流程：等待聊天就绪 → 显示表单+填充值 → locator.click() 点击按钮 → 隐藏表单 → 等待 SSE 流完成
      * <p>
      * 关键：使用 page.locator().click()（Playwright 原生 click）而非 page.evaluate() 中的 JS click，
-     * 因为 Playwright 原生 click 会内部协调事件循环，确保 page.route() 回调在 click() 返回前执行完毕，
-     * 避免 awaitCompletion 阻塞后 route 回调无法执行的死锁问题。
+     * 让 Playwright 在点击和请求发起阶段持续调度浏览器事件。
      * <p>
      * 按钮需要处于可见状态才能被 locator.click() 点击，因此通过 page.evaluate() 设置
      * data-headless-forms-visible 属性让 HeadlessSubmitBar 组件显示，点击后自动隐藏。
@@ -425,6 +405,7 @@ public class HeadlessBrowserSession implements AutoCloseable {
                         "  if (re) re.value = args[1];" +
                         "}", new Object[]{result, reason});
 
+                activateSseCollector(collector);
                 // click 返回前不能让截图或录屏线程并发操作同一个 Playwright Page。
                 page.locator("[data-testid='headless-approval-submit']").click();
             } finally {
@@ -434,7 +415,7 @@ public class HeadlessBrowserSession implements AutoCloseable {
             log.info("审批结果已提交: result={}, hasRejectReason={}", result, !reason.isEmpty());
 
             // 等待后续 SSE 流完成
-            collector.awaitCompletion(sseTimeoutMs);
+            awaitSseCompletion(collector);
         } catch (Exception e) {
             log.error("提交审批失败", e);
             throw new RuntimeException("提交审批失败", e);
@@ -458,8 +439,7 @@ public class HeadlessBrowserSession implements AutoCloseable {
      * <p>
      * 流程：等待聊天就绪 → 显示表单+填充值 → locator.click() 点击按钮 → 隐藏表单 → 等待 SSE 流完成
      * <p>
-     * 同 submitApproval，使用 Playwright 原生 locator.click() 确保 page.route() 回调
-     * 在 click() 返回前执行完毕，避免死锁。
+     * 同 submitApproval，使用 Playwright 原生 locator.click() 驱动请求发起阶段的浏览器事件。
      *
      * @param toolCallId 工具调用 ID，用于关联 AskUserQuestion 工具调用
      * @param answers    问题答案，key 为问题文本，value 为用户回答
@@ -494,6 +474,7 @@ public class HeadlessBrowserSession implements AutoCloseable {
                         "  if (t) t.value = args[1];" +
                         "}", new Object[]{answersJson, toolCallId});
 
+                activateSseCollector(collector);
                 // click 返回前不能让截图或录屏线程并发操作同一个 Playwright Page。
                 page.locator("[data-testid='headless-question-submit']").click();
             } finally {
@@ -503,7 +484,7 @@ public class HeadlessBrowserSession implements AutoCloseable {
             log.info("用户回答已提交: toolCallId={}", toolCallId);
 
             // 等待后续 SSE 流完成
-            collector.awaitCompletion(sseTimeoutMs);
+            awaitSseCompletion(collector);
         } catch (Exception e) {
             log.error("提交用户回答失败", e);
             throw new RuntimeException("提交用户回答失败", e);
@@ -534,11 +515,12 @@ public class HeadlessBrowserSession implements AutoCloseable {
      * 释放运行时资源，将 Session 置为可复用状态（不关闭浏览器）
      * <p>
      * 缓存复用时调用此方法而非 close()，保留 BrowserContext 和 Page，
-     * 仅清理 SSE 消费者、Redis List 等运行时状态。
+     * 仅清理本次 SSE 回调等运行时状态。
      */
     public void release() {
-        stopMessageConsumer();
-        deleteListKey();
+        if (pageWrapper.isRecording()) {
+            pageWrapper.discardRecording();
+        }
         toolCallNameMap.clear();
         toolCallArgsBuffer.clear();
         currentEventCollector.set(null);
@@ -577,11 +559,12 @@ public class HeadlessBrowserSession implements AutoCloseable {
     @Override
     public void close() {
         closed = true;
-        stopMessageConsumer();
-        deleteListKey();
         pageWrapper.markClosed();
         toolCallNameMap.clear();
         toolCallArgsBuffer.clear();
+        currentEventCollector.set(null);
+        currentListener.set(null);
+        sseBridge.close();
         try {
             if (page != null && !page.isClosed()) page.close();
         } catch (Exception e) {
@@ -607,96 +590,136 @@ public class HeadlessBrowserSession implements AutoCloseable {
         }
     }
 
-    /**
-     * 从请求体 JSON 中提取 threadId
-     */
-    private String extractThreadId(String postData) {
-        try {
-            Map<String, Object> map = objectMapper.readValue(postData, new TypeReference<>() {
-            });
-            Object body = map.get("body");
-            if (body instanceof Map<?, ?> bodyMap) {
-                Object threadId = bodyMap.get("threadId");
-                if (threadId != null) return threadId.toString();
-            }
-            Object threadId = map.get("threadId");
-            if (threadId != null) return threadId.toString();
-        } catch (Exception e) {
-            log.warn("[HeadlessSSE] 解析threadId失败: {}", e.getMessage());
+    private void handleBrowserSseEvent(String streamId, String eventJson) {
+        SseEventCollector collector = currentEventCollector.get();
+        if (closed || collector == null || collector.isTerminal() || !collector.isActiveStream(streamId)) {
+            log.trace("[HeadlessSSE] 忽略非当前流事件: streamId={}", streamId);
+            return;
         }
-        return null;
+
+        AguiEvent event = parser.parseEvent(eventJson);
+        if (event == null) {
+            return;
+        }
+        if (hasText(event.getThreadId())) {
+            currentThreadId = event.getThreadId();
+        }
+        handleSseEvent(event);
     }
 
-    /**
-     * 启动单线程消费 Redis List 中的 SSE 事件
-     * <p>
-     * 使用 rPop 阻塞读取，单线程串行处理，保证事件顺序性
-     */
-    private void startMessageConsumer(String threadId) {
-        stopMessageConsumer();
+    private void handleBrowserSseSignal(PlaywrightSseBridge.StreamSignal signal) {
+        SseEventCollector collector = currentEventCollector.get();
+        if (closed || collector == null) {
+            return;
+        }
 
-        String listKey = BRAIN_SSE_EVENT_LIST_PREFIX + threadId;
-        currentListKey = listKey;
-        log.debug("[HeadlessSSE] 启动Redis List消费: listKey={}", listKey);
-
-        messageConsumer = ThreadPoolUtil.newVirtualThreadPerTaskExecutor();
-
-        messageConsumer.submit(() -> {
-            while (!closed && !Thread.currentThread().isInterrupted()) {
-                try {
-                    String msg = cacheUtils.withRebel(() -> cacheUtils.rPop(listKey, 5, TimeUnit.SECONDS));
-                    if (msg != null) {
-                        AguiEvent event = parser.parseEvent(msg);
-                        if (event != null) {
-                            handleSseEvent(event);
-                            if (event instanceof AguiEvent.RunFinished) {
-                                log.trace("[HeadlessSSE] 收到RunFinished, 停止消费: threadId={}", threadId);
-                                break;
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    if (!closed && !Thread.currentThread().isInterrupted()) {
-                        log.warn("[HeadlessSSE] Redis消息消费异常: {}", e.getMessage(), e);
-                    }
+        switch (signal.type()) {
+            case OPEN -> {
+                if (!collector.bindStream(signal.streamId())) {
+                    log.trace("[HeadlessSSE] 忽略非当前流打开信号: streamId={}", signal.streamId());
+                    return;
+                }
+                if (hasText(signal.threadId())) {
+                    currentThreadId = signal.threadId();
+                }
+                log.debug("[HeadlessSSE] 开始接收浏览器 SSE 流: streamId={}, threadId={}, runId={}",
+                        signal.streamId(), signal.threadId(), signal.runId());
+            }
+            case END -> {
+                if (!collector.isActiveStream(signal.streamId())) {
+                    return;
+                }
+                if (!collector.isTerminal()) {
+                    signalCollectorError(collector,
+                            new IllegalStateException("SSE 流已结束，但未收到 RunFinished 事件"));
                 }
             }
-            log.trace("[HeadlessSSE] 消费线程退出: threadId={}", threadId);
-        });
-    }
-
-    /**
-     * 停止消息消费线程
-     */
-    private void stopMessageConsumer() {
-        ExecutorService consumer = messageConsumer;
-        if (consumer != null) {
-            messageConsumer = null;
-            consumer.shutdownNow();
-            try {
-                if (!consumer.awaitTermination(5, TimeUnit.SECONDS)) {
-                    log.warn("[HeadlessSSE] 消费线程未能在5秒内退出");
+            case ERROR -> {
+                if (!collector.bindStream(signal.streamId())) {
+                    return;
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                String message = hasText(signal.message()) ? signal.message() : "未知 SSE 流错误";
+                IllegalStateException error = new IllegalStateException(message);
+                if (signal.status() == 401) {
+                    tokenExpired = true;
+                    collector.signalRetryableError(error);
+                    log.warn("[HeadlessSSE] SSE 请求返回 401，等待重新认证后重试");
+                } else {
+                    signalCollectorError(collector, error);
+                }
             }
+            case UNKNOWN -> log.warn("[HeadlessSSE] 收到未知流状态: streamId={}", signal.streamId());
+        }
+    }
+
+    private void signalCollectorError(SseEventCollector collector, Throwable error) {
+        if (collector.signalError(error)) {
+            notifyListenerError(error);
         }
     }
 
     /**
-     * 删除当前消费的 Redis List 数据
+     * 持续驱动 Playwright 消息循环，使浏览器中 ReadableStream 的分块回调能够实时进入 Java。
      */
-    private void deleteListKey() {
-        String key = currentListKey;
-        if (key != null) {
-            currentListKey = null;
-            try {
-                cacheUtils.withRebel(() -> cacheUtils.delete(key));
-                log.info("[HeadlessSSE] 已删除Redis List: key={}", key);
-            } catch (Exception e) {
-                log.warn("[HeadlessSSE] 删除Redis List异常: {}", e.getMessage());
+    private void awaitSseCompletion(SseEventCollector collector) {
+        long deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(sseTimeoutMs);
+
+        while (!collector.isTerminal()) {
+            long remainingNanos = deadlineNanos - System.nanoTime();
+            if (remainingNanos <= 0) {
+                signalCollectorError(collector, new TimeoutError("SSE 流接收超时: " + sseTimeoutMs + "ms"));
+                break;
             }
+
+            long remainingMs = Math.max(1L, TimeUnit.NANOSECONDS.toMillis(remainingNanos));
+            Throwable pumpError = null;
+            boolean recording = pageWrapper.isRecording();
+
+            pageOperationLock.lock();
+            try {
+                if (recording) {
+                    pageWrapper.captureRecordingFrameIfDue();
+                    page.waitForTimeout(Math.min(PLAYWRIGHT_EVENT_PUMP_INTERVAL_MS, remainingMs));
+                } else {
+                    page.waitForCondition(
+                            () -> collector.isTerminal() || pageWrapper.isRecording(),
+                            new Page.WaitForConditionOptions().setTimeout(remainingMs));
+                }
+            } catch (TimeoutError e) {
+                if (!collector.isTerminal()) {
+                    pumpError = new TimeoutError("SSE 流接收超时: " + sseTimeoutMs + "ms", e);
+                }
+            } catch (PlaywrightException e) {
+                if (!collector.isTerminal()) {
+                    pumpError = new IllegalStateException("Playwright SSE 事件循环异常", e);
+                }
+            } finally {
+                pageOperationLock.unlock();
+            }
+
+            if (pumpError != null) {
+                signalCollectorError(collector, pumpError);
+                break;
+            }
+
         }
+
+        Throwable error = collector.getError();
+        if (error != null && !collector.isRetryableError()) {
+            if (error instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new IllegalStateException("SSE 流接收失败", error);
+        }
+    }
+
+    private void activateSseCollector(SseEventCollector collector) {
+        page.evaluate("operationId => window.__GWSU_HEADLESS_SSE_OPERATION_ID__ = operationId",
+                collector.operationId());
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private void handleSseEvent(AguiEvent event) {
@@ -707,9 +730,12 @@ public class HeadlessBrowserSession implements AutoCloseable {
         SseEventCollector collector = currentEventCollector.get();
         HeadlessAgentListener listener = currentListener.get();
         if (collector != null) collector.addEvent(event);
-        if (listener == null) return;
 
         try {
+            if (listener == null) {
+                return;
+            }
+
             listener.onEvent(event, pageWrapper);
 
             switch (event) {
@@ -751,12 +777,12 @@ public class HeadlessBrowserSession implements AutoCloseable {
                 default -> {
                 }
             }
-        }catch (Exception e) {
-            log.error("headless -->事件输出异常" , e);
-            listener.onError(e , pageWrapper);
+        } catch (Exception e) {
+            log.error("headless -->事件输出异常", e);
+            notifyListenerError(e);
         } finally {
             // RunFinished 的 listener 回调全部执行完毕后，才通知 collector 完成
-            // 这确保 awaitCompletion 返回时 onRunFinished 已经执行完，session.close() 安全
+            // 这确保等待结束时 onRunFinished 已经执行完，session.close() 安全
             if (event instanceof AguiEvent.RunFinished && collector != null) {
                 collector.signalCompletion();
             }
@@ -790,7 +816,7 @@ public class HeadlessBrowserSession implements AutoCloseable {
 
     }
 
-    private void triggerAssistant(HeadlessDTO message) {
+    private void triggerAssistant(HeadlessDTO message, SseEventCollector collector) {
         pageOperationLock.lock();
         try {
             // 等待前端聊天就绪（历史消息回显完成）
@@ -799,6 +825,7 @@ public class HeadlessBrowserSession implements AutoCloseable {
                     null, new Page.WaitForFunctionOptions().setTimeout(HEADLESS_REQUEST_TIMEOUT_MS));
             log.debug("前端聊天已就绪，开始发送消息");
 
+            activateSseCollector(collector);
             dispatchHeadlessMessage(page, objectMapper.convertValue(message, new TypeReference<Map<String, Object>>() {
             }));
             log.debug("助手消息已发送: text={}, resourceCount={}",
@@ -813,11 +840,10 @@ public class HeadlessBrowserSession implements AutoCloseable {
     }
 
     /**
-     * 发起前端 Agent 调用，并等待 agent/run 收到响应。
+     * 发起前端 Agent 调用，并等待 agent/run 收到响应头。
      * <p>
-     * 必须等待到响应阶段，确保 Playwright 已执行 page.route() 回调并启动 Redis 消费者。
-     * 仅等待请求创建会让路由回调滞留在 Playwright 事件队列，随后 awaitCompletion 会一直
-     * 等到 SSE 超时才再次驱动事件队列。
+     * 等待响应头可确保注入的 fetch 拦截器已获取并克隆 SSE 响应；
+     * 后续流式分块由 {@link #awaitSseCompletion(SseEventCollector)} 持续驱动。
      */
     static void dispatchHeadlessMessage(Page page, Object payload) {
         page.waitForResponse(response -> isAgentRunRequest(response.request()),
@@ -844,15 +870,18 @@ public class HeadlessBrowserSession implements AutoCloseable {
 
     static class SseEventCollector {
         private final List<AguiEvent> events = Collections.synchronizedList(new ArrayList<>());
-        private final CountDownLatch completionLatch = new CountDownLatch(1);
+        private final String operationId = UUID.randomUUID().toString();
+        private volatile boolean terminal;
         private volatile Throwable error;
+        private volatile boolean retryableError;
+        private volatile String streamId;
 
         /**
-         * 添加事件到列表（不触发 completionLatch）
+         * 添加事件到列表（不改变终态）
          * <p>
-         * completionLatch 由 {@link HeadlessBrowserSession#handleSseEvent} 在
+         * 终态由 {@link HeadlessBrowserSession#handleSseEvent} 在
          * listener 回调全部执行完毕后显式调用 {@link #signalCompletion} 触发，
-         * 确保 awaitCompletion 返回时回调已全部完成，session.close() 安全。
+         * 确保等待结束时回调已全部完成，session.close() 安全。
          */
         void addEvent(AguiEvent event) {
             events.add(event);
@@ -861,30 +890,72 @@ public class HeadlessBrowserSession implements AutoCloseable {
         /**
          * RunFinished 回调执行完毕后，由 handleSseEvent 调用
          */
-        void signalCompletion() {
-            completionLatch.countDown();
-        }
-
-        void signalError(Throwable t) {
-            this.error = t;
-            completionLatch.countDown();
-        }
-
-        List<AguiEvent> awaitCompletion(long timeoutMs) {
-            try {
-                completionLatch.await(timeoutMs, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+        synchronized boolean signalCompletion() {
+            if (terminal) {
+                return false;
             }
-            return getEvents();
+            terminal = true;
+            return true;
+        }
+
+        synchronized boolean signalError(Throwable t) {
+            if (terminal) {
+                return false;
+            }
+            this.error = t;
+            this.terminal = true;
+            return true;
+        }
+
+        synchronized boolean signalRetryableError(Throwable t) {
+            if (terminal) {
+                return false;
+            }
+            this.error = t;
+            this.retryableError = true;
+            this.terminal = true;
+            return true;
+        }
+
+        synchronized boolean bindStream(String candidateStreamId) {
+            if (terminal || !belongsToOperation(candidateStreamId)) {
+                return false;
+            }
+            if (streamId == null) {
+                streamId = candidateStreamId;
+            }
+            return streamId.equals(candidateStreamId);
+        }
+
+        boolean isActiveStream(String candidateStreamId) {
+            String activeStreamId = streamId;
+            return activeStreamId != null && activeStreamId.equals(candidateStreamId);
+        }
+
+        private boolean belongsToOperation(String candidateStreamId) {
+            return candidateStreamId != null && candidateStreamId.startsWith(operationId + ":");
+        }
+
+        String operationId() {
+            return operationId;
+        }
+
+        boolean isTerminal() {
+            return terminal;
         }
 
         List<AguiEvent> getEvents() {
-            return List.copyOf(events);
+            synchronized (events) {
+                return List.copyOf(events);
+            }
         }
 
         Throwable getError() {
             return error;
+        }
+
+        boolean isRetryableError() {
+            return retryableError;
         }
     }
 }

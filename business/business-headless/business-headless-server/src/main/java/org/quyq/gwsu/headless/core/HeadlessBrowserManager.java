@@ -142,7 +142,7 @@ public class HeadlessBrowserManager implements AutoCloseable {
             if (session == null) {
                 var ctx = contextPool.borrowIdle(config.getBorrowTimeoutSeconds(), TimeUnit.SECONDS);
                 contextPool.incrementTotal();
-                session = new HeadlessBrowserSession(ctx, config.getSseTimeoutMs(), cacheUtils);
+                session = new HeadlessBrowserSession(ctx, config.getSseTimeoutMs());
 
                 // 认证
                 if (accessSession == null) {

@@ -14,7 +14,6 @@ import org.quyq.gwsu.common.ai.agui.processor.AguiRequestProcessor;
 import org.quyq.gwsu.common.ai.agui.utils.WebToolUtils;
 import org.quyq.gwsu.common.ai.agui.web.WebToolCallbackRequest;
 import org.quyq.gwsu.common.ai.loop.domain.HumanApprovalInfo;
-import org.quyq.gwsu.common.cache.utils.CacheUtils;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.core.domain.visitor.UserInfo;
 import org.quyq.gwsu.common.security.annotation.LoginAllowAccess;
@@ -25,7 +24,6 @@ import org.quyq.gwsu.security.api.brain.dto.BrainHistoryQueryDTO;
 import org.quyq.gwsu.security.api.brain.vo.BrainHistorySessionSliceVo;
 import org.quyq.gwsu.security.api.config.dto.ConfigSaveDTO;
 import org.quyq.gwsu.security.api.config.enums.ConfigValueType;
-import org.quyq.gwsu.security.brain.push.AguiEventRedisPusher;
 import org.quyq.gwsu.security.brain.service.IBrainHistoryService;
 import org.quyq.gwsu.security.brain.service.IBrainService;
 import org.quyq.gwsu.security.brain.service.history.BrainHistorySessionIndexService;
@@ -33,7 +31,6 @@ import org.quyq.gwsu.security.dict.service.ISecurityConfigService;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
@@ -60,7 +57,7 @@ public class BrainController implements DisposableBean {
     private final ISecurityConfigService configService;
 
 
-    public BrainController(AguiRequestProcessor processor, IBrainService brainService, CacheUtils cacheUtils, ObjectMapper mapper, AgentStateStore agentStateStore, SecurityUtils securityUtils,
+    public BrainController(AguiRequestProcessor processor, IBrainService brainService, AgentStateStore agentStateStore, SecurityUtils securityUtils,
                            SessionUtils sessionUtils,
                            IBrainHistoryService brainHistoryService, WebToolUtils webToolUtils,
                            ISecurityConfigService configService,
@@ -84,7 +81,6 @@ public class BrainController implements DisposableBean {
         };
 
         this.aguiController.setAgentStateStore(agentStateStore);
-        this.aguiController.addPusher(new AguiEventRedisPusher(cacheUtils, mapper));
 
     }
 

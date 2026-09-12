@@ -24,7 +24,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -61,8 +60,8 @@ public class HeadlessPageWrapper {
     /** 录制帧缓冲区（内存中保存 PNG 字节） */
     private final List<byte[]> frameBuffer = Collections.synchronizedList(new ArrayList<>());
 
-    /** 定时截图调度器 */
-    private ScheduledExecutorService scheduler;
+    /** 下一帧允许采集的单调时钟时间点 */
+    private long nextFrameCaptureNanos;
 
     HeadlessPageWrapper(BrowserContext context, Page page, ReentrantLock pageOperationLock) {
         this.context = context;
@@ -75,10 +74,8 @@ public class HeadlessPageWrapper {
      */
     void markClosed() {
         closed = true;
-        // 停止录制调度器（如果正在录制）
-        if (recording.get()) {
-            stopScheduler();
-        }
+        recording.set(false);
+        frameBuffer.clear();
     }
 
     /**
@@ -106,7 +103,7 @@ public class HeadlessPageWrapper {
     /**
      * 开始屏幕录制
      * <p>
-     * 基于定时 page.screenshot() 实现，截图受 BrowserContext 的 deviceScaleFactor 影响，
+     * 基于 SSE 事件泵线程定时调用 page.screenshot() 实现，截图受 BrowserContext 的 deviceScaleFactor 影响，
      * 设为 2.0 时可获取 Retina 级别的清晰截图。
      * 调用 {@link #stopRecording()} 后会将截图帧序列编码为 MP4 视频文件。
      * <p>
@@ -117,44 +114,57 @@ public class HeadlessPageWrapper {
             log.warn("录制已在进行中，忽略重复调用");
             return;
         }
-        if (!isTargetAlive()) {
-            recording.set(false);
-            log.warn("浏览器已关闭，无法开始屏幕录制");
+        pageOperationLock.lock();
+        try {
+            if (!isTargetAlive()) {
+                recording.set(false);
+                log.warn("浏览器已关闭，无法开始屏幕录制");
+                return;
+            }
+            frameBuffer.clear();
+            nextFrameCaptureNanos = 0L;
+            // 立即采集首帧，避免短任务在下一次事件泵轮询前进入审批状态。
+            captureRecordingFrameIfDue();
+        } finally {
+            pageOperationLock.unlock();
+        }
+
+        log.info("屏幕录制已开始 (Playwright事件泵同线程采帧, fps={}, interval={}ms)",
+                RECORDING_FPS, RECORDING_INTERVAL_MS);
+    }
+
+    /**
+     * 在 Playwright 事件泵线程中按录制帧率采集一帧。
+     * <p>
+     * 调用方必须已持有 {@code pageOperationLock}，确保所有 Page 操作在同一事件泵调用链中串行执行。
+     */
+    void captureRecordingFrameIfDue() {
+        if (!recording.get() || closed) {
             return;
         }
 
-        frameBuffer.clear();
+        long nowNanos = System.nanoTime();
+        if (nowNanos < nextFrameCaptureNanos) {
+            return;
+        }
+        nextFrameCaptureNanos = nowNanos + RECORDING_INTERVAL_MS * 1_000_000L;
 
-        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "headless-recording");
-            t.setDaemon(true);
-            return t;
-        });
-
-        scheduler.scheduleAtFixedRate(() -> {
-            if (!isTargetAlive() || !recording.get()) {
+        try {
+            if (page == null || page.isClosed()) {
                 return;
             }
-            pageOperationLock.lock();
-            try {
-                byte[] screenshotBytes = page.screenshot();
-                frameBuffer.add(screenshotBytes);
-            } catch (com.microsoft.playwright.impl.TargetClosedError e) {
-                log.warn("录制截图时浏览器已关闭: {}", e.getMessage());
-            } catch (Exception e) {
-                log.debug("录制截图失败: {}", e.getMessage());
-            } finally {
-                pageOperationLock.unlock();
-            }
-        }, 0, RECORDING_INTERVAL_MS, TimeUnit.MILLISECONDS);
-
-        log.info("屏幕录制已开始 (定时截图方案, fps={}, interval={}ms)", RECORDING_FPS, RECORDING_INTERVAL_MS);
+            frameBuffer.add(page.screenshot());
+        } catch (com.microsoft.playwright.impl.TargetClosedError e) {
+            log.warn("录制截图时浏览器已关闭: {}", e.getMessage());
+        } catch (Exception e) {
+            log.debug("录制截图失败: {}", e.getMessage());
+        }
     }
 
     /**
      * 结束屏幕录制并生成 MP4 视频文件
      * <p>
-     * 停止定时截图，将内存中的截图帧序列使用 JCodec 编码为 MP4 视频文件。
+     * 结束采帧，将内存中的截图帧序列使用 JCodec 编码为 MP4 视频文件。
      * 调用方负责在合适时机上传该文件或使用完毕后删除。
      *
      * @return MP4 视频文件，没有正在录制的会话时返回 null
@@ -165,11 +175,11 @@ public class HeadlessPageWrapper {
             return null;
         }
 
-        // 停止调度器
-        stopScheduler();
-
-        List<byte[]> frames = new ArrayList<>(frameBuffer);
-        frameBuffer.clear();
+        List<byte[]> frames;
+        synchronized (frameBuffer) {
+            frames = new ArrayList<>(frameBuffer);
+            frameBuffer.clear();
+        }
 
         if (frames.isEmpty()) {
             log.warn("录制期间未捕获到任何截图帧");
@@ -192,7 +202,7 @@ public class HeadlessPageWrapper {
     /**
      * 停止录制并丢弃所有截图数据
      * <p>
-     * 停止定时截图调度器，清空内存中的所有帧数据，不生成视频文件。
+     * 结束采帧，清空内存中的所有帧数据，不生成视频文件。
      * 适用于录制中途放弃、不需要保存视频的场景。
      */
     public void discardRecording() {
@@ -201,9 +211,11 @@ public class HeadlessPageWrapper {
             return;
         }
 
-        stopScheduler();
-        int discarded = frameBuffer.size();
-        frameBuffer.clear();
+        int discarded;
+        synchronized (frameBuffer) {
+            discarded = frameBuffer.size();
+            frameBuffer.clear();
+        }
         log.info("录制已丢弃，共丢弃 {} 帧截图数据", discarded);
     }
 
@@ -212,24 +224,6 @@ public class HeadlessPageWrapper {
      */
     public boolean isRecording() {
         return recording.get();
-    }
-
-    /**
-     * 停止调度器并等待完成
-     */
-    private void stopScheduler() {
-        if (scheduler != null) {
-            scheduler.shutdown();
-            try {
-                if (!scheduler.awaitTermination(2, TimeUnit.SECONDS)) {
-                    scheduler.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                scheduler.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-            scheduler = null;
-        }
     }
 
     // ==================== 截图 ====================
