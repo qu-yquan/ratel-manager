@@ -8,6 +8,10 @@
 
 多队列 + 哈希分片消费，确保相同 operId 的请求/响应日志路由到同一队列，由同一虚拟线程顺序消费。
 
+## LogIdUtils — 操作日志标识
+
+`LogAspectInterceptor` 创建操作日志时通过 `LogIdUtils.renewLogId()` 初始化雪花日志 ID，并在调用结束后清理。业务代码通过 `LogIdUtils.getLogId()` 获取当前 ID；同一线程内重复获取以及新建子线程继承时保持一致。使用 `ThreadPoolUtil` 时，通过 Micrometer Context Propagation 自动传递。
+
 ## @LogIgnore — 忽略日志
 
 标注在 Controller 方法上，该接口不记录操作日志：

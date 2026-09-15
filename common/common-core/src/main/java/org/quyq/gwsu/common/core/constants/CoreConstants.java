@@ -84,6 +84,11 @@ public interface CoreConstants {
         String AUTHORIZATION_USER_NAME = "x-username";
 
         /**
+         * 当前认证会话标识
+         */
+        String AUTHORIZATION_ID = "x-authorization-id";
+
+        /**
          * 接口来源服务
          */
         String SERVER_FROM_APP = "x-server-from-app";

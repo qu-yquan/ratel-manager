@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.quyq.gwsu.common.cache.utils.CacheUtils;
 import org.quyq.gwsu.common.security.constants.SecurityConstants;
 import org.quyq.gwsu.common.security.enums.VisitorType;
+import org.quyq.gwsu.common.security.enums.AccountType;
 import org.springframework.util.StringUtils;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.JsonNode;
@@ -48,6 +49,17 @@ public class SessionUtils {
     public String getLoginType() {
         Optional<String> value = getValue(SecurityConstants.Session.SESSION_USER_LOGIN_TYPE);
         return value.orElse(null);
+    }
+
+    /**
+     * 获取当前 Token 对应的认证会话标识。
+     */
+    public Optional<String> getAuthorizationId() {
+        return getValue(SecurityConstants.Session.SESSION_AUTHORIZATION_ID);
+    }
+
+    public Optional<AccountType> getAccountType() {
+        return getValue(SecurityConstants.Session.SESSION_ACCOUNT_TYPE);
     }
 
     /**

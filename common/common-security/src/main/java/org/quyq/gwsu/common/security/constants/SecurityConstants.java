@@ -133,6 +133,16 @@ public interface SecurityConstants {
          * 用户登录类型
          */
         String SESSION_USER_LOGIN_TYPE = "$$userLoginType";
+
+        /**
+         * 当前 Token 对应的认证会话标识
+         */
+        String SESSION_AUTHORIZATION_ID = "$$authorizationId";
+
+        /**
+         * 当前 Token 对应的账号类型
+         */
+        String SESSION_ACCOUNT_TYPE = "$$accountType";
     }
 
     interface DataResource {

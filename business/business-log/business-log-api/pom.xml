@@ -16,6 +16,14 @@
             <groupId>org.quyq.gwsu</groupId>
             <artifactId>common-api</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.quyq.gwsu</groupId>
+            <artifactId>common-log</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.quyq.gwsu</groupId>
+            <artifactId>common-security</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

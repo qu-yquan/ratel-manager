@@ -20,6 +20,7 @@ import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.quyq.gwsu.common.security.utils.SessionUtils;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -50,8 +51,15 @@ public class PropertiesSettingFilter implements Filter {
 
             ServletUtils.LOCAL_HEADERS.set(headers);
 
+            // 认证会话标识只能从服务端 TokenSession 恢复，禁止信任客户端传入值
+            headers.remove(CoreConstants.Headers.AUTHORIZATION_ID);
+
             if (subjectOpt.isPresent()) {
                 Subject<Visitor> subject = subjectOpt.get();
+                sessionUtils.getAuthorizationId()
+                        .filter(StringUtils::hasText)
+                        .ifPresent(authorizationId ->
+                                headers.put(CoreConstants.Headers.AUTHORIZATION_ID, authorizationId));
                 //设置用户名到请求头
                 putUserName(subject, headers);
 

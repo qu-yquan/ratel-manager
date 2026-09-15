@@ -6,6 +6,7 @@ import org.quyq.gwsu.common.core.constants.CoreConstants;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.log.api.factory.LogClientApiFallbackFactory;
 import org.quyq.gwsu.common.log.vo.LogOperationVO;
+import org.quyq.gwsu.common.log.vo.LogLoginVO;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
@@ -27,5 +28,11 @@ public interface ILogClientApi {
      */
     @PostExchange("/operation")
     R<Boolean> saveOperLog(@RequestBody LogOperationVO vo);
+
+    /**
+     * 保存认证日志。
+     */
+    @PostExchange("/login")
+    R<Boolean> saveLoginLog(@RequestBody LogLoginVO vo);
 
 }

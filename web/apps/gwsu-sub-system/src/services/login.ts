@@ -37,6 +37,14 @@ export enum TerminalType {
 }
 
 /**
+ * 登录访问者类型
+ */
+export enum VisitorType {
+    USER = 'USER',
+    CLIENT = 'CLIENT',
+}
+
+/**
  * 登录请求参数
  */
 export interface LoginParams {
@@ -44,6 +52,8 @@ export interface LoginParams {
     type: string;
     /** 终端类型 */
     terminal: TerminalType;
+    /** 访问者类型，不传时后端默认为 USER */
+    visitorType?: VisitorType;
     /** 用户名 */
     username: string;
     /** 密码 */

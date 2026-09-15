@@ -16,15 +16,18 @@ import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthFrontendEndpointR
 import org.quyq.gwsu.common.authentication.oauth.path.AuthenticationEndpointPathResolver;
 import org.quyq.gwsu.common.api.utils.FeignUtils;
 import org.quyq.gwsu.common.cache.utils.IDGenerationUtils;
+import org.quyq.gwsu.common.core.constants.CoreConstants;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.core.domain.visitor.UserInfo;
 import org.quyq.gwsu.common.core.domain.visitor.Visitor;
 import org.quyq.gwsu.common.core.enums.TerminalType;
 import org.quyq.gwsu.common.core.exception.ArgumentException;
+import org.quyq.gwsu.common.core.exception.ExceptionMsgHandler;
 import org.quyq.gwsu.common.core.exception.errcode.CommonErrorCode;
 import org.quyq.gwsu.common.core.exception.handler.GlobalExceptionFunctionHandler;
 import org.quyq.gwsu.common.core.utils.AssertUtils;
 import org.quyq.gwsu.common.core.utils.DeployUtils;
+import org.quyq.gwsu.common.core.utils.ServletUtils;
 import org.quyq.gwsu.common.security.api.oauth.OAuthClientApi;
 import org.quyq.gwsu.common.security.api.oauth.vo.OAuthConsentContextVO;
 import org.quyq.gwsu.common.security.captcha.domain.CaptchaCheckRequest;
@@ -37,6 +40,13 @@ import org.quyq.gwsu.common.security.enums.AccountType;
 import org.quyq.gwsu.common.security.enums.VisitorType;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.quyq.gwsu.common.security.utils.SessionUtils;
+import org.quyq.gwsu.common.security.utils.AuthenticationTokenUtils;
+import org.quyq.gwsu.common.log.enums.LoginEventType;
+import org.quyq.gwsu.common.log.enums.LoginSessionStatus;
+import org.quyq.gwsu.common.log.security.TokenFingerprint;
+import org.quyq.gwsu.common.log.security.TokenFingerprintService;
+import org.quyq.gwsu.common.log.service.LoginLogHandlerService;
+import org.quyq.gwsu.common.log.vo.LogLoginVO;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
@@ -50,6 +60,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 /**
  * @author Quyq
@@ -92,6 +103,12 @@ public class LoginWebConfiguration {
 
     @Resource
     private OAuthClientApi oauthClientApi;
+
+    @Resource
+    private LoginLogHandlerService loginLogHandlerService;
+
+    @Resource
+    private TokenFingerprintService tokenFingerprintService;
 
 
     @Bean
@@ -267,9 +284,64 @@ public class LoginWebConfiguration {
      * @return
      */
     private ServerResponse logout(ServerRequest request) {
-        StpUtil.logout();
-        return ServerResponse.ok()
-                .body(R.ok("退出成功"));
+        String token = AuthenticationTokenUtils.resolve(
+                request.headers().firstHeader(CoreConstants.Headers.HTTP_HEADER_TOKEN_KEY));
+        TokenFingerprint fingerprint = tokenFingerprintService.generate(token);
+        String authorizationId = sessionUtils.getAuthorizationId().orElse(null);
+        AccountType accountType = sessionUtils.getAccountType().orElse(null);
+        VisitorType visitorType = sessionUtils.getVisitorType();
+        String loginType = sessionUtils.getLoginType();
+        Optional<Subject<Visitor>> subject = securityUtils.getSubject(token);
+        boolean active = authorizationId != null || subject.isPresent();
+        Throwable failure = null;
+        try {
+            StpUtil.logout();
+            return ServerResponse.ok()
+                    .body(R.ok("退出成功"));
+        } catch (RuntimeException | Error exception) {
+            failure = exception;
+            throw exception;
+        } finally {
+            saveLogoutLog(request, fingerprint, authorizationId, accountType,
+                    visitorType, loginType, subject.orElse(null), active, failure);
+        }
+    }
+
+    private void saveLogoutLog(ServerRequest request, TokenFingerprint fingerprint,
+                               String authorizationId, AccountType accountType,
+                               VisitorType visitorType, String loginType,
+                               Subject<Visitor> subject, boolean active, Throwable failure) {
+        try {
+            LocalDateTime now = LocalDateTime.now();
+            LogLoginVO loginLog = new LogLoginVO()
+                    .setAuthorizationId(authorizationId)
+                    .setEventType(LoginEventType.LOGOUT)
+                    .setAccountType(accountType)
+                    .setVisitorType(visitorType)
+                    .setLoginType(loginType)
+                    .setTokenFingerprint(fingerprint.value())
+                    .setTokenKeyVersion(fingerprint.keyVersion())
+                    .setSessionStatus(active ? LoginSessionStatus.ACTIVE : LoginSessionStatus.INACTIVE)
+                    .setTerminal(subject == null ? null : subject.getTerminalType())
+                    .setTerminalDetail(request.headers().firstHeader("user-agent"))
+                    .setClientIp(ServletUtils.getClientIP())
+                    .setStatus(failure == null)
+                    .setEventTime(now);
+            loginLog.setCreateTime(now);
+            if (subject != null) {
+                subject.userInfo().ifPresent(user -> loginLog
+                        .setUserId(user.getUserId())
+                        .setUserName(user.getUserName()));
+            }
+            if (failure != null) {
+                ExceptionMsgHandler.ErrorInfo errorInfo = ExceptionMsgHandler.determineErrorInfo(failure);
+                loginLog.setFailureCode(errorInfo.result().errCode())
+                        .setFailureMessage(errorInfo.result().msg());
+            }
+            loginLogHandlerService.save(loginLog);
+        } catch (Exception exception) {
+            log.warn("登出日志提交异常，不影响登出结果：{}", exception.getMessage());
+        }
     }
 
 

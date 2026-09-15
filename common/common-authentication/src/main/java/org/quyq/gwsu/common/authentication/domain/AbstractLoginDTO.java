@@ -3,6 +3,7 @@ package org.quyq.gwsu.common.authentication.domain;
 
 import lombok.Data;
 import org.quyq.gwsu.common.core.enums.TerminalType;
+import org.quyq.gwsu.common.security.enums.VisitorType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import tools.jackson.databind.annotation.JsonDeserialize;
@@ -23,9 +24,13 @@ public abstract class AbstractLoginDTO {
 
     /**
      * 登录终端类型
-     * 1-PC ; 2-APP
      */
     private TerminalType terminal;
+
+    /**
+     * 访问者类型，不传时默认为平台用户
+     */
+    private VisitorType visitorType = VisitorType.USER;
 
     /**
      * 验证码ID

@@ -25,6 +25,15 @@ public class LogOperationVO extends BaseVO {
     @Schema(description = "日志标识")
     private String operId;
 
+    @Schema(description = "认证会话标识")
+    private String authorizationId;
+
+    @Schema(description = "Token HMAC 指纹")
+    private String tokenFingerprint;
+
+    @Schema(description = "Token HMAC 密钥版本")
+    private String tokenKeyVersion;
+
     /**
      * 全局日志链路
      */

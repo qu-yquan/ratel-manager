@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.quyq.gwsu.common.api.utils.FeignUtils;
+import org.quyq.gwsu.common.cache.utils.IDGenerationUtils;
 import org.quyq.gwsu.common.authentication.constants.AuthenticationConstants;
 import org.quyq.gwsu.common.authentication.dataresource.DataResourceScopeManager;
 import org.quyq.gwsu.common.authentication.domain.AbstractLoginDTO;
@@ -58,10 +59,12 @@ public abstract class AbstractLoginHandler<T extends AbstractLoginDTO, U extends
         CoreProperties properties = new CoreProperties();
         LoginVO loginVO = new LoginVO();
         String type = loginType();
+        String authorizationId = SpringUtils.getBean(IDGenerationUtils.class).generateNextIdStr();
 
         return ScopedValue.where(AuthenticationConstants.ACCOUNT_TYPE, accountType())
                 .call(() -> {
-                    LoginInterceptorContext<U> context = new LoginInterceptorContext<>(loginDTO, loginVO);
+                    LoginInterceptorContext<U> context = new LoginInterceptorContext<>(
+                            loginDTO, loginVO, authorizationId, accountType(), visitorType, type);
 
                     try {
                         verifyCaptchaIfNecessary(loginDTO);
@@ -89,12 +92,11 @@ public abstract class AbstractLoginHandler<T extends AbstractLoginDTO, U extends
                         loginVO.setExpires(tokenInfo.tokenTimeout);
 
                         // 记录token格式，JWT格式包含两个"."分隔符
-                        log.info("[Login] token生成: loginType={}, userId={}, tokenFormat={}, tokenValue={}",
+                        log.info("[Login] token生成: loginType={}, userId={}, tokenFormat={}",
                                 type, loginVO.getUserId(),
-                                tokenInfo.tokenValue != null && tokenInfo.tokenValue.chars().filter(c -> c == '.').count() == 2 ? "JWT" : "UUID",
-                                tokenInfo.tokenValue);
+                                tokenInfo.tokenValue != null && tokenInfo.tokenValue.chars().filter(c -> c == '.').count() == 2 ? "JWT" : "UUID");
 
-                        putSessionData(auth, subject, visitorType);
+                        putSessionData(auth, subject, visitorType, authorizationId);
 
 
                         // 阶段2: 登录成功后
@@ -135,7 +137,7 @@ public abstract class AbstractLoginHandler<T extends AbstractLoginDTO, U extends
     }
 
 
-    private void putSessionData(U auth, Subject<U> subject , VisitorType visitorType) {
+    private void putSessionData(U auth, Subject<U> subject, VisitorType visitorType, String authorizationId) {
         // 加载数据资源信息
         List<WorkspaceInfo> workspaceList = DataResourceScopeManager.workspaceList(auth);
         //账号session存储用户信息
@@ -152,6 +154,8 @@ public abstract class AbstractLoginHandler<T extends AbstractLoginDTO, U extends
         tokenSession.set(SecurityConstants.Session.SESSION_USER_VISITOR_TYPE , visitorType);
         //登录类型
         tokenSession.set(SecurityConstants.Session.SESSION_USER_LOGIN_TYPE , loginType());
+        tokenSession.set(SecurityConstants.Session.SESSION_AUTHORIZATION_ID, authorizationId);
+        tokenSession.set(SecurityConstants.Session.SESSION_ACCOUNT_TYPE, accountType());
     }
 
 

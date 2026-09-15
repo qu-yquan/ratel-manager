@@ -52,13 +52,14 @@ public class CustomOAuthSubjectWriter {
         this.accountTypeResolver = accountTypeResolver;
     }
 
-    public void write(
+    public OAuth2Authorization write(
             RegisteredClient registeredClient,
             OAuth2AccessToken accessToken,
             String requestedGrantType) {
         OAuth2Authorization authorization = authorizationService.findByToken(
                 accessToken.getTokenValue(),
                 OAuth2TokenType.ACCESS_TOKEN);
+        Assert.notNull(authorization, "OAuth authorization cannot be found");
         OAuthClientInfoVO clientInfo = clientInfo(registeredClient);
         clientInfo.setAuthorizedScopes(accessToken.getScopes());
         Subject<ClientInfo> subject = new Subject<>(clientInfo);
@@ -88,6 +89,10 @@ public class CustomOAuthSubjectWriter {
         tokenSession.set(
                 SecurityConstants.Session.SESSION_USER_LOGIN_TYPE,
                 oauthLoginType(requestedGrantType, authorization));
+        tokenSession.set(SecurityConstants.Session.SESSION_AUTHORIZATION_ID, authorization.getId());
+        tokenSession.set(SecurityConstants.Session.SESSION_ACCOUNT_TYPE,
+                accountTypeResolver.resolve(registeredClient));
+        return authorization;
     }
 
     static boolean inheritsUserPermissions(Set<String> scopes) {

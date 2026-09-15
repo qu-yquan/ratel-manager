@@ -21,6 +21,7 @@ public record LogInfoConfigProperties(
         AccessLogProperties accessLog ,
         TableLogProperties tableLog ,
         LogininfoProperties loginLog ,
+        TokenFingerprintProperties tokenFingerprint,
         Store store
 ) {
 
@@ -33,6 +34,9 @@ public record LogInfoConfigProperties(
         }
         if(Objects.isNull(loginLog)){
             loginLog = new LogininfoProperties(true);
+        }
+        if (Objects.isNull(tokenFingerprint)) {
+            tokenFingerprint = new TokenFingerprintProperties("v1", "ratel:log:token-fingerprint:v1");
         }
         if(Objects.isNull(store)){
             store = new Store(
@@ -130,6 +134,23 @@ public record LogInfoConfigProperties(
             boolean enabled
 
     ){}
+
+    /**
+     * Token 指纹配置。生产环境应覆盖 secret，并在轮换时同步更新 keyVersion。
+     */
+    public record TokenFingerprintProperties(
+            String keyVersion,
+            String secret
+    ) {
+        public TokenFingerprintProperties {
+            if (!StringUtils.hasText(keyVersion)) {
+                keyVersion = "v1";
+            }
+            if (!StringUtils.hasText(secret)) {
+                secret = "ratel:log:token-fingerprint:v1";
+            }
+        }
+    }
 
     public record Store(
             LogStorage accessLog ,

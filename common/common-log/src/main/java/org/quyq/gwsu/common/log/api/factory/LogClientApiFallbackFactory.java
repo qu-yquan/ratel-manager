@@ -5,6 +5,7 @@ import org.quyq.gwsu.common.api.fallback.FallbackFactory;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.log.api.ILogClientApi;
 import org.quyq.gwsu.common.log.vo.LogOperationVO;
+import org.quyq.gwsu.common.log.vo.LogLoginVO;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,6 +20,11 @@ public class LogClientApiFallbackFactory implements FallbackFactory<ILogClientAp
         return new ILogClientApi() {
             @Override
             public R<Boolean> saveOperLog(LogOperationVO vo) {
+                return R.fail(cause.getMessage());
+            }
+
+            @Override
+            public R<Boolean> saveLoginLog(LogLoginVO vo) {
                 return R.fail(cause.getMessage());
             }
         };

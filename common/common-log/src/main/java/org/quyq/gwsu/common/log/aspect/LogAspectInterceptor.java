@@ -2,7 +2,6 @@ package org.quyq.gwsu.common.log.aspect;
 
 import cn.hutool.core.exceptions.ExceptionUtil;
 import cn.hutool.core.text.CharSequenceUtil;
-import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.http.useragent.UserAgent;
 import cn.hutool.http.useragent.UserAgentUtil;
@@ -25,6 +24,9 @@ import org.quyq.gwsu.common.log.config.properties.LogInfoConfigProperties;
 import org.quyq.gwsu.common.log.constants.LogInfoConstants;
 import org.quyq.gwsu.common.log.enums.ViewOperationSubject;
 import org.quyq.gwsu.common.log.service.AccessLogHandlerService;
+import org.quyq.gwsu.common.log.security.TokenFingerprint;
+import org.quyq.gwsu.common.log.security.TokenFingerprintService;
+import org.quyq.gwsu.common.log.utils.LogIdUtils;
 import org.quyq.gwsu.common.log.vo.LogOperationVO;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.quyq.gwsu.common.security.utils.AuthenticationTokenUtils;
@@ -60,6 +62,8 @@ public class LogAspectInterceptor implements MethodInterceptor {
     private final AccessLogHandlerService logService;
 
     private final ObjectMapper objectMapper;
+
+    private final TokenFingerprintService tokenFingerprintService;
 
     private final ObjectProvider<List<BusinessModuleInfoProvider>> providers;
 
@@ -110,21 +114,25 @@ public class LogAspectInterceptor implements MethodInterceptor {
     }
 
     private Object startRecordLog(MethodInvocation invocation, HttpServletRequest request , String modulePrefix , String uri) throws Throwable {
-        LogOperationVO log = createLog(invocation, request , modulePrefix , uri);
-        //推送请求日志
-        this.put(log);
-        Object result;
         try {
-            result = invocation.proceed();
-            setResponse(log, result, null);
-        } catch (Throwable ex) {
-            setResponse(log, null, ex);
-            throw ex;
-        } finally {
-            //推送响应日志
+            LogOperationVO log = createLog(invocation, request , modulePrefix , uri);
+            //推送请求日志
             this.put(log);
+            Object result;
+            try {
+                result = invocation.proceed();
+                setResponse(log, result, null);
+            } catch (Throwable ex) {
+                setResponse(log, null, ex);
+                throw ex;
+            } finally {
+                //推送响应日志
+                this.put(log);
+            }
+            return result;
+        } finally {
+            LogIdUtils.clear();
         }
-        return result;
     }
 
 
@@ -218,7 +226,7 @@ public class LogAspectInterceptor implements MethodInterceptor {
 
         JsonNode requestParam = extractor.getRequestParam(request, invocation);
 
-        accessLog.setOperId(IdUtil.getSnowflakeNextIdStr());
+        accessLog.setOperId(LogIdUtils.renewLogId());
         accessLog.setRequestTime(now)
                 //默认失败状态
                 .setStatus(false)
@@ -235,6 +243,9 @@ public class LogAspectInterceptor implements MethodInterceptor {
                         .map(v ->v.split("-")[2]).orElse(null);
 
 
+        String token = getTokenId(headers);
+        TokenFingerprint tokenFingerprint = tokenFingerprintService.generate(token);
+
         accessLog
                 .setTid(MDC.get(LogInfoConstants.TRACE_ID))
                 .setParentId(parentId)
@@ -250,7 +261,10 @@ public class LogAspectInterceptor implements MethodInterceptor {
                                 })
                                 .orElse(0)
                 ))
-                .setTokenId(getTokenId(headers))
+                .setAuthorizationId(headers.get(CoreConstants.Headers.AUTHORIZATION_ID))
+                .setTokenFingerprint(tokenFingerprint.value())
+                .setTokenKeyVersion(tokenFingerprint.keyVersion())
+                .setTokenId(null)
                 .setOperName(headers.get(CoreConstants.Headers.AUTHORIZATION_USER_NAME))
                 .setTerminalDetail(headers.get("user-agent"))
                 .setCreateOp(headers.get(CoreConstants.Headers.AUTHORIZATION_USER_NAME));
@@ -353,7 +367,9 @@ public class LogAspectInterceptor implements MethodInterceptor {
         }
         Object handler = request.getAttribute(HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE);
         if (!(handler instanceof HandlerMethod handlerMethod)) {
-            return false;
+            // 函数式路由等非注解式 Controller 作为 HTTP 入口时，当前被 AOP
+            // 拦截的 Controller 只能是单体模式下的内部 Bean 调用，不应重复记录操作日志。
+            return true;
         }
 
         Class<?> targetClass = AopUtils.getTargetClass(invocation.getThis());

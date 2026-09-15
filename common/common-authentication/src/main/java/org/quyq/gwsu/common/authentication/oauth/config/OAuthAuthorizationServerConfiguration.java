@@ -25,9 +25,12 @@ import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuth2Authorization
 import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuth2DeviceCodeGenerator;
 import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuthSubjectWriter;
 import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuth2UserCodeGenerator;
+import org.quyq.gwsu.common.authentication.oauth.token.OAuthLoginLogRecorder;
 import org.quyq.gwsu.common.cache.utils.CacheUtils;
 import org.quyq.gwsu.common.security.api.oauth.OAuthClientApi;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
+import org.quyq.gwsu.common.log.security.TokenFingerprintService;
+import org.quyq.gwsu.common.log.service.LoginLogHandlerService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -163,8 +166,18 @@ public class OAuthAuthorizationServerConfiguration {
     @Bean
     public CustomOAuth2AccessTokenResponseSuccessHandler oauth2AccessTokenResponseSuccessHandler(
             CustomOAuthSubjectWriter subjectWriter,
-            OAuth2UnifiedSuccessResponseHandler successResponseHandler) {
-        return new CustomOAuth2AccessTokenResponseSuccessHandler(subjectWriter, successResponseHandler);
+            OAuth2UnifiedSuccessResponseHandler successResponseHandler,
+            OAuthLoginLogRecorder loginLogRecorder) {
+        return new CustomOAuth2AccessTokenResponseSuccessHandler(subjectWriter, successResponseHandler,
+                loginLogRecorder);
+    }
+
+    @Bean
+    public OAuthLoginLogRecorder oauthLoginLogRecorder(
+            LoginLogHandlerService loginLogHandlerService,
+            TokenFingerprintService tokenFingerprintService,
+            OAuthClientAccountTypeResolver accountTypeResolver) {
+        return new OAuthLoginLogRecorder(loginLogHandlerService, tokenFingerprintService, accountTypeResolver);
     }
 
     @Bean

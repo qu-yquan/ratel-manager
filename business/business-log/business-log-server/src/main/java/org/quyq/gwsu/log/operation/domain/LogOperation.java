@@ -30,6 +30,15 @@ public class LogOperation extends BaseDO {
     @Schema(description = "主键ID")
     private String id;
 
+    @Schema(description = "认证会话标识")
+    private String authorizationId;
+
+    @Schema(description = "Token HMAC 指纹")
+    private String tokenFingerprint;
+
+    @Schema(description = "Token HMAC 密钥版本")
+    private String tokenKeyVersion;
+
     @Schema(description = "全局日志链路")
     private String tid;
 
@@ -102,6 +111,9 @@ public class LogOperation extends BaseDO {
     public LogOperationVO toVo() {
         LogOperationVO vo = new LogOperationVO();
         vo.setOperId(this.id);
+        vo.setAuthorizationId(this.authorizationId);
+        vo.setTokenFingerprint(this.tokenFingerprint);
+        vo.setTokenKeyVersion(this.tokenKeyVersion);
         vo.setTid(this.tid);
         vo.setParentId(this.parentId);
         vo.setModulePrefix(this.modulePrefix);
@@ -134,6 +146,9 @@ public class LogOperation extends BaseDO {
     public static LogOperation toDo(LogOperationVO vo) {
         LogOperation entity = new LogOperation();
         entity.setId(vo.getOperId());
+        entity.setAuthorizationId(vo.getAuthorizationId());
+        entity.setTokenFingerprint(vo.getTokenFingerprint());
+        entity.setTokenKeyVersion(vo.getTokenKeyVersion());
         entity.setTid(vo.getTid());
         entity.setParentId(vo.getParentId());
         entity.setModulePrefix(vo.getModulePrefix());

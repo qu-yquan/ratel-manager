@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {App} from 'antd';
 import {encryptPassword} from '@gwsu/core';
-import {getLoginConfigInfo, login, TerminalType} from '../../services/login';
+import {getLoginConfigInfo, login, TerminalType, VisitorType} from '../../services/login';
 import CaptchaVerify, {CaptchaPass} from '../components/CaptchaVerify';
 import {resolveOAuthRedirect} from './utils';
 import styles from '../login.module.less';
@@ -86,6 +86,7 @@ export default function OAuth2Login() {
             await login({
                 type: 'password',
                 terminal: TerminalType.WEB,
+                visitorType: VisitorType.CLIENT,
                 username: pendingCredentials.username,
                 password: pendingCredentials.encryptedPassword,
                 captchaId: captchaPass.captchaId,

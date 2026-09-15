@@ -39,7 +39,12 @@ public class LoginManager {
     private final ObjectMapper json;
 
     public LoginResult login(@NonNull JsonNode form, @NonNull AccountType accountType) {
-        return login(form, accountType, VisitorType.USER);
+        String typeKey = LambdaUtil.getFieldName(AbstractLoginDTO::getType);
+
+        String loginType = AssertUtils.hasText(Optional.ofNullable(form.get(typeKey)).map(JsonNode::asString).orElse(""), CommonErrorCode.E04004);
+        AbstractLoginDTO loginForm = json.treeToValue(form, LoginLoadingManager.supportClass(loginType, accountType));
+        VisitorType visitorType = Optional.ofNullable(loginForm.getVisitorType()).orElse(VisitorType.USER);
+        return login(loginForm, accountType, visitorType);
     }
 
     public LoginResult login(@NonNull JsonNode form, @NonNull AccountType accountType, @NonNull VisitorType visitorType) {
@@ -47,6 +52,7 @@ public class LoginManager {
 
         String loginType = AssertUtils.hasText(Optional.ofNullable(form.get(typeKey)).map(JsonNode::asString).orElse(""), CommonErrorCode.E04004);
         AbstractLoginDTO loginForm = json.treeToValue(form, LoginLoadingManager.supportClass(loginType, accountType));
+        loginForm.setVisitorType(visitorType);
         return login(loginForm, accountType, visitorType);
     }
 
@@ -61,6 +67,7 @@ public class LoginManager {
 
         AssertUtils.hasText(form.getType(), CommonErrorCode.E04004);
         AssertUtils.notNull(form.getTerminal(), CommonErrorCode.E04005);
+        form.setVisitorType(visitorType);
 
         Optional<LoginHandler<AbstractLoginDTO>> target = loginHandlers.stream()
                 .filter(handler -> accountType == handler.accountType() && form.getType().equals(handler.loginType()))

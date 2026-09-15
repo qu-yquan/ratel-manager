@@ -17,6 +17,9 @@ import java.time.LocalDateTime;
 @Schema(description = "操作日志查询条件")
 public class LogOperationQueryDTO extends BaseDTO {
 
+    @Schema(description = "认证会话标识")
+    private String authorizationId;
+
     @Schema(description = "全局日志链路")
     private String tid;
 
