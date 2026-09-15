@@ -7,7 +7,6 @@ import org.quyq.gwsu.common.log.aspect.LogAnnotationAdvisor;
 import org.quyq.gwsu.common.log.aspect.LogAspectInterceptor;
 import org.quyq.gwsu.common.log.config.properties.LogInfoConfigProperties;
 import org.quyq.gwsu.common.log.service.AccessLogHandlerService;
-import org.quyq.gwsu.common.log.security.TokenFingerprintService;
 import org.quyq.gwsu.common.log.service.AsyncLoginLogHandlerService;
 import org.quyq.gwsu.common.log.service.LoginLogHandlerService;
 import org.quyq.gwsu.common.log.service.NoOpLoginLogHandlerService;
@@ -40,11 +39,6 @@ public class LogInfoConfiguration {
     }
 
     @Bean
-    public TokenFingerprintService tokenFingerprintService(LogInfoConfigProperties properties) {
-        return new TokenFingerprintService(properties.tokenFingerprint());
-    }
-
-    @Bean
     @ConditionalOnProperty(prefix = "dtt.log.login-log", name = "enabled", havingValue = "true", matchIfMissing = true)
     public LoginLogHandlerService asyncLoginLogHandlerService(ILogClientApi logClientApi) {
         return new AsyncLoginLogHandlerService(logClientApi);
@@ -61,10 +55,8 @@ public class LogInfoConfiguration {
     public LogAspectInterceptor logAspectInterceptor(LogInfoConfigProperties properties,
                                                      AccessLogHandlerService logHandlerService,
                                                      ObjectMapper objectMapper,
-                                                     TokenFingerprintService tokenFingerprintService,
                                                      ObjectProvider<List<BusinessModuleInfoProvider>> providers) {
-        return new LogAspectInterceptor(properties.accessLog(), logHandlerService, objectMapper,
-                tokenFingerprintService, providers);
+        return new LogAspectInterceptor(properties.accessLog(), logHandlerService, objectMapper, providers);
     }
 
     @Bean

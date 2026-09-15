@@ -33,12 +33,6 @@ public class LogOperation extends BaseDO {
     @Schema(description = "认证会话标识")
     private String authorizationId;
 
-    @Schema(description = "Token HMAC 指纹")
-    private String tokenFingerprint;
-
-    @Schema(description = "Token HMAC 密钥版本")
-    private String tokenKeyVersion;
-
     @Schema(description = "全局日志链路")
     private String tid;
 
@@ -81,9 +75,6 @@ public class LogOperation extends BaseDO {
     @Schema(description = "操作人")
     private String operName;
 
-    @Schema(description = "token")
-    private String tokenId;
-
     @Schema(description = "请求参数")
     private String requestParam;
 
@@ -112,8 +103,6 @@ public class LogOperation extends BaseDO {
         LogOperationVO vo = new LogOperationVO();
         vo.setOperId(this.id);
         vo.setAuthorizationId(this.authorizationId);
-        vo.setTokenFingerprint(this.tokenFingerprint);
-        vo.setTokenKeyVersion(this.tokenKeyVersion);
         vo.setTid(this.tid);
         vo.setParentId(this.parentId);
         vo.setModulePrefix(this.modulePrefix);
@@ -128,7 +117,6 @@ public class LogOperation extends BaseDO {
         vo.setTerminal(this.terminal);
         vo.setTerminalDetail(this.terminalDetail);
         vo.setOperName(this.operName);
-        vo.setTokenId(this.tokenId);
         vo.setRequestParam(this.requestParam);
         vo.setResponseData(this.responseData);
         vo.setErrorMsg(this.errorMsg);
@@ -147,8 +135,6 @@ public class LogOperation extends BaseDO {
         LogOperation entity = new LogOperation();
         entity.setId(vo.getOperId());
         entity.setAuthorizationId(vo.getAuthorizationId());
-        entity.setTokenFingerprint(vo.getTokenFingerprint());
-        entity.setTokenKeyVersion(vo.getTokenKeyVersion());
         entity.setTid(vo.getTid());
         entity.setParentId(vo.getParentId());
         entity.setModulePrefix(vo.getModulePrefix());
@@ -163,7 +149,6 @@ public class LogOperation extends BaseDO {
         entity.setTerminal(vo.getTerminal());
         entity.setTerminalDetail(vo.getTerminalDetail());
         entity.setOperName(vo.getOperName());
-        entity.setTokenId(vo.getTokenId());
         entity.setRequestParam(vo.getRequestParam());
         entity.setResponseData(vo.getResponseData());
         entity.setErrorMsg(vo.getErrorMsg());

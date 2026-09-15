@@ -29,7 +29,6 @@ import org.quyq.gwsu.common.authentication.oauth.token.OAuthLoginLogRecorder;
 import org.quyq.gwsu.common.cache.utils.CacheUtils;
 import org.quyq.gwsu.common.security.api.oauth.OAuthClientApi;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
-import org.quyq.gwsu.common.log.security.TokenFingerprintService;
 import org.quyq.gwsu.common.log.service.LoginLogHandlerService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -175,9 +174,8 @@ public class OAuthAuthorizationServerConfiguration {
     @Bean
     public OAuthLoginLogRecorder oauthLoginLogRecorder(
             LoginLogHandlerService loginLogHandlerService,
-            TokenFingerprintService tokenFingerprintService,
             OAuthClientAccountTypeResolver accountTypeResolver) {
-        return new OAuthLoginLogRecorder(loginLogHandlerService, tokenFingerprintService, accountTypeResolver);
+        return new OAuthLoginLogRecorder(loginLogHandlerService, accountTypeResolver);
     }
 
     @Bean

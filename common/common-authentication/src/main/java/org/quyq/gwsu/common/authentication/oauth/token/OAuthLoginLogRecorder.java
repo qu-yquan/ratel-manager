@@ -7,10 +7,7 @@ import org.quyq.gwsu.common.authentication.oauth.client.OAuthClientAccountTypeRe
 import org.quyq.gwsu.common.authentication.oauth.store.CustomOAuth2AuthorizationService;
 import org.quyq.gwsu.common.core.domain.visitor.UserInfo;
 import org.quyq.gwsu.common.core.utils.ServletUtils;
-import org.quyq.gwsu.common.log.enums.LoginEventType;
-import org.quyq.gwsu.common.log.enums.LoginSessionStatus;
-import org.quyq.gwsu.common.log.security.TokenFingerprint;
-import org.quyq.gwsu.common.log.security.TokenFingerprintService;
+import org.quyq.gwsu.common.log.enums.LoginLogAction;
 import org.quyq.gwsu.common.log.service.LoginLogHandlerService;
 import org.quyq.gwsu.common.log.vo.LogLoginVO;
 import org.quyq.gwsu.common.security.domain.Subject;
@@ -32,32 +29,27 @@ public class OAuthLoginLogRecorder {
 
     private final LoginLogHandlerService loginLogHandlerService;
 
-    private final TokenFingerprintService tokenFingerprintService;
-
     private final OAuthClientAccountTypeResolver accountTypeResolver;
 
     public void recordSuccess(HttpServletRequest request, RegisteredClient registeredClient,
                               OAuth2AccessToken accessToken, String requestedGrantType,
                               OAuth2Authorization authorization) {
         try {
-            TokenFingerprint fingerprint = tokenFingerprintService.generate(accessToken.getTokenValue());
             String loginType = CustomOAuthSubjectWriter.oauthLoginType(requestedGrantType, authorization);
             LogLoginVO loginLog = new LogLoginVO()
                     .setAuthorizationId(authorization.getId())
-                    .setEventType(AuthorizationGrantType.REFRESH_TOKEN.getValue().equals(requestedGrantType)
-                            ? LoginEventType.TOKEN_REFRESH : LoginEventType.LOGIN)
+                    .setAction(AuthorizationGrantType.REFRESH_TOKEN.getValue().equals(requestedGrantType)
+                            ? LoginLogAction.TOKEN_REFRESH : LoginLogAction.LOGIN)
                     .setAccountType(accountTypeResolver.resolve(registeredClient))
                     .setVisitorType(VisitorType.CLIENT)
                     .setLoginType(loginType)
                     .setGrantType(requestedGrantType)
                     .setClientId(registeredClient.getClientId())
-                    .setTokenFingerprint(fingerprint.value())
-                    .setTokenKeyVersion(fingerprint.keyVersion())
-                    .setSessionStatus(LoginSessionStatus.ACTIVE)
+                    .setToken(accessToken.getTokenValue())
                     .setTerminalDetail(request.getHeader("user-agent"))
                     .setClientIp(ServletUtils.getClientIP(request))
                     .setStatus(true)
-                    .setEventTime(LocalDateTime.now());
+                    .setLoginTime(LocalDateTime.now());
             loginLog.setCreateTime(LocalDateTime.now());
             authUser(authorization).ifPresent(user -> loginLog
                     .setUserId(user.getUserId())

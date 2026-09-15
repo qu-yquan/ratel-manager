@@ -50,8 +50,8 @@ public class SaveLogController implements ILogClientApi {
     @LogIgnore
     @Override
     public R<Boolean> saveLoginLog(@RequestBody LogLoginVO vo) {
-        log.info("收到认证日志：authorizationId={}, eventType={}",
-                vo.getAuthorizationId(), vo.getEventType());
+        log.info("收到认证日志：authorizationId={}, action={}",
+                vo.getAuthorizationId(), vo.getAction());
         return R.ok(logLoginService.saveLog(vo));
     }
 }

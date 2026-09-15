@@ -3,11 +3,12 @@ package org.quyq.gwsu.common.log.vo;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.quyq.gwsu.common.core.domain.BaseVO;
 import org.quyq.gwsu.common.core.enums.TerminalType;
-import org.quyq.gwsu.common.log.enums.LoginEventType;
-import org.quyq.gwsu.common.log.enums.LoginSessionStatus;
+import org.quyq.gwsu.common.log.enums.LoginEndType;
+import org.quyq.gwsu.common.log.enums.LoginLogAction;
 import org.quyq.gwsu.common.security.enums.AccountType;
 import org.quyq.gwsu.common.security.enums.VisitorType;
 
@@ -28,8 +29,8 @@ public class LogLoginVO extends BaseVO {
     @Schema(description = "认证会话标识")
     private String authorizationId;
 
-    @Schema(description = "事件类型")
-    private LoginEventType eventType;
+    @Schema(description = "认证日志写入动作", hidden = true)
+    private LoginLogAction action;
 
     @Schema(description = "账号类型")
     private AccountType accountType;
@@ -55,14 +56,12 @@ public class LogLoginVO extends BaseVO {
     @Schema(description = "登录账号")
     private String loginAccount;
 
-    @Schema(description = "Token HMAC 指纹")
-    private String tokenFingerprint;
+    @Schema(description = "内部日志保存使用的原始Token", hidden = true)
+    @ToString.Exclude
+    private String token;
 
-    @Schema(description = "Token HMAC 密钥版本")
-    private String tokenKeyVersion;
-
-    @Schema(description = "会话状态")
-    private LoginSessionStatus sessionStatus;
+    @Schema(description = "会话结束类型")
+    private LoginEndType endType;
 
     @Schema(description = "终端")
     private TerminalType terminal;
@@ -82,6 +81,9 @@ public class LogLoginVO extends BaseVO {
     @Schema(description = "失败原因")
     private String failureMessage;
 
-    @Schema(description = "事件时间")
-    private LocalDateTime eventTime;
+    @Schema(description = "登录时间")
+    private LocalDateTime loginTime;
+
+    @Schema(description = "会话结束时间")
+    private LocalDateTime endTime;
 }

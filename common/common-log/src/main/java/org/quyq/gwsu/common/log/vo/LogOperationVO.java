@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.quyq.gwsu.common.core.domain.BaseVO;
 import org.quyq.gwsu.common.core.enums.TerminalType;
@@ -27,12 +28,6 @@ public class LogOperationVO extends BaseVO {
 
     @Schema(description = "认证会话标识")
     private String authorizationId;
-
-    @Schema(description = "Token HMAC 指纹")
-    private String tokenFingerprint;
-
-    @Schema(description = "Token HMAC 密钥版本")
-    private String tokenKeyVersion;
 
     /**
      * 全局日志链路
@@ -115,10 +110,8 @@ public class LogOperationVO extends BaseVO {
     @Schema(description = "操作人")
     private String operName;
 
-    /**
-     * token
-     */
-    @Schema(description = "token")
+    @Schema(description = "authorizationId缺失时供日志服务查询Redis的原始Token", hidden = true)
+    @ToString.Exclude
     private String tokenId;
 
     /**

@@ -4,17 +4,17 @@
 <mapper namespace="org.quyq.gwsu.log.login.mapper.LogLoginMapper">
 
     <select id="selectPageVo" resultType="org.quyq.gwsu.common.log.vo.LogLoginVO">
-        SELECT id, authorization_id, event_type, account_type, visitor_type, login_type,
+        SELECT id, authorization_id, account_type, visitor_type, login_type,
                grant_type, client_id, user_id, user_name, login_account,
-               token_fingerprint, token_key_version, session_status, terminal,
-               terminal_detail, client_ip, status, failure_code, failure_message, event_time,
+               end_type, terminal,
+               terminal_detail, client_ip, status, failure_code, failure_message, login_time, end_time,
                create_op, create_time, modify_op, modify_time
         FROM log_login
         WHERE deleted = 0
         <if test="query.authorizationId != null and query.authorizationId != ''">
             AND authorization_id = #{query.authorizationId}
         </if>
-        <if test="query.eventType != null">AND event_type = #{query.eventType}</if>
+        <if test="query.endType != null">AND end_type = #{query.endType}</if>
         <if test="query.accountType != null">AND account_type = #{query.accountType}</if>
         <if test="query.visitorType != null">AND visitor_type = #{query.visitorType}</if>
         <if test="query.loginType != null and query.loginType != ''">AND login_type = #{query.loginType}</if>
@@ -28,21 +28,40 @@
         </if>
         <if test="query.clientIp != null and query.clientIp != ''">AND client_ip = #{query.clientIp}</if>
         <if test="query.status != null">AND status = #{query.status}</if>
-        <if test="query.eventTimeStart != null">AND event_time &gt;= #{query.eventTimeStart}</if>
-        <if test="query.eventTimeEnd != null">AND event_time &lt;= #{query.eventTimeEnd}</if>
-        ORDER BY event_time DESC
+        <if test="query.loginTimeStart != null">AND login_time &gt;= #{query.loginTimeStart}</if>
+        <if test="query.loginTimeEnd != null">AND login_time &lt;= #{query.loginTimeEnd}</if>
+        <if test="query.endTimeStart != null">AND end_time &gt;= #{query.endTimeStart}</if>
+        <if test="query.endTimeEnd != null">AND end_time &lt;= #{query.endTimeEnd}</if>
+        ORDER BY login_time DESC
     </select>
 
-    <select id="selectAuthorizationIdByToken" resultType="java.lang.String">
-        SELECT authorization_id
+    <select id="selectOpenByAuthorizationId" resultType="org.quyq.gwsu.log.login.domain.LogLogin">
+        SELECT id, authorization_id, login_time, end_time
         FROM log_login
         WHERE deleted = 0
           AND status = 1
-          AND event_type IN ('LOGIN', 'TOKEN_REFRESH')
-          AND token_fingerprint = #{tokenFingerprint}
-          AND token_key_version = #{tokenKeyVersion}
-          AND authorization_id IS NOT NULL
-        ORDER BY event_time DESC
+          AND end_time IS NULL
+          AND authorization_id = #{authorizationId}
         LIMIT 1
     </select>
+
+    <update id="refreshSession">
+        UPDATE log_login
+        SET end_type = NULL,
+            end_time = NULL,
+            modify_time = #{modifyTime}
+        WHERE deleted = 0
+          AND status = 1
+          AND authorization_id = #{authorizationId}
+    </update>
+
+    <update id="finishSession">
+        UPDATE log_login
+        SET end_type = #{endType},
+            end_time = #{endTime},
+            modify_time = #{endTime}
+        WHERE id = #{id}
+          AND deleted = 0
+          AND end_time IS NULL
+    </update>
 </mapper>

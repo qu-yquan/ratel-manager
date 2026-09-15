@@ -9,10 +9,7 @@ import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.core.domain.visitor.UserInfo;
 import org.quyq.gwsu.common.core.exception.ExceptionMsgHandler;
 import org.quyq.gwsu.common.core.utils.ServletUtils;
-import org.quyq.gwsu.common.log.enums.LoginEventType;
-import org.quyq.gwsu.common.log.enums.LoginSessionStatus;
-import org.quyq.gwsu.common.log.security.TokenFingerprint;
-import org.quyq.gwsu.common.log.security.TokenFingerprintService;
+import org.quyq.gwsu.common.log.enums.LoginLogAction;
 import org.quyq.gwsu.common.log.service.LoginLogHandlerService;
 import org.quyq.gwsu.common.log.vo.LogLoginVO;
 import org.quyq.gwsu.common.security.enums.VisitorType;
@@ -29,20 +26,15 @@ public class LoginLogInterceptor implements LoginInterceptor<UserInfo> {
 
     private final LoginLogHandlerService loginLogHandlerService;
 
-    private final TokenFingerprintService tokenFingerprintService;
-
     @Override
     public void afterLoginSuccess(LoginInterceptorContext<UserInfo> context) {
         if (VisitorType.CLIENT == context.getVisitorType()) {
             return;
         }
         UserInfo user = context.getSubject().userInfo().orElse(null);
-        TokenFingerprint fingerprint = tokenFingerprintService.generate(context.getLoginVO().getToken());
         LogLoginVO loginLog = baseLog(context)
                 .setStatus(true)
-                .setSessionStatus(LoginSessionStatus.ACTIVE)
-                .setTokenFingerprint(fingerprint.value())
-                .setTokenKeyVersion(fingerprint.keyVersion());
+                .setToken(context.getLoginVO().getToken());
         if (user != null) {
             loginLog.setUserId(user.getUserId()).setUserName(user.getUserName());
         }
@@ -55,7 +47,6 @@ public class LoginLogInterceptor implements LoginInterceptor<UserInfo> {
         R<Void> result = errorInfo.result();
         LogLoginVO loginLog = baseLog(context)
                 .setStatus(false)
-                .setSessionStatus(LoginSessionStatus.INACTIVE)
                 .setFailureCode(result.errCode())
                 .setFailureMessage(result.msg());
         if (context.getSubject() != null) {
@@ -69,7 +60,7 @@ public class LoginLogInterceptor implements LoginInterceptor<UserInfo> {
     private LogLoginVO baseLog(LoginInterceptorContext<UserInfo> context) {
         LogLoginVO loginLog = new LogLoginVO()
                 .setAuthorizationId(context.getAuthorizationId())
-                .setEventType(LoginEventType.LOGIN)
+                .setAction(LoginLogAction.LOGIN)
                 .setAccountType(context.getAccountType())
                 .setVisitorType(context.getVisitorType())
                 .setLoginType(context.getLoginType())
@@ -77,7 +68,7 @@ public class LoginLogInterceptor implements LoginInterceptor<UserInfo> {
                 .setTerminal(context.getLoginDTO().getTerminal())
                 .setTerminalDetail(ServletUtils.getHeaders().get("user-agent"))
                 .setClientIp(ServletUtils.getClientIP())
-                .setEventTime(LocalDateTime.now());
+                .setLoginTime(LocalDateTime.now());
         loginLog.setCreateTime(LocalDateTime.now());
         return loginLog;
     }

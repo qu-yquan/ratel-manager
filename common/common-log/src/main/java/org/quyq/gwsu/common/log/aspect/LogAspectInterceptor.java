@@ -24,8 +24,6 @@ import org.quyq.gwsu.common.log.config.properties.LogInfoConfigProperties;
 import org.quyq.gwsu.common.log.constants.LogInfoConstants;
 import org.quyq.gwsu.common.log.enums.ViewOperationSubject;
 import org.quyq.gwsu.common.log.service.AccessLogHandlerService;
-import org.quyq.gwsu.common.log.security.TokenFingerprint;
-import org.quyq.gwsu.common.log.security.TokenFingerprintService;
 import org.quyq.gwsu.common.log.utils.LogIdUtils;
 import org.quyq.gwsu.common.log.vo.LogOperationVO;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
@@ -62,8 +60,6 @@ public class LogAspectInterceptor implements MethodInterceptor {
     private final AccessLogHandlerService logService;
 
     private final ObjectMapper objectMapper;
-
-    private final TokenFingerprintService tokenFingerprintService;
 
     private final ObjectProvider<List<BusinessModuleInfoProvider>> providers;
 
@@ -243,9 +239,6 @@ public class LogAspectInterceptor implements MethodInterceptor {
                         .map(v ->v.split("-")[2]).orElse(null);
 
 
-        String token = getTokenId(headers);
-        TokenFingerprint tokenFingerprint = tokenFingerprintService.generate(token);
-
         accessLog
                 .setTid(MDC.get(LogInfoConstants.TRACE_ID))
                 .setParentId(parentId)
@@ -262,12 +255,14 @@ public class LogAspectInterceptor implements MethodInterceptor {
                                 .orElse(0)
                 ))
                 .setAuthorizationId(headers.get(CoreConstants.Headers.AUTHORIZATION_ID))
-                .setTokenFingerprint(tokenFingerprint.value())
-                .setTokenKeyVersion(tokenFingerprint.keyVersion())
-                .setTokenId(null)
                 .setOperName(headers.get(CoreConstants.Headers.AUTHORIZATION_USER_NAME))
                 .setTerminalDetail(headers.get("user-agent"))
                 .setCreateOp(headers.get(CoreConstants.Headers.AUTHORIZATION_USER_NAME));
+
+        if (!StringUtils.hasText(accessLog.getAuthorizationId())) {
+            accessLog.setTokenId(AuthenticationTokenUtils.resolve(
+                    headers.get(CoreConstants.Headers.HTTP_HEADER_TOKEN_KEY)));
+        }
 
         setApiDescription(invocation, accessLog);
 
@@ -390,12 +385,6 @@ public class LogAspectInterceptor implements MethodInterceptor {
     private String getMethodName(MethodInvocation invocation) {
         return CharSequenceUtil.format("{}.{}()", invocation.getThis().getClass().getName(), invocation.getMethod().getName());
     }
-
-    private String getTokenId(Map<String, String> headers) {
-        return AuthenticationTokenUtils.resolve(headers.get(CoreConstants.Headers.HTTP_HEADER_TOKEN_KEY));
-
-    }
-
 
     private void put(LogOperationVO log) {
         logService.save(log);

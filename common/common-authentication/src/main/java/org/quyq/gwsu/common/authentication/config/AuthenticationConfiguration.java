@@ -12,7 +12,6 @@ import org.quyq.gwsu.common.authentication.login.interceptor.log.LoginLogInterce
 import org.quyq.gwsu.common.authentication.login.dao.TokenDaoForRedisTemplate;
 import org.quyq.gwsu.common.cache.utils.CacheUtils;
 import org.quyq.gwsu.common.core.constants.CoreConstants;
-import org.quyq.gwsu.common.log.security.TokenFingerprintService;
 import org.quyq.gwsu.common.log.service.LoginLogHandlerService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -70,9 +69,8 @@ public class AuthenticationConfiguration {
     }
 
     @Bean
-    public LoginLogInterceptor loginLogInterceptor(LoginLogHandlerService loginLogHandlerService,
-                                                   TokenFingerprintService tokenFingerprintService) {
-        return new LoginLogInterceptor(loginLogHandlerService, tokenFingerprintService);
+    public LoginLogInterceptor loginLogInterceptor(LoginLogHandlerService loginLogHandlerService) {
+        return new LoginLogInterceptor(loginLogHandlerService);
     }
 
 

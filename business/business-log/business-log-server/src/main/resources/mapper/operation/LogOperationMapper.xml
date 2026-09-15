@@ -4,10 +4,9 @@
 <mapper namespace="org.quyq.gwsu.log.operation.mapper.LogOperationMapper">
 
     <select id="selectPageVo" resultType="org.quyq.gwsu.common.log.vo.LogOperationVO">
-        SELECT id, authorization_id, token_fingerprint, token_key_version,
-               tid, parent_id, module_prefix, from_app, api_module, menu_id,
+        SELECT id, authorization_id, tid, parent_id, module_prefix, from_app, api_module, menu_id,
                oper_subject, api_description, method, request_url, request_method,
-               terminal, terminal_detail, oper_name, token_id,
+               terminal, terminal_detail, oper_name,
                request_param, response_data, error_msg, status,
                request_time, response_time, consume_mill,
                create_op, create_time, modify_op, modify_time

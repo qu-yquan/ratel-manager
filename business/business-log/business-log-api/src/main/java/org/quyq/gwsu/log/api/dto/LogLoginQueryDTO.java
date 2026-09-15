@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.quyq.gwsu.common.core.domain.BaseDTO;
-import org.quyq.gwsu.common.log.enums.LoginEventType;
+import org.quyq.gwsu.common.log.enums.LoginEndType;
 import org.quyq.gwsu.common.security.enums.AccountType;
 import org.quyq.gwsu.common.security.enums.VisitorType;
 
@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 public class LogLoginQueryDTO extends BaseDTO {
 
     private String authorizationId;
-    private LoginEventType eventType;
+    private LoginEndType endType;
     private AccountType accountType;
     private VisitorType visitorType;
     private String loginType;
@@ -29,6 +29,8 @@ public class LogLoginQueryDTO extends BaseDTO {
     private String loginAccount;
     private String clientIp;
     private Integer status;
-    private LocalDateTime eventTimeStart;
-    private LocalDateTime eventTimeEnd;
+    private LocalDateTime loginTimeStart;
+    private LocalDateTime loginTimeEnd;
+    private LocalDateTime endTimeStart;
+    private LocalDateTime endTimeEnd;
 }

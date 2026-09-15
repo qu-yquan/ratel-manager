@@ -41,10 +41,8 @@ import org.quyq.gwsu.common.security.enums.VisitorType;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.quyq.gwsu.common.security.utils.SessionUtils;
 import org.quyq.gwsu.common.security.utils.AuthenticationTokenUtils;
-import org.quyq.gwsu.common.log.enums.LoginEventType;
-import org.quyq.gwsu.common.log.enums.LoginSessionStatus;
-import org.quyq.gwsu.common.log.security.TokenFingerprint;
-import org.quyq.gwsu.common.log.security.TokenFingerprintService;
+import org.quyq.gwsu.common.log.enums.LoginEndType;
+import org.quyq.gwsu.common.log.enums.LoginLogAction;
 import org.quyq.gwsu.common.log.service.LoginLogHandlerService;
 import org.quyq.gwsu.common.log.vo.LogLoginVO;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -106,10 +104,6 @@ public class LoginWebConfiguration {
 
     @Resource
     private LoginLogHandlerService loginLogHandlerService;
-
-    @Resource
-    private TokenFingerprintService tokenFingerprintService;
-
 
     @Bean
     public RouterFunction<ServerResponse> loginRouters() {
@@ -286,13 +280,11 @@ public class LoginWebConfiguration {
     private ServerResponse logout(ServerRequest request) {
         String token = AuthenticationTokenUtils.resolve(
                 request.headers().firstHeader(CoreConstants.Headers.HTTP_HEADER_TOKEN_KEY));
-        TokenFingerprint fingerprint = tokenFingerprintService.generate(token);
         String authorizationId = sessionUtils.getAuthorizationId().orElse(null);
         AccountType accountType = sessionUtils.getAccountType().orElse(null);
         VisitorType visitorType = sessionUtils.getVisitorType();
         String loginType = sessionUtils.getLoginType();
         Optional<Subject<Visitor>> subject = securityUtils.getSubject(token);
-        boolean active = authorizationId != null || subject.isPresent();
         Throwable failure = null;
         try {
             StpUtil.logout();
@@ -302,31 +294,30 @@ public class LoginWebConfiguration {
             failure = exception;
             throw exception;
         } finally {
-            saveLogoutLog(request, fingerprint, authorizationId, accountType,
-                    visitorType, loginType, subject.orElse(null), active, failure);
+            saveLogoutLog(request, token, authorizationId, accountType,
+                    visitorType, loginType, subject.orElse(null), failure);
         }
     }
 
-    private void saveLogoutLog(ServerRequest request, TokenFingerprint fingerprint,
+    private void saveLogoutLog(ServerRequest request, String token,
                                String authorizationId, AccountType accountType,
                                VisitorType visitorType, String loginType,
-                               Subject<Visitor> subject, boolean active, Throwable failure) {
+                               Subject<Visitor> subject, Throwable failure) {
         try {
             LocalDateTime now = LocalDateTime.now();
             LogLoginVO loginLog = new LogLoginVO()
                     .setAuthorizationId(authorizationId)
-                    .setEventType(LoginEventType.LOGOUT)
+                    .setAction(LoginLogAction.LOGOUT)
                     .setAccountType(accountType)
                     .setVisitorType(visitorType)
                     .setLoginType(loginType)
-                    .setTokenFingerprint(fingerprint.value())
-                    .setTokenKeyVersion(fingerprint.keyVersion())
-                    .setSessionStatus(active ? LoginSessionStatus.ACTIVE : LoginSessionStatus.INACTIVE)
+                    .setToken(token)
+                    .setEndType(LoginEndType.LOGOUT)
                     .setTerminal(subject == null ? null : subject.getTerminalType())
                     .setTerminalDetail(request.headers().firstHeader("user-agent"))
                     .setClientIp(ServletUtils.getClientIP())
                     .setStatus(failure == null)
-                    .setEventTime(now);
+                    .setEndTime(now);
             loginLog.setCreateTime(now);
             if (subject != null) {
                 subject.userInfo().ifPresent(user -> loginLog

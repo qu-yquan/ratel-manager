@@ -13,5 +13,6 @@ public interface ILogLoginService extends IService<LogLogin> {
     LogLoginVO getById(String id);
     IPage<LogLoginVO> pageByCondition(LogLoginQueryDTO query);
     Boolean saveLog(LogLoginVO vo);
+    boolean finishExpiredSession(String authorizationId);
     Boolean removeByIds(List<String> ids);
 }
