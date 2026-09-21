@@ -8,6 +8,7 @@ import type {
   OAuthScopeInfo,
   OAuthScopePageResult,
   OAuthScopeQuery,
+  ApiResourceInfo,
   ApiResourcePageResult,
 } from '../types';
 

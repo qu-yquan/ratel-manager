@@ -1,0 +1,62 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 420px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+
+  :global(.ant-alert) {
+    flex: 1;
+  }
+}
+
+.viewer {
+  height: min(66vh, 680px);
+  min-height: 480px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-color);
+
+  :global(#react-doc-viewer) {
+    height: 100%;
+  }
+
+  :global(.rdv-toolbar-btn[title="Download"]) {
+    display: none;
+  }
+
+  :global(.rdv-xlsx-toolbar button) {
+    display: none;
+  }
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 420px;
+}
+
+.empty {
+  padding: 64px 0;
+}
+
+@media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+  }
+
+  .viewer {
+    height: 62vh;
+    min-height: 360px;
+  }
+}

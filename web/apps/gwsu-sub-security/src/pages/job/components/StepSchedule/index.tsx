@@ -58,6 +58,10 @@ const StepSchedule: React.FC<StepScheduleProps> = ({ jobOptions, mode }) => {
   const [cronText, setCronText] = useState("");
   const hasCronValue = Boolean(scheduleConf?.trim());
   const shouldRenderCronBuilder = mode === "create" || hasCronValue;
+  const cronValue =
+    scheduleType === "CRON" && hasCronValue
+      ? scheduleConf
+      : DEFAULT_CRON_EXPRESSION;
 
   useEffect(() => {
     if (mode === "create" && scheduleType === "CRON" && !scheduleConf?.trim()) {
@@ -87,11 +91,6 @@ const StepSchedule: React.FC<StepScheduleProps> = ({ jobOptions, mode }) => {
       form.setFieldValue("scheduleConf", value);
     }
   };
-
-  const cronValue =
-    scheduleType === "CRON" && hasCronValue
-      ? scheduleConf
-      : DEFAULT_CRON_EXPRESSION;
 
   return (
     <>

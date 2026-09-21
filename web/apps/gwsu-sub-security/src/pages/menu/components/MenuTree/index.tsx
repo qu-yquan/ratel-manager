@@ -24,7 +24,6 @@ interface MenuTreeProps {
   onCreateDirectory: () => void;
   onCreateMenu: () => void;
   onCreateChild: (parentId: string, parentType: number) => void;
-  onRefresh: () => void;
 }
 
 const MenuTree: React.FC<MenuTreeProps> = ({
@@ -38,7 +37,6 @@ const MenuTree: React.FC<MenuTreeProps> = ({
   onCreateDirectory,
   onCreateMenu,
   onCreateChild,
-  onRefresh,
 }) => {
   const { searchValue, setSearchValue, expandedKeys, setExpandedKeys, filteredTreeData } =
     useMenuTree(treeData);

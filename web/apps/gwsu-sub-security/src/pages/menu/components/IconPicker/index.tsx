@@ -3,8 +3,10 @@ import { Popover, Input } from 'antd';
 import * as Icons from '@ant-design/icons';
 import styles from './index.module.less';
 
+type IconComponent = typeof Icons.MenuOutlined;
+
 /** 常用图标列表（名称 + 组件） */
-const ICON_LIST: { name: string; component: React.ComponentType }[] = [
+const ICON_LIST: Array<{ name: string; component: IconComponent }> = [
   { name: 'MenuOutlined', component: Icons.MenuOutlined },
   { name: 'MenuFoldOutlined', component: Icons.MenuFoldOutlined },
   { name: 'MenuUnfoldOutlined', component: Icons.MenuUnfoldOutlined },
@@ -55,6 +57,9 @@ const ICON_LIST: { name: string; component: React.ComponentType }[] = [
   { name: 'MobileOutlined', component: Icons.MobileOutlined },
   { name: 'CameraOutlined', component: Icons.CameraOutlined },
 ];
+const ICON_MAP = new Map<string, IconComponent>(
+  ICON_LIST.map((item) => [item.name, item.component]),
+);
 
 interface IconPickerProps {
   value?: string;
@@ -71,7 +76,7 @@ const IconPicker: React.FC<IconPickerProps> = ({ value, onChange }) => {
     return ICON_LIST.filter((item) => item.name.toLowerCase().includes(keyword));
   }, [search]);
 
-  const SelectedIcon = value ? (Icons as Record<string, React.ComponentType>)[value] : null;
+  const SelectedIcon = value ? ICON_MAP.get(value) : undefined;
 
   const handleSelect = (name: string) => {
     onChange?.(name);
@@ -97,14 +102,16 @@ const IconPicker: React.FC<IconPickerProps> = ({ value, onChange }) => {
         {filteredIcons.map((item) => {
           const IconComp = item.component;
           return (
-            <div
+            <button
+              type="button"
               key={item.name}
               className={`${styles.iconItem} ${value === item.name ? styles.iconItemActive : ''}`}
               title={item.name}
+              aria-label={`选择图标 ${item.name}`}
               onClick={() => handleSelect(item.name)}
             >
-              <IconComp style={{ fontSize: 18 }} />
-            </div>
+              <IconComp className={styles.gridIcon} aria-hidden="true" />
+            </button>
           );
         })}
         {filteredIcons.length === 0 && (
@@ -126,7 +133,7 @@ const IconPicker: React.FC<IconPickerProps> = ({ value, onChange }) => {
       <div className={styles.trigger}>
         {SelectedIcon ? (
           <>
-            <SelectedIcon style={{ fontSize: 16 }} />
+            <SelectedIcon className={styles.selectedIcon} aria-hidden="true" />
             <span className={styles.iconName}>{value}</span>
           </>
         ) : (

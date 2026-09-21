@@ -15,6 +15,7 @@ import {
 } from "antd";
 import { EditOutlined, SaveOutlined } from "@ant-design/icons";
 import MarkdownPreview from "../../../../components/MarkdownPreview";
+import DocumentContentPreview from "../DocumentContentPreview";
 import {
   getBlockTypeOptions,
   getDocumentBlocks,
@@ -175,7 +176,7 @@ const DocumentDetailModal: React.FC<Props> = ({
       open={!!documentId}
       onCancel={onClose}
       footer={null}
-      width={1000}
+      width={1200}
       destroyOnHidden
     >
       <Tabs
@@ -184,9 +185,12 @@ const DocumentDetailModal: React.FC<Props> = ({
             key: "content",
             label: "内容",
             children: (
-              <Empty
-                description="原文档预览暂未开放"
-                className={styles.empty}
+              <DocumentContentPreview
+                fileId={document?.fileId}
+                fileName={document?.fileName}
+                fileFormat={document?.fileFormat}
+                fileSize={document?.fileSize}
+                detailLoading={!document}
               />
             ),
           },

@@ -12,6 +12,7 @@ import org.quyq.gwsu.kit.knowledge.engine.chunk.KnowledgeChunkBuildRequest;
 import org.quyq.gwsu.kit.knowledge.engine.chunk.KnowledgeChunkBuilder;
 import org.quyq.gwsu.kit.knowledge.engine.chunk.KnowledgeChunkEmbeddingService;
 import org.quyq.gwsu.kit.knowledge.engine.chunk.KnowledgeChunkIndexRepository;
+import org.quyq.gwsu.kit.knowledge.engine.image.KnowledgeContentRenderService;
 import org.quyq.gwsu.kit.knowledge.engine.page.GeneratedKnowledgeBlockDraft;
 import org.quyq.gwsu.kit.knowledge.engine.page.GeneratedKnowledgePageDraft;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgePageBlockMapper;
@@ -46,6 +47,7 @@ public class KnowledgeDocumentMarkdownService {
     private final KnowledgeDocumentEventService eventService;
     private final IKnowledgeIngestTaskService taskService;
     private final CacheUtils cacheUtils;
+    private final KnowledgeContentRenderService contentRenderService;
 
     public String getMarkdown(String documentId) {
         var document = directoryService.requireReadableDocument(documentId);
@@ -53,7 +55,7 @@ public class KnowledgeDocumentMarkdownService {
         KitKnowledgePage page = pageMapper.selectById(document.getTargetPageId());
         if (page == null || !StringUtils.hasText(page.getCurrentVersionId())) return "";
         KitKnowledgePageVersion version = versionMapper.selectById(page.getCurrentVersionId());
-        return version == null ? "" : version.getMarkdownContent();
+        return version == null ? "" : contentRenderService.render(version.getMarkdownContent());
     }
 
     public KnowledgeDocumentBlocksVO getBlocks(String documentId) {

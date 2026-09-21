@@ -102,7 +102,7 @@ const AccountBindSection: React.FC<AccountBindSectionProps> = ({
                   {account ? (
                     <>
                       <Tag color="success">已绑定</Tag>
-                      {!readOnly && (
+                      {!readOnly && type !== "password" && (
                         <AuthGate buttonKey={PERM_EDIT}>
                           <a
                             className={styles.unbindLink}

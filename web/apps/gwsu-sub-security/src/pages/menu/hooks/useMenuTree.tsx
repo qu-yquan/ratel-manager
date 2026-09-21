@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { MenuTreeNode } from '../types';
 
 /** 递归获取所有节点 key */
@@ -24,7 +24,7 @@ export function useMenuTree(treeData: MenuTreeNode[]) {
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>(() => getAllKeys(treeData));
 
   // 数据变化时同步展开所有节点
-  useMemo(() => {
+  useEffect(() => {
     setExpandedKeys(getAllKeys(treeData));
   }, [treeData]);
 
@@ -32,18 +32,19 @@ export function useMenuTree(treeData: MenuTreeNode[]) {
   const filterTree = useCallback(
     (nodes: MenuTreeNode[], keyword: string): MenuTreeNode[] => {
       if (!keyword) return nodes;
-      return nodes
-        .map((node) => {
-          const children = node.children
-            ? filterTree(node.children, keyword)
-            : [];
-          const match = node.menuName.includes(keyword);
-          if (match || children.length > 0) {
-            return { ...node, children: children.length > 0 ? children : node.children };
-          }
-          return null;
-        })
-        .filter((node): node is MenuTreeNode => node !== null);
+      return nodes.reduce<MenuTreeNode[]>((result, node) => {
+        const children = node.children
+          ? filterTree(node.children, keyword)
+          : [];
+        const match = node.menuName.includes(keyword);
+        if (match || children.length > 0) {
+          result.push({
+            ...node,
+            children: children.length > 0 ? children : node.children,
+          });
+        }
+        return result;
+      }, []);
     },
     [],
   );

@@ -209,7 +209,6 @@ const MenuPage: React.FC = () => {
             onCreateDirectory={handleCreateDirectory}
             onCreateMenu={handleCreateMenu}
             onCreateChild={handleCreateChild}
-            onRefresh={loadTreeData}
           />
         </div>
         <div className={styles.resizeHandle} onMouseDown={handleMouseDown} />

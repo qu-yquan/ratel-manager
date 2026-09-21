@@ -1,4 +1,4 @@
-import { get, getFileInfo, post } from '@gwsu/core';
+import { downloadRequest, get, getFileInfo, post } from '@gwsu/core';
 import type { KnowledgeBlockType, KnowledgeDirectoryGrant, KnowledgeDocument, KnowledgeDocumentBlocks, KnowledgeEvent, KnowledgeNode, KnowledgeSearchResult, PageResult } from '../types';
 
 const BASE = '/kit/knowledge';
@@ -54,6 +54,14 @@ export async function retryKnowledgeTask(taskId: string): Promise<void> {
 export async function getMarkdown(id: string): Promise<string> {
   const response = await get<string>(`${BASE}/document/${id}/markdown`);
   return response.data ?? '';
+}
+
+export async function getKnowledgeDocumentPreview(fileId: string): Promise<Blob> {
+  const response = await downloadRequest({
+    url: `/kit/file/stream/${encodeURIComponent(fileId)}`,
+    timeout: 120000,
+  });
+  return response.blob();
 }
 
 export async function getDocumentBlocks(id: string): Promise<KnowledgeDocumentBlocks> {
