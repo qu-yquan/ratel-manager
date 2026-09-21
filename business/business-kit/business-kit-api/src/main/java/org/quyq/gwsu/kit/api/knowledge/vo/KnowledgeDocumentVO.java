@@ -24,6 +24,12 @@ public class KnowledgeDocumentVO extends BaseVO {
     @Schema(description = "源文档ID")
     private String id;
 
+    private String parentId;
+
+    private Long fileSize;
+
+    private String fileFormat;
+
     @Schema(description = "文件ID")
     private String fileId;
 
@@ -45,11 +51,11 @@ public class KnowledgeDocumentVO extends BaseVO {
     @Schema(description = "是否启用")
     private Boolean enabled;
 
+    @Schema(description = "文件解析完成时间")
+    private LocalDateTime parsedAt;
+
     @Schema(description = "处理完成时间")
     private LocalDateTime processedAt;
-
-    @Schema(description = "授权角色编码")
-    private List<String> roleCodes;
 
     @Schema(description = "最近导入任务ID")
     private String latestTaskId;

@@ -66,6 +66,7 @@ public class KnowledgeChunkBuilder {
                         request.pageVersion().getId(),
                         block.getId(),
                         ref.getSourceDocumentId(),
+                        null,
                         request.title(),
                         currentHeading,
                         content,

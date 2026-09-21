@@ -38,8 +38,11 @@ import org.quyq.gwsu.kit.knowledge.mapper.KnowledgePageVersionMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeSourceDocumentMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeSourceSegmentMapper;
 import org.quyq.gwsu.kit.knowledge.service.impl.KnowledgeSourceDocumentPagePublishService;
+import org.quyq.gwsu.kit.knowledge.service.KnowledgeDocumentEventService;
+import org.quyq.gwsu.kit.knowledge.service.KnowledgeIngestFailureService;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -85,14 +88,21 @@ public class KnowledgeIngestExecutor {
 
     private final KnowledgeChunkIndexRepository chunkIndexRepository;
 
+    private final KnowledgeDocumentEventService eventService;
+
+    private final KnowledgeIngestFailureService failureService;
+
     public void execute(String taskId) {
-        KitKnowledgeIngestTask task = loadTask(taskId);
+        KitKnowledgeIngestTask task = null;
         try {
+            task = loadTask(taskId);
             markTaskRunning(task);
             KitKnowledgeSourceDocument sourceDocument = loadSourceDocument(task);
 
             updateStage(task.getId(), KnowledgeIngestStage.PARSE);
             ParsedKnowledgeDocument parsedDocument = documentParser.parse(sourceDocument.getFileId());
+            updateSourceStatus(sourceDocument.getId(), new KitKnowledgeSourceDocument().setParsedAt(LocalDateTime.now()));
+            eventService.append(sourceDocument.getId(), taskId, "PARSE_SUCCEEDED", "文件解析成功");
             updateSourceParsedImages(sourceDocument.getId(), parsedDocument.imageFileIds());
             updateSourceImageOcrParsed(sourceDocument.getId(), parsedDocument.imageOcrParsed());
 
@@ -144,9 +154,25 @@ public class KnowledgeIngestExecutor {
             updateStage(task.getId(), KnowledgeIngestStage.INDEX_ES);
             chunkIndexRepository.replacePageVersion(pageVersion.getPageId(), pageVersion.getId(), chunks);
             markSucceeded(task, sourceDocument);
-        } catch (Exception ex) {
-            markFailed(task, ex);
-            throw ex;
+            eventService.append(sourceDocument.getId(), taskId, "INGEST_SUCCEEDED", "文档解析与向量化完成");
+        } catch (Throwable failure) {
+            String documentId = task == null ? null : task.getSourceDocumentId();
+            try {
+                documentId = failureService.markFailed(taskId, failure);
+            } catch (Throwable statusFailure) {
+                log.error("知识导入失败状态写入失败, taskId={}", taskId, statusFailure);
+            }
+            if (StringUtils.hasText(documentId)) {
+                try {
+                    eventService.append(documentId, taskId, "INGEST_FAILED",
+                            KnowledgeIngestFailureService.failureMessage(failure));
+                } catch (Throwable eventFailure) {
+                    log.error("知识导入失败事件记录失败, taskId={}, documentId={}", taskId, documentId, eventFailure);
+                }
+            }
+            if (failure instanceof Error error) throw error;
+            if (failure instanceof RuntimeException exception) throw exception;
+            throw new IllegalStateException(failure);
         }
     }
 
@@ -211,16 +237,6 @@ public class KnowledgeIngestExecutor {
         updateSourceStatus(sourceDocument.getId(), new KitKnowledgeSourceDocument()
                 .setDocumentStatus(KnowledgeDocumentStatus.PROCESSED)
                 .setProcessedAt(LocalDateTime.now()));
-    }
-
-    private void markFailed(KitKnowledgeIngestTask task, Exception ex) {
-        updateTask(task.getId(), new KitKnowledgeIngestTask()
-                .setTaskStatus(KnowledgeIngestTaskStatus.FAILED)
-                .setErrorMessage(ex.getMessage())
-                .setFinishedAt(LocalDateTime.now()));
-        updateSourceStatus(task.getSourceDocumentId(), new KitKnowledgeSourceDocument()
-                .setDocumentStatus(KnowledgeDocumentStatus.FAILED)
-                .setProcessMessage(ex.getMessage()));
     }
 
     private void updateTask(String taskId, KitKnowledgeIngestTask update) {

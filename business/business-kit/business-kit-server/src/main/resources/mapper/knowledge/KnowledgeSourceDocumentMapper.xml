@@ -1,34 +1,35 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.quyq.gwsu.kit.knowledge.mapper.KnowledgeSourceDocumentMapper">
+    <select id="countDocumentsByParent" resultType="java.util.Map">
+        SELECT parent_id, COUNT(*) AS document_count
+        FROM kit_knowledge_node
+        WHERE node_type = 'DOCUMENT' AND deleted = 0
+        GROUP BY parent_id
+    </select>
 
-    <select id="listVisibleSourceDocumentIds" resultType="java.lang.String">
-        SELECT sd.id
-        FROM kit_knowledge_source_document sd
-        <where>
-            AND sd.deleted = 0
-            AND COALESCE(sd.enabled, 1) = 1
-            AND (
-            NOT EXISTS (
-            SELECT 1
-            FROM kit_knowledge_source_document_role open_role
-            WHERE open_role.source_document_id = sd.id
-            AND open_role.deleted = 0
-            )
-            <if test="roleCodes != null and roleCodes.size() > 0">
-                OR EXISTS (
+    <select id="searchAccessibleDocuments" resultType="org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeSourceDocument">
+        SELECT node.*
+        FROM kit_knowledge_node node
+        WHERE node.node_type = 'DOCUMENT'
+          AND node.deleted = 0
+          AND node.name LIKE CONCAT('%', #{name}, '%')
+        <if test="!allDirectories">
+            AND EXISTS (
                 SELECT 1
-                FROM kit_knowledge_source_document_role hit_role
-                WHERE hit_role.source_document_id = sd.id
-                AND hit_role.deleted = 0
-                AND hit_role.role_code IN
-                <foreach collection="roleCodes" item="roleCode" open="(" separator="," close=")">
-                    #{roleCode}
-                </foreach>
-                )
-            </if>
+                FROM kit_knowledge_directory_role grant_row
+                JOIN kit_knowledge_node scope_directory
+                  ON scope_directory.id = grant_row.directory_id
+                 AND scope_directory.node_type = 'DIRECTORY'
+                 AND scope_directory.deleted = 0
+                WHERE grant_row.deleted = 0
+                  AND grant_row.role_code IN
+                  <foreach collection="roleCodes" item="roleCode" open="(" separator="," close=")">
+                      #{roleCode}
+                  </foreach>
+                  AND node.directory_path LIKE CONCAT(scope_directory.directory_path, '%')
             )
-        </where>
+        </if>
+        ORDER BY node.name ASC, node.id ASC
     </select>
 </mapper>

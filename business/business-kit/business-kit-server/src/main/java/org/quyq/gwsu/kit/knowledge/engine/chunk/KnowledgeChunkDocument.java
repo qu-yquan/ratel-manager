@@ -11,6 +11,7 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 import org.springframework.data.elasticsearch.annotations.KnnSimilarity;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * ES-only 知识 Chunk 文档。
@@ -37,6 +38,9 @@ public class KnowledgeChunkDocument {
 
     @Field(name = "source_document_id", type = FieldType.Keyword)
     private String sourceDocumentId;
+
+    @Field(name = "directory_path_ids", type = FieldType.Keyword)
+    private List<String> directoryPathIds;
 
     @Field(name = "title", type = FieldType.Text)
     private String title;

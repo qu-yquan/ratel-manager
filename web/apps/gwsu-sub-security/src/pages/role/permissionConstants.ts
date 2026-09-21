@@ -10,3 +10,5 @@ export const PERM_ASSOCIATION_USER = '5_association_user';
 export const PERM_MENU_PERMISSION = '5_menu_permission';
 export const PERM_FIELD_PERMISSION = '5_field_permission';
 export const PERM_TABLE_MODEL_PERMISSION = '5_table_model_permission';
+/** 给角色分配知识目录及其下级文档的访问权限。 */
+export const PERM_KNOWLEDGE_DIRECTORY_PERMISSION = '5_knowledge_directory_permission';

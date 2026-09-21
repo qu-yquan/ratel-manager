@@ -32,14 +32,15 @@ import RoleFormModal from "./components/RoleFormModal";
 import MenuPermissionModal from "./components/MenuPermissionModal";
 import RelatedUserModal from "./components/RelatedUserModal";
 import TableModelPermissionModal from "./components/TableModelPermissionModal";
+import KnowledgeDirectoryPermissionModal from './components/KnowledgeDirectoryPermissionModal';
 import { useRole } from "./hooks/useRole";
 import type { RoleInfo, RoleQuery, EnumOption } from "./types";
 import { getRoleTypeOptions, getDataScopeOptions } from "./services/role";
-import {AuthGate , useAuth} from '@gwsu/core'
+import {AuthGate , useAuth, useUserStore} from '@gwsu/core'
 import {
   PERM_ADD, PERM_REMOVE, PERM_EDIT,
   PERM_ASSOCIATION_USER, PERM_MENU_PERMISSION,
-  PERM_FIELD_PERMISSION, PERM_TABLE_MODEL_PERMISSION,
+  PERM_FIELD_PERMISSION, PERM_TABLE_MODEL_PERMISSION, PERM_KNOWLEDGE_DIRECTORY_PERMISSION,
 } from './permissionConstants';
 
 const STATUS_OPTIONS = [
@@ -67,6 +68,8 @@ const RolePage: React.FC = () => {
   const canMenuPermission = useAuth(PERM_MENU_PERMISSION);
   const canFieldPermission = useAuth(PERM_FIELD_PERMISSION);
   const canTableModelPermission = useAuth(PERM_TABLE_MODEL_PERMISSION);
+  const isAdmin = useUserStore((state) => state.userInfo?.admin === true || state.userInfo?.roles?.includes('super_admin') === true);
+  const canKnowledgeDirectoryPermission = useAuth(PERM_KNOWLEDGE_DIRECTORY_PERMISSION) || isAdmin;
 
   const [searchForm] = Form.useForm<RoleQuery>();
 
@@ -104,6 +107,7 @@ const RolePage: React.FC = () => {
   const [tableModelPermVisible, setTableModelPermVisible] = useState(false);
   const [tableModelPermRoleId, setTableModelPermRoleId] = useState<string | null>(null);
   const [tableModelPermRoleName, setTableModelPermRoleName] = useState<string>("");
+  const [knowledgeRole, setKnowledgeRole] = useState<RoleInfo | null>(null);
 
   // 表格选中行
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -250,6 +254,15 @@ const RolePage: React.FC = () => {
         icon: <TableOutlined />,
         label: "AI表模型",
         onClick: () => handleTableModelPermission(record),
+      });
+    }
+
+    if (canKnowledgeDirectoryPermission) {
+      buttons.push({
+        key: 'knowledgeDirectoryPermission',
+        icon: <LockOutlined />,
+        label: '知识目录权限',
+        onClick: () => setKnowledgeRole(record),
       });
     }
 
@@ -516,6 +529,8 @@ const RolePage: React.FC = () => {
         roleName={tableModelPermRoleName}
         onClose={() => setTableModelPermVisible(false)}
       />
+      <KnowledgeDirectoryPermissionModal open={!!knowledgeRole} roleCode={knowledgeRole?.roleCode}
+        roleName={knowledgeRole?.roleName} onClose={() => setKnowledgeRole(null)} />
     </div>
   );
 };

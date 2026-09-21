@@ -111,7 +111,7 @@ public class KnowledgeSearchSkillRepository implements AgentSkillRepository {
                 # 知识库检索技能
                 
                 ## 当前知识库底层语言
-                - 当前知识库 Wiki Page 统一语言为：`%s`
+                - 当前知识文档 Markdown 统一语言为：`%s`
                 - 如果用户问题语言与知识库底层语言不同，必须先将检索词转换为上述语言，再调用检索工具
                 - 最终回答仍应使用用户提问语言
                 

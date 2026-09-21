@@ -18,6 +18,7 @@ public enum SecurityErrorCode implements ReturnCode {
     E01003("菜单名称不能为空"),
     E01004("按钮标识不能为空"),
     E01005("功能描述不能为空"),
+    E01006("存在子菜单，无法删除"),
 
 
     E02001("角色不存在"),

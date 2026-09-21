@@ -24,8 +24,4 @@ public class KnowledgeChunkAdjacentDTO extends BaseDTO {
 
     @Schema(description = "偏移量，1表示上一个或下一个")
     private Integer offset = 1;
-
-
-    @Schema(description = "角色")
-    private List<String> roleCodes;
 }

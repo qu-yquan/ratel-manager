@@ -13,6 +13,7 @@ import org.casbin.jcasbin.model.Model;
 import org.casbin.jcasbin.util.Util;
 import org.casbin.jcasbin.util.function.CustomFunction;
 import org.quyq.gwsu.common.cache.utils.IDGenerationUtils;
+import org.quyq.gwsu.common.core.exception.BusinessException;
 import org.quyq.gwsu.common.core.utils.SpringUtils;
 import org.quyq.gwsu.common.security.domain.Subject;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
@@ -28,6 +29,7 @@ import org.quyq.gwsu.security.api.menu.enums.MenuOwner;
 import org.quyq.gwsu.security.api.menu.vo.MenuVO;
 import org.quyq.gwsu.security.api.role.enums.CycleType;
 import org.quyq.gwsu.security.api.role.enums.ValidType;
+import org.quyq.gwsu.security.errcode.SecurityErrorCode;
 import org.quyq.gwsu.security.menu.domain.SecurityMenu;
 import org.quyq.gwsu.security.menu.mapper.SecurityMenuMapper;
 import org.quyq.gwsu.security.menu.service.ISecurityMenuService;
@@ -243,7 +245,7 @@ public class SecurityMenuServiceImpl extends ServiceImpl<SecurityMenuMapper, Sec
                 .in(SecurityMenu::getParentId, ids)
                 .eq(SecurityMenu::getDeleted, false));
         if (childCount > 0) {
-            throw new IllegalArgumentException("存在子菜单，无法删除");
+            throw new BusinessException(SecurityErrorCode.E01006);
         }
         return removeBatchByIds(ids);
     }

@@ -2,15 +2,11 @@ package org.quyq.gwsu.kit.knowledge.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.RequiredArgsConstructor;
 import org.quyq.gwsu.common.core.exception.BusinessException;
-import org.quyq.gwsu.kit.api.knowledge.dto.KnowledgeDocumentQueryDTO;
-import org.quyq.gwsu.kit.api.knowledge.dto.KnowledgeDocumentRoleSaveDTO;
 import org.quyq.gwsu.kit.api.knowledge.dto.KnowledgeDocumentSaveDTO;
 import org.quyq.gwsu.kit.api.knowledge.enums.KnowledgeDocumentStatus;
 import org.quyq.gwsu.kit.api.knowledge.vo.KnowledgeDocumentVO;
@@ -19,13 +15,13 @@ import org.quyq.gwsu.kit.errcode.KitErrorCode;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeIngestAnalysisCheckpoint;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeIngestTask;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeSourceDocument;
-import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeSourceDocumentRole;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeSourceSegment;
 import org.quyq.gwsu.kit.knowledge.engine.chunk.KnowledgeChunkIndexRepository;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeIngestAnalysisCheckpointMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeIngestTaskMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeSourceDocumentMapper;
-import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeSourceDocumentRoleMapper;
+import org.quyq.gwsu.kit.knowledge.service.KnowledgeDirectoryService;
+import org.quyq.gwsu.kit.knowledge.service.KnowledgeDocumentEventService;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeSourceSegmentMapper;
 import org.quyq.gwsu.kit.knowledge.service.IKnowledgeSourceDocumentService;
 import org.springframework.stereotype.Service;
@@ -34,7 +30,6 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 知识源文档服务实现。
@@ -47,9 +42,9 @@ public class KnowledgeSourceDocumentServiceImpl
 
     private static final Gson GSON = new Gson();
 
-    private final KnowledgeSourceDocumentMapper sourceDocumentMapper;
+    private final KnowledgeDirectoryService directoryService;
 
-    private final KnowledgeSourceDocumentRoleMapper roleMapper;
+    private final KnowledgeDocumentEventService eventService;
 
     private final KnowledgeIngestTaskMapper ingestTaskMapper;
 
@@ -64,83 +59,56 @@ public class KnowledgeSourceDocumentServiceImpl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String saveDocument(KnowledgeDocumentSaveDTO dto) {
-        KitKnowledgeSourceDocument existingDocument = resolveExistingDocument(dto);
+        if (dto == null || !StringUtils.hasText(dto.getFileId())) {
+            throw new BusinessException("请上传文件");
+        }
+        if (!StringUtils.hasText(dto.getFileName()) || dto.getFileName().trim().length() > 200) {
+            throw new BusinessException("文件名不能为空且长度不能超过200");
+        }
+        KitKnowledgeSourceDocument directory = StringUtils.hasText(dto.getParentId())
+                ? directoryService.requireDirectory(dto.getParentId()) : null;
+        if (directory == null ? !directoryService.canReadRoot()
+                : !directoryService.canRead(directory, directoryService.grantedDirectoryIds())) {
+            throw new BusinessException("没有目标目录的访问权限");
+        }
+        var fileInfo = FileUtils.getFileInfo(dto.getFileId());
+        if (fileInfo == null) throw new BusinessException("上传文件不存在");
+        LambdaQueryWrapper<KitKnowledgeSourceDocument> duplicateQuery = new LambdaQueryWrapper<KitKnowledgeSourceDocument>()
+                .eq(KitKnowledgeSourceDocument::getNodeType, KnowledgeDirectoryService.DOCUMENT)
+                .eq(KitKnowledgeSourceDocument::getName, dto.getFileName().trim())
+                .eq(KitKnowledgeSourceDocument::getDeleted, false);
+        if (directory == null) duplicateQuery.isNull(KitKnowledgeSourceDocument::getParentId);
+        else duplicateQuery.eq(KitKnowledgeSourceDocument::getParentId, directory.getId());
+        if (count(duplicateQuery) > 0) {
+            throw new BusinessException("该目录已存在同名文档");
+        }
+        Long fileSize;
+        try {
+            fileSize = StringUtils.hasText(fileInfo.getFileSize()) ? Long.parseLong(fileInfo.getFileSize()) : null;
+        } catch (NumberFormatException ex) {
+            throw new BusinessException("文件大小格式不正确");
+        }
         KitKnowledgeSourceDocument document = new KitKnowledgeSourceDocument()
-                .setId(Objects.nonNull(existingDocument) ? existingDocument.getId() : dto.getId())
+                .setParentId(directory == null ? null : directory.getId())
+                .setDirectoryPath(directory == null ? "" : directory.getDirectoryPath())
+                .setNodeType(KnowledgeDirectoryService.DOCUMENT)
+                .setName(dto.getFileName().trim())
+                .setSortNo(0)
                 .setFileId(dto.getFileId())
-                .setFileName(dto.getFileName())
+                .setFileName(dto.getFileName().trim())
+                .setFileSize(fileSize)
+                .setFileFormat(fileInfo.getFileSuffix())
                 .setDocumentStatus(KnowledgeDocumentStatus.UPLOADED)
-                .setTargetPageId(Objects.nonNull(existingDocument) ? existingDocument.getTargetPageId() : null)
+                .setTargetPageId(null)
                 .setProcessMessage(null)
-                .setImageFileIdsJson(Objects.nonNull(existingDocument) ? existingDocument.getImageFileIdsJson() : null)
+                .setImageFileIdsJson(null)
                 .setImageOcrParsed(false)
                 .setEmbeddingCompleted(false)
                 .setEnabled(true);
 
-        if (StringUtils.hasText(document.getId())) {
-            long updated = baseMapper.update(document, new LambdaQueryWrapper<KitKnowledgeSourceDocument>()
-                    .eq(KitKnowledgeSourceDocument::getId, document.getId())
-                    .eq(KitKnowledgeSourceDocument::getDeleted, false));
-            if (updated == 0) {
-                throw new BusinessException(KitErrorCode.E03001);
-            }
-        } else {
-            save(document);
-        }
+        save(document);
 
-        KnowledgeDocumentRoleSaveDTO roleSaveDTO = new KnowledgeDocumentRoleSaveDTO();
-        roleSaveDTO.setSourceDocumentId(document.getId());
-        roleSaveDTO.setRoleCodes(dto.getRoleCodes());
-        saveDocumentRoles(roleSaveDTO);
         return document.getId();
-    }
-
-    private KitKnowledgeSourceDocument resolveExistingDocument(KnowledgeDocumentSaveDTO dto) {
-        if (StringUtils.hasText(dto.getId()) || !StringUtils.hasText(dto.getFileId())) {
-            return null;
-        }
-        return getOne(new LambdaQueryWrapper<KitKnowledgeSourceDocument>()
-                .eq(KitKnowledgeSourceDocument::getFileId, dto.getFileId())
-                .eq(KitKnowledgeSourceDocument::getDeleted, false)
-                .last("limit 1"));
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void saveDocumentRoles(KnowledgeDocumentRoleSaveDTO dto) {
-        KitKnowledgeSourceDocument document = getOne(new LambdaQueryWrapper<KitKnowledgeSourceDocument>()
-                .eq(KitKnowledgeSourceDocument::getId, dto.getSourceDocumentId())
-                .eq(KitKnowledgeSourceDocument::getDeleted, false));
-        if (Objects.isNull(document)) {
-            throw new org.quyq.gwsu.common.core.exception.BusinessException(KitErrorCode.E03001);
-        }
-
-        roleMapper.delete(new LambdaQueryWrapper<KitKnowledgeSourceDocumentRole>()
-                .eq(KitKnowledgeSourceDocumentRole::getSourceDocumentId, dto.getSourceDocumentId())
-                .eq(KitKnowledgeSourceDocumentRole::getDeleted, false));
-
-        if (CollectionUtils.isEmpty(dto.getRoleCodes())) {
-            return;
-        }
-
-        new LinkedHashSet<>(dto.getRoleCodes()).stream()
-                .filter(StringUtils::hasText)
-                .map(roleCode -> new KitKnowledgeSourceDocumentRole()
-                        .setSourceDocumentId(dto.getSourceDocumentId())
-                        .setRoleCode(roleCode))
-                .forEach(roleMapper::insert);
-    }
-
-    @Override
-    public IPage<KnowledgeDocumentVO> pageDocuments(KnowledgeDocumentQueryDTO dto) {
-        Page<KitKnowledgeSourceDocument> page = page(Page.of(dto.getPageNum(), dto.getPageSize()),
-                new LambdaQueryWrapper<KitKnowledgeSourceDocument>()
-                        .like(StringUtils.hasText(dto.getFileName()), KitKnowledgeSourceDocument::getFileName, dto.getFileName())
-                        .eq(Objects.nonNull(dto.getDocumentStatus()), KitKnowledgeSourceDocument::getDocumentStatus, dto.getDocumentStatus())
-                        .eq(Objects.nonNull(dto.getEnabled()), KitKnowledgeSourceDocument::getEnabled, dto.getEnabled())
-                        .eq(KitKnowledgeSourceDocument::getDeleted, false)
-                        .orderByDesc(KitKnowledgeSourceDocument::getCreateTime));
-        return convertToDocumentPage(page);
     }
 
     @Override
@@ -151,11 +119,13 @@ public class KnowledgeSourceDocumentServiceImpl
         if (Objects.isNull(document)) {
             throw new org.quyq.gwsu.common.core.exception.BusinessException(KitErrorCode.E03001);
         }
-        return toDocumentVO(document, groupRoleCodes(List.of(documentId)));
+        directoryService.requireReadableDocument(documentId);
+        return toDocumentVO(document, groupLatestTasks(List.of(document.getId())).get(document.getId()));
     }
 
     @Override
     public void updateEnabled(String documentId, boolean enabled) {
+        directoryService.requireReadableDocument(documentId);
         long updated = baseMapper.update(null, new LambdaUpdateWrapper<KitKnowledgeSourceDocument>()
                 .eq(KitKnowledgeSourceDocument::getId, documentId)
                 .eq(KitKnowledgeSourceDocument::getDeleted, false)
@@ -165,25 +135,11 @@ public class KnowledgeSourceDocumentServiceImpl
         }
         if (!enabled) {
             chunkIndexRepository.deleteBySourceDocumentId(documentId);
+            eventService.append(documentId, null, "DOCUMENT_DISABLED", "文档已禁用");
             return;
         }
         pageSyncService.reindexCurrentPagesBySourceDocumentId(documentId);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void deleteDocument(String documentId) {
-        KitKnowledgeSourceDocument document = getOne(new LambdaQueryWrapper<KitKnowledgeSourceDocument>()
-                .eq(KitKnowledgeSourceDocument::getId, documentId)
-                .eq(KitKnowledgeSourceDocument::getDeleted, false));
-        if (Objects.isNull(document)) {
-            throw new BusinessException(KitErrorCode.E03001);
-        }
-        purgeDocumentArtifacts(documentId, true, true, true);
-        baseMapper.delete(new LambdaQueryWrapper<KitKnowledgeSourceDocument>()
-                .eq(KitKnowledgeSourceDocument::getId, documentId)
-                .eq(KitKnowledgeSourceDocument::getDeleted, false));
-        removeKnowledgeFiles(document.getFileId(), document.getImageFileIdsJson());
+        eventService.append(documentId, null, "DOCUMENT_ENABLED", "文档已启用");
     }
 
     @Override
@@ -195,48 +151,41 @@ public class KnowledgeSourceDocumentServiceImpl
         if (Objects.isNull(document)) {
             throw new BusinessException(KitErrorCode.E03001);
         }
-        purgeDocumentArtifacts(documentId, false, false, false);
+        purgeDocumentArtifacts(documentId, false, false);
         removeDerivedKnowledgeFiles(document.getImageFileIdsJson());
-        baseMapper.update(new KitKnowledgeSourceDocument()
-                        .setImageFileIdsJson(null)
-                        .setImageOcrParsed(false)
-                        .setEmbeddingCompleted(false)
-                        .setProcessedAt(null)
-                        .setProcessMessage(null),
-                new LambdaUpdateWrapper<KitKnowledgeSourceDocument>()
-                        .eq(KitKnowledgeSourceDocument::getId, documentId)
-                        .eq(KitKnowledgeSourceDocument::getDeleted, false));
+        baseMapper.update(null, new LambdaUpdateWrapper<KitKnowledgeSourceDocument>()
+                .eq(KitKnowledgeSourceDocument::getId, documentId)
+                .eq(KitKnowledgeSourceDocument::getDeleted, false)
+                .set(KitKnowledgeSourceDocument::getTargetPageId, null)
+                .set(KitKnowledgeSourceDocument::getImageFileIdsJson, null)
+                .set(KitKnowledgeSourceDocument::getImageOcrParsed, false)
+                .set(KitKnowledgeSourceDocument::getEmbeddingCompleted, false)
+                .set(KitKnowledgeSourceDocument::getParsedAt, null)
+                .set(KitKnowledgeSourceDocument::getProcessedAt, null)
+                .set(KitKnowledgeSourceDocument::getProcessMessage, null));
     }
 
     @Override
-    public List<String> listVisibleSourceDocumentIds(Collection<String> roleCodes) {
-        return sourceDocumentMapper.listVisibleSourceDocumentIds(roleCodes);
-    }
-
-    private IPage<KnowledgeDocumentVO> convertToDocumentPage(IPage<KitKnowledgeSourceDocument> page) {
-        Page<KnowledgeDocumentVO> result = Page.of(page.getCurrent(), page.getSize(), page.getTotal());
-        result.setPages(page.getPages());
-        Map<String, List<String>> roleCodeMap = groupRoleCodes(page.getRecords().stream()
-                .map(KitKnowledgeSourceDocument::getId)
-                .toList());
-        Map<String, KitKnowledgeIngestTask> latestTaskMap = groupLatestTasks(page.getRecords().stream()
-                .map(KitKnowledgeSourceDocument::getId)
-                .toList());
-        result.setRecords(page.getRecords().stream()
-                .map(document -> toDocumentVO(document, roleCodeMap, latestTaskMap.get(document.getId())))
-                .toList());
-        return result;
-    }
-
-    private KnowledgeDocumentVO toDocumentVO(KitKnowledgeSourceDocument document, Map<String, List<String>> roleCodeMap) {
-        return toDocumentVO(document, roleCodeMap, groupLatestTasks(List.of(document.getId())).get(document.getId()));
+    public void deleteDocumentData(String documentId) {
+        KitKnowledgeSourceDocument document = baseMapper.selectById(documentId);
+        if (document == null || !KnowledgeDirectoryService.DOCUMENT.equals(document.getNodeType())) {
+            throw new BusinessException(KitErrorCode.E03001);
+        }
+        purgeDocumentArtifacts(documentId, true, true);
+        removeDerivedKnowledgeFiles(document.getImageFileIdsJson());
+        eventService.deleteByDocumentId(documentId);
+        if (StringUtils.hasText(document.getFileId())) {
+            FileUtils.delete(document.getFileId());
+        }
     }
 
     private KnowledgeDocumentVO toDocumentVO(KitKnowledgeSourceDocument document,
-                                             Map<String, List<String>> roleCodeMap,
                                              KitKnowledgeIngestTask latestTask) {
         KnowledgeDocumentVO vo = new KnowledgeDocumentVO()
                 .setId(document.getId())
+                .setParentId(document.getParentId())
+                .setFileSize(document.getFileSize())
+                .setFileFormat(document.getFileFormat())
                 .setFileId(document.getFileId())
                 .setFileName(document.getFileName())
                 .setDocumentStatus(document.getDocumentStatus())
@@ -244,8 +193,8 @@ public class KnowledgeSourceDocumentServiceImpl
                 .setImageOcrParsed(Boolean.TRUE.equals(document.getImageOcrParsed()))
                 .setEmbeddingCompleted(Boolean.TRUE.equals(document.getEmbeddingCompleted()))
                 .setEnabled(!Boolean.FALSE.equals(document.getEnabled()))
-                .setProcessedAt(document.getProcessedAt())
-                .setRoleCodes(roleCodeMap.getOrDefault(document.getId(), List.of()));
+                .setParsedAt(document.getParsedAt())
+                .setProcessedAt(document.getProcessedAt());
         if (Objects.nonNull(latestTask)) {
             vo.setLatestTaskId(latestTask.getId())
                     .setLatestTaskStatus(latestTask.getTaskStatus())
@@ -275,44 +224,6 @@ public class KnowledgeSourceDocumentServiceImpl
         return latestTaskMap;
     }
 
-    private Map<String, List<String>> groupRoleCodes(List<String> sourceDocumentIds) {
-        if (CollectionUtils.isEmpty(sourceDocumentIds)) {
-            return Collections.emptyMap();
-        }
-        List<KitKnowledgeSourceDocumentRole> roles = roleMapper.selectBySourceDocumentIds(sourceDocumentIds);
-        Map<String, List<String>> roleCodeMap = new HashMap<>();
-        roles.stream()
-                .filter(role -> StringUtils.hasText(role.getRoleCode()))
-                .collect(Collectors.groupingBy(KitKnowledgeSourceDocumentRole::getSourceDocumentId,
-                        Collectors.mapping(KitKnowledgeSourceDocumentRole::getRoleCode, Collectors.toList())))
-                .forEach(roleCodeMap::put);
-        return roleCodeMap;
-    }
-
-    private void removeKnowledgeFiles(String sourceFileId, String imageFileIdsJson) {
-        Set<String> fileIds = new LinkedHashSet<>();
-        if (StringUtils.hasText(sourceFileId)) {
-            fileIds.add(sourceFileId.trim());
-        }
-        if (StringUtils.hasText(imageFileIdsJson)) {
-            try {
-                List<String> imageFileIds = GSON.fromJson(imageFileIdsJson, new TypeToken<List<String>>() {
-                }.getType());
-                if (!CollectionUtils.isEmpty(imageFileIds)) {
-                    fileIds.addAll(imageFileIds);
-                }
-            } catch (Exception ignored) {
-                // ignore invalid json and still delete the source file
-            }
-        }
-        if (CollectionUtils.isEmpty(fileIds)) {
-            return;
-        }
-        fileIds.stream()
-                .filter(StringUtils::hasText)
-                .forEach(FileUtils::delete);
-    }
-
     private void removeDerivedKnowledgeFiles(String imageFileIdsJson) {
         if (!StringUtils.hasText(imageFileIdsJson)) {
             return;
@@ -332,16 +243,9 @@ public class KnowledgeSourceDocumentServiceImpl
     }
 
     private void purgeDocumentArtifacts(String documentId,
-                                        boolean deleteRoles,
                                         boolean deleteTaskRecords,
                                         boolean deleteCheckpoints) {
         List<String> ingestTaskIds = ingestTaskMapper.selectIdsBySourceDocumentId(documentId);
-
-        if (deleteRoles) {
-            roleMapper.delete(new LambdaQueryWrapper<KitKnowledgeSourceDocumentRole>()
-                    .eq(KitKnowledgeSourceDocumentRole::getSourceDocumentId, documentId)
-                    .eq(KitKnowledgeSourceDocumentRole::getDeleted, false));
-        }
 
         if (!CollectionUtils.isEmpty(ingestTaskIds) && deleteCheckpoints) {
             checkpointMapper.delete(new LambdaQueryWrapper<KitKnowledgeIngestAnalysisCheckpoint>()

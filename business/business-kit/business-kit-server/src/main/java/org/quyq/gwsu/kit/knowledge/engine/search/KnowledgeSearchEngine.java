@@ -1,10 +1,7 @@
 package org.quyq.gwsu.kit.knowledge.engine.search;
 
 import lombok.RequiredArgsConstructor;
-import org.quyq.gwsu.common.core.domain.visitor.Visitor;
 import org.quyq.gwsu.common.core.exception.BusinessException;
-import org.quyq.gwsu.common.security.domain.Subject;
-import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.quyq.gwsu.kit.api.knowledge.dto.KnowledgeSearchDTO;
 import org.quyq.gwsu.kit.api.knowledge.enums.KnowledgeBlockType;
 import org.quyq.gwsu.kit.api.knowledge.enums.KnowledgeChunkDirection;
@@ -22,7 +19,9 @@ import org.quyq.gwsu.kit.knowledge.mapper.KnowledgePageBlockMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgePageMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgePageSourceRefMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgePageVersionMapper;
-import org.quyq.gwsu.kit.knowledge.service.IKnowledgeSourceDocumentService;
+import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeSourceDocumentMapper;
+import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeSourceDocument;
+import org.quyq.gwsu.kit.knowledge.service.KnowledgeDirectoryService;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
@@ -37,8 +36,6 @@ import java.util.regex.Pattern;
 @Component
 @RequiredArgsConstructor
 public class KnowledgeSearchEngine {
-
-    private final IKnowledgeSourceDocumentService sourceDocumentService;
 
     private final KnowledgeChunkIndexRepository chunkIndexRepository;
 
@@ -58,46 +55,65 @@ public class KnowledgeSearchEngine {
 
     private final KnowledgePageMapper pageMapper;
 
-    private final SecurityUtils securityUtils;
+    private final KnowledgeDirectoryService directoryService;
+
+    private final KnowledgeSourceDocumentMapper sourceDocumentMapper;
 
     public List<KnowledgeSearchResultVO> search(KnowledgeSearchDTO dto) {
-        List<String> roleCodes = dto.getRoleCodes();
-        if (CollectionUtils.isEmpty(roleCodes)) {
-            Subject<Visitor> subject = securityUtils.checkSubject();
-            roleCodes = subject.getRoles();
-        }
+        return searchWithDirectoryScopes(dto, directoryService.grantedDirectoryIds());
+    }
 
-        List<String> visibleSourceDocumentIds = sourceDocumentService.listVisibleSourceDocumentIds(roleCodes);
+    public List<KnowledgeSearchResultVO> searchWithDirectoryScopes(KnowledgeSearchDTO dto, Collection<String> directoryScopes) {
+        if (CollectionUtils.isEmpty(directoryScopes)) return List.of();
         int size = dto.getSize() == null || dto.getSize() <= 0 ? properties.getSearchSize() : dto.getSize();
         int recallSize = Math.max(size, properties.getHybridRecallSize());
         List<KnowledgeSearchResultVO> results = chunkIndexRepository.search(
                 dto.getKeyword(),
-                visibleSourceDocumentIds,
+                directoryScopes,
                 recallSize,
                 chunkEmbeddingService.embedQuery(dto.getKeyword()));
-        List<KnowledgeSearchResultVO> reranked = searchRerankService.rerank(dto.getKeyword(), results, recallSize);
+        List<KnowledgeSearchResultVO> reranked = searchRerankService.rerank(dto.getKeyword(),
+                filterVisibleResults(results, directoryScopes), recallSize);
         return renderSearchResults(reranked, size, dto.getKeyword());
     }
 
     public List<KnowledgeSearchResultVO> findAdjacentChunk(
-            List<String> roleCodes,
             String pageBlockId,
             KnowledgeChunkDirection direction,
             Integer offset) {
+        return findAdjacentChunkWithDirectoryScopes(pageBlockId, direction, offset,
+                directoryService.grantedDirectoryIds());
+    }
+
+    public List<KnowledgeSearchResultVO> findAdjacentChunkWithDirectoryScopes(
+            String pageBlockId,
+            KnowledgeChunkDirection direction,
+            Integer offset,
+            Collection<String> scopes) {
         if (!StringUtils.hasText(pageBlockId) || direction == null) {
             throw new BusinessException(KitErrorCode.E03012);
         }
         int limit = offset == null || offset <= 0 ? 1 : offset;
-
-        if(CollectionUtils.isEmpty(roleCodes)) {
-            Subject<Visitor> subject = securityUtils.checkSubject();
-            roleCodes = subject.getRoles();
-        }
-
-        List<String> visibleSourceDocumentIds = sourceDocumentService.listVisibleSourceDocumentIds(roleCodes);
-        return findAdjacentVisibleBlocks(pageBlockId, direction, limit, visibleSourceDocumentIds).stream()
+        if (CollectionUtils.isEmpty(scopes)) return List.of();
+        return findAdjacentVisibleBlocks(pageBlockId, direction, limit, scopes).stream()
                 .map(this::renderBlockContent)
                 .toList();
+    }
+
+    private List<KnowledgeSearchResultVO> filterVisibleResults(List<KnowledgeSearchResultVO> results,
+                                                                Collection<String> scopes) {
+        if (CollectionUtils.isEmpty(results)) return List.of();
+        Set<String> ids = new HashSet<>();
+        results.stream().map(KnowledgeSearchResultVO::getSourceDocumentId)
+                .filter(StringUtils::hasText).forEach(ids::add);
+        if (ids.isEmpty()) return List.of();
+        Set<String> visible = new HashSet<>();
+        sourceDocumentMapper.selectBatchIds(ids).stream()
+                .filter(doc -> !Boolean.TRUE.equals(doc.getDeleted()))
+                .filter(doc -> !Boolean.FALSE.equals(doc.getEnabled()))
+                .filter(doc -> directoryService.canRead(doc, scopes))
+                .map(KitKnowledgeSourceDocument::getId).forEach(visible::add);
+        return results.stream().filter(result -> visible.contains(result.getSourceDocumentId())).toList();
     }
 
     private List<KnowledgeSearchResultVO> renderSearchResults(
@@ -136,9 +152,14 @@ public class KnowledgeSearchEngine {
             String pageBlockId,
             KnowledgeChunkDirection direction,
             int limit,
-            Collection<String> visibleSourceDocumentIds) {
+            Collection<String> directoryScopes) {
         KitKnowledgePageBlock current = pageBlockMapper.selectById(pageBlockId);
         if (current == null || !StringUtils.hasText(current.getPageVersionId())) {
+            return List.of();
+        }
+        KitKnowledgePageVersion version = pageVersionMapper.selectById(current.getPageVersionId());
+        KitKnowledgePage page = version == null ? null : pageMapper.selectById(version.getPageId());
+        if (page == null || !Objects.equals(page.getCurrentVersionId(), current.getPageVersionId())) {
             return List.of();
         }
         List<KitKnowledgePageBlock> blocks = pageBlockMapper.selectByVersionId(current.getPageVersionId());
@@ -146,6 +167,14 @@ public class KnowledgeSearchEngine {
             return List.of();
         }
         Map<String, KitKnowledgePageSourceRef> refByBlockId = loadRefMap(blocks);
+        Set<String> sourceIds = new HashSet<>();
+        refByBlockId.values().stream().map(KitKnowledgePageSourceRef::getSourceDocumentId)
+                .filter(StringUtils::hasText).forEach(sourceIds::add);
+        Set<String> visibleSourceDocumentIds = new HashSet<>();
+        if (!sourceIds.isEmpty()) sourceDocumentMapper.selectBatchIds(sourceIds).stream()
+                .filter(doc -> !Boolean.TRUE.equals(doc.getDeleted()) && !Boolean.FALSE.equals(doc.getEnabled()))
+                .filter(doc -> directoryService.canRead(doc, directoryScopes))
+                .map(KitKnowledgeSourceDocument::getId).forEach(visibleSourceDocumentIds::add);
         if (!isVisibleBlock(current, refByBlockId, visibleSourceDocumentIds)) {
             return List.of();
         }
@@ -195,9 +224,6 @@ public class KnowledgeSearchEngine {
             Collection<String> visibleSourceDocumentIds) {
         if (block == null) {
             return false;
-        }
-        if (block.getBlockType() == KnowledgeBlockType.HEADING) {
-            return true;
         }
         KitKnowledgePageSourceRef ref = refByBlockId.get(block.getId());
         return ref != null

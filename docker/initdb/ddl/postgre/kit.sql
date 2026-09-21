@@ -415,17 +415,26 @@ COMMENT ON COLUMN kit_job_lock.lock_name IS '锁名称';
 -- 表名前缀：kit_knowledge_
 -- =============================================
 
-CREATE TABLE kit_knowledge_source_document
+CREATE TABLE kit_knowledge_node
 (
     id               VARCHAR(24) PRIMARY KEY,
+    parent_id        VARCHAR(24)           DEFAULT NULL,
+    node_type        VARCHAR(16)  NOT NULL,
+    directory_path   VARCHAR(2000) NOT NULL DEFAULT '',
+    name             VARCHAR(200) NOT NULL,
+    sort_no          INT          NOT NULL DEFAULT 0,
     file_id          VARCHAR(24)           DEFAULT NULL,
     file_name        VARCHAR(200)          DEFAULT NULL,
-    document_status  VARCHAR(32)  NOT NULL DEFAULT 'UPLOADED',
+    file_size        BIGINT                DEFAULT NULL,
+    file_format      VARCHAR(32)           DEFAULT NULL,
+    document_status  VARCHAR(32)           DEFAULT NULL,
     target_page_id   VARCHAR(24)           DEFAULT NULL,
     process_message  VARCHAR(1000)         DEFAULT NULL,
     image_file_ids_json TEXT               DEFAULT NULL,
     image_ocr_parsed INT2         NOT NULL DEFAULT 0,
     embedding_completed INT2      NOT NULL DEFAULT 0,
+    enabled          INT2         NOT NULL DEFAULT 1,
+    parsed_at        TIMESTAMP             DEFAULT NULL,
     processed_at     TIMESTAMP             DEFAULT NULL,
     tenant_id        VARCHAR(50)           DEFAULT NULL,
     create_op        VARCHAR(50)           DEFAULT NULL,
@@ -437,20 +446,27 @@ CREATE TABLE kit_knowledge_source_document
     delete_time      TIMESTAMP             DEFAULT NULL
 );
 
-COMMENT ON TABLE kit_knowledge_source_document IS '知识源文档';
-COMMENT ON COLUMN kit_knowledge_source_document.id IS '主键ID';
-COMMENT ON COLUMN kit_knowledge_source_document.file_id IS '文件ID';
-COMMENT ON COLUMN kit_knowledge_source_document.file_name IS '文件名';
-COMMENT ON COLUMN kit_knowledge_source_document.document_status IS '文档处理状态';
-COMMENT ON COLUMN kit_knowledge_source_document.target_page_id IS '目标Page ID';
-COMMENT ON COLUMN kit_knowledge_source_document.process_message IS '处理信息';
-COMMENT ON COLUMN kit_knowledge_source_document.image_file_ids_json IS '导入图片文件ID JSON';
-COMMENT ON COLUMN kit_knowledge_source_document.image_ocr_parsed IS '图片是否已完成 OCR 解析：0-否 1-是';
-COMMENT ON COLUMN kit_knowledge_source_document.embedding_completed IS '是否已完成向量化：0-否 1-是';
-COMMENT ON COLUMN kit_knowledge_source_document.processed_at IS '处理完成时间';
+COMMENT ON TABLE kit_knowledge_node IS '知识目录与文档节点';
+COMMENT ON COLUMN kit_knowledge_node.id IS '主键ID';
+COMMENT ON COLUMN kit_knowledge_node.parent_id IS '父目录ID';
+COMMENT ON COLUMN kit_knowledge_node.node_type IS 'DIRECTORY或DOCUMENT';
+COMMENT ON COLUMN kit_knowledge_node.directory_path IS '祖先目录ID路径';
+COMMENT ON COLUMN kit_knowledge_node.name IS '节点名称';
+COMMENT ON COLUMN kit_knowledge_node.file_id IS '文件ID';
+COMMENT ON COLUMN kit_knowledge_node.file_name IS '文件名';
+COMMENT ON COLUMN kit_knowledge_node.document_status IS '文档处理状态';
+COMMENT ON COLUMN kit_knowledge_node.target_page_id IS '目标Page ID';
+COMMENT ON COLUMN kit_knowledge_node.process_message IS '处理信息';
+COMMENT ON COLUMN kit_knowledge_node.image_file_ids_json IS '导入图片文件ID JSON';
+COMMENT ON COLUMN kit_knowledge_node.image_ocr_parsed IS '图片是否已完成 OCR 解析：0-否 1-是';
+COMMENT ON COLUMN kit_knowledge_node.embedding_completed IS '是否已完成向量化：0-否 1-是';
+COMMENT ON COLUMN kit_knowledge_node.parsed_at IS '文件解析完成时间';
+COMMENT ON COLUMN kit_knowledge_node.processed_at IS '处理完成时间';
 
-CREATE INDEX idx_kit_knowledge_source_document_file_id ON kit_knowledge_source_document (file_id) WHERE deleted = 0;
-CREATE INDEX idx_kit_knowledge_source_document_status ON kit_knowledge_source_document (document_status);
+CREATE INDEX idx_kit_knowledge_node_parent ON kit_knowledge_node (parent_id, node_type, sort_no) WHERE deleted = 0;
+CREATE UNIQUE INDEX uk_kit_knowledge_node_sibling ON kit_knowledge_node (COALESCE(parent_id, 'ROOT'), node_type, name) WHERE deleted = 0;
+CREATE INDEX idx_kit_knowledge_node_file_id ON kit_knowledge_node (file_id) WHERE deleted = 0;
+CREATE INDEX idx_kit_knowledge_node_status ON kit_knowledge_node (document_status);
 
 CREATE TABLE kit_knowledge_source_segment
 (
@@ -483,10 +499,10 @@ COMMENT ON COLUMN kit_knowledge_source_segment.content IS '片段内容';
 CREATE UNIQUE INDEX uk_kit_knowledge_source_segment_doc_no ON kit_knowledge_source_segment (source_document_id, segment_no) WHERE deleted = 0;
 CREATE INDEX idx_kit_knowledge_source_segment_document ON kit_knowledge_source_segment (source_document_id) WHERE deleted = 0;
 
-CREATE TABLE kit_knowledge_source_document_role
+CREATE TABLE kit_knowledge_directory_role
 (
     id                 VARCHAR(24) PRIMARY KEY,
-    source_document_id VARCHAR(24)  NOT NULL,
+    directory_id       VARCHAR(24)  NOT NULL,
     role_code          VARCHAR(100) NOT NULL,
     tenant_id          VARCHAR(50) DEFAULT NULL,
     create_op          VARCHAR(50) DEFAULT NULL,
@@ -498,12 +514,33 @@ CREATE TABLE kit_knowledge_source_document_role
     delete_time        TIMESTAMP   DEFAULT NULL
 );
 
-COMMENT ON TABLE kit_knowledge_source_document_role IS '知识源文档角色授权';
-COMMENT ON COLUMN kit_knowledge_source_document_role.id IS '主键ID';
-COMMENT ON COLUMN kit_knowledge_source_document_role.source_document_id IS '源文档ID';
-COMMENT ON COLUMN kit_knowledge_source_document_role.role_code IS '角色编码';
+COMMENT ON TABLE kit_knowledge_directory_role IS '知识目录角色授权';
+COMMENT ON COLUMN kit_knowledge_directory_role.id IS '主键ID';
+COMMENT ON COLUMN kit_knowledge_directory_role.directory_id IS '目录ID';
+COMMENT ON COLUMN kit_knowledge_directory_role.role_code IS '角色编码';
 
-CREATE UNIQUE INDEX uk_kit_knowledge_source_document_role_doc_role ON kit_knowledge_source_document_role (source_document_id, role_code) WHERE deleted = 0;
+CREATE UNIQUE INDEX uk_kit_knowledge_directory_role ON kit_knowledge_directory_role (directory_id, role_code) WHERE deleted = 0;
+CREATE INDEX idx_kit_knowledge_directory_role_role ON kit_knowledge_directory_role (role_code) WHERE deleted = 0;
+
+CREATE TABLE kit_knowledge_document_event
+(
+    id VARCHAR(24) PRIMARY KEY,
+    document_id VARCHAR(24) NOT NULL,
+    task_id VARCHAR(24) DEFAULT NULL,
+    event_type VARCHAR(40) NOT NULL,
+    message VARCHAR(2000) DEFAULT NULL,
+    occurred_at TIMESTAMP NOT NULL,
+    tenant_id VARCHAR(50) DEFAULT NULL,
+    create_op VARCHAR(50) DEFAULT NULL,
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    modify_op VARCHAR(50) DEFAULT NULL,
+    modify_time TIMESTAMP DEFAULT NULL,
+    deleted INT2 NOT NULL DEFAULT 0,
+    delete_op VARCHAR(50) DEFAULT NULL,
+    delete_time TIMESTAMP DEFAULT NULL
+);
+COMMENT ON TABLE kit_knowledge_document_event IS '知识文档事件日志';
+CREATE INDEX idx_kit_knowledge_event_doc_time ON kit_knowledge_document_event (document_id, occurred_at) WHERE deleted = 0;
 
 CREATE TABLE kit_knowledge_page
 (

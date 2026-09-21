@@ -21,8 +21,16 @@ public class KnowledgeIngestDispatcher {
 
     private final KnowledgeIngestExecutor ingestExecutor;
 
-    public KnowledgeIngestDispatcher(KnowledgeIngestExecutor ingestExecutor) {
+    private final KnowledgeIngestFailureService failureService;
+
+    private final KnowledgeDocumentEventService eventService;
+
+    public KnowledgeIngestDispatcher(KnowledgeIngestExecutor ingestExecutor,
+                                     KnowledgeIngestFailureService failureService,
+                                     KnowledgeDocumentEventService eventService) {
         this.ingestExecutor = ingestExecutor;
+        this.failureService = failureService;
+        this.eventService = eventService;
     }
 
     public void dispatchAfterCommit(String taskId) {
@@ -39,13 +47,31 @@ public class KnowledgeIngestDispatcher {
     }
 
     public void dispatch(String taskId) {
-        executorService.submit(() -> {
+        try {
+            executorService.submit(() -> {
+                try {
+                    ingestExecutor.execute(taskId);
+                } catch (Throwable ex) {
+                    log.error("知识导入任务执行失败, taskId={}", taskId, ex);
+                }
+            });
+        } catch (RuntimeException dispatchFailure) {
+            log.error("知识导入任务派发失败, taskId={}", taskId, dispatchFailure);
+            String documentId = null;
             try {
-                ingestExecutor.execute(taskId);
-            } catch (Exception ex) {
-                log.error("知识导入任务执行失败, taskId={}", taskId, ex);
+                documentId = failureService.markFailed(taskId, dispatchFailure);
+            } catch (Throwable statusFailure) {
+                log.error("知识导入派发失败状态写入失败, taskId={}", taskId, statusFailure);
             }
-        });
+            if (documentId != null) {
+                try {
+                    eventService.append(documentId, taskId, "INGEST_FAILED",
+                            KnowledgeIngestFailureService.failureMessage(dispatchFailure));
+                } catch (Throwable eventFailure) {
+                    log.error("知识导入派发失败事件记录失败, taskId={}, documentId={}", taskId, documentId, eventFailure);
+                }
+            }
+        }
     }
 
     @PreDestroy

@@ -87,6 +87,7 @@ public class KnowledgeIngestTaskServiceImpl
                 .set(KitKnowledgeSourceDocument::getDocumentStatus, KnowledgeDocumentStatus.UPLOADED)
                 .set(KitKnowledgeSourceDocument::getProcessMessage, null)
                 .set(KitKnowledgeSourceDocument::getImageOcrParsed, false)
+                .set(KitKnowledgeSourceDocument::getParsedAt, null)
                 .set(KitKnowledgeSourceDocument::getProcessedAt, null)
                 .set(KitKnowledgeSourceDocument::getEmbeddingCompleted, false));
         return existingTask.getId();

@@ -255,17 +255,26 @@ CREATE TABLE kit_job_lock
 -- 表名前缀：kit_knowledge_
 -- =============================================
 
-CREATE TABLE kit_knowledge_source_document
+CREATE TABLE kit_knowledge_node
 (
     id               VARCHAR(24)  PRIMARY KEY COMMENT '主键ID',
+    parent_id        VARCHAR(24)           DEFAULT NULL COMMENT '父目录ID',
+    node_type        VARCHAR(16)  NOT NULL COMMENT 'DIRECTORY或DOCUMENT',
+    directory_path   VARCHAR(2000) NOT NULL DEFAULT '' COMMENT '祖先目录ID路径，斜杠分隔',
+    name             VARCHAR(200) NOT NULL COMMENT '节点名称',
+    sort_no          INT          NOT NULL DEFAULT 0 COMMENT '排序值',
     file_id          VARCHAR(24)           DEFAULT NULL COMMENT '文件ID',
     file_name        VARCHAR(200)          DEFAULT NULL COMMENT '文件名',
-    document_status  VARCHAR(32)  NOT NULL DEFAULT 'UPLOADED' COMMENT '文档处理状态',
+    file_size        BIGINT                DEFAULT NULL COMMENT '文件大小（字节）',
+    file_format      VARCHAR(32)           DEFAULT NULL COMMENT '文件格式',
+    document_status  VARCHAR(32)           DEFAULT NULL COMMENT '文档处理状态',
     target_page_id   VARCHAR(24)           DEFAULT NULL COMMENT '目标Page ID',
     process_message  VARCHAR(1000)         DEFAULT NULL COMMENT '处理信息',
     image_file_ids_json TEXT               DEFAULT NULL COMMENT '导入图片文件ID JSON',
     image_ocr_parsed SMALLINT      NOT NULL DEFAULT 0 COMMENT '图片是否已完成 OCR 解析：0-否 1-是',
     embedding_completed SMALLINT   NOT NULL DEFAULT 0 COMMENT '是否已完成向量化：0-否 1-是',
+    enabled          SMALLINT      NOT NULL DEFAULT 1 COMMENT '是否启用',
+    parsed_at        DATETIME              DEFAULT NULL COMMENT '文件解析完成时间',
     processed_at     DATETIME              DEFAULT NULL COMMENT '处理完成时间',
     tenant_id        VARCHAR(50)           DEFAULT NULL COMMENT '租户ID',
     create_op        VARCHAR(50)           DEFAULT NULL COMMENT '创建人',
@@ -273,12 +282,16 @@ CREATE TABLE kit_knowledge_source_document
     modify_op        VARCHAR(50)           DEFAULT NULL COMMENT '修改人',
     modify_time      DATETIME              DEFAULT NULL COMMENT '修改时间',
     deleted          SMALLINT     NOT NULL DEFAULT 0 COMMENT '删除标识：0-未删除 1-已删除',
+    active_parent_key VARCHAR(24) GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN COALESCE(parent_id, 'ROOT') ELSE NULL END) STORED,
+    active_name      VARCHAR(200) GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN name ELSE NULL END) STORED,
     delete_op        VARCHAR(50)           DEFAULT NULL COMMENT '删除人',
     delete_time      DATETIME              DEFAULT NULL COMMENT '删除时间'
-) COMMENT '知识源文档';
+) COMMENT '知识目录与文档节点';
 
-CREATE INDEX idx_kit_knowledge_source_document_file_id ON kit_knowledge_source_document (file_id);
-CREATE INDEX idx_kit_knowledge_source_document_status ON kit_knowledge_source_document (document_status);
+CREATE INDEX idx_kit_knowledge_node_parent ON kit_knowledge_node (parent_id, node_type, sort_no);
+CREATE UNIQUE INDEX uk_kit_knowledge_node_sibling ON kit_knowledge_node (active_parent_key, node_type, active_name);
+CREATE INDEX idx_kit_knowledge_node_file_id ON kit_knowledge_node (file_id);
+CREATE INDEX idx_kit_knowledge_node_status ON kit_knowledge_node (document_status);
 
 CREATE TABLE kit_knowledge_source_segment
 (
@@ -304,10 +317,10 @@ CREATE TABLE kit_knowledge_source_segment
 CREATE UNIQUE INDEX uk_kit_knowledge_source_segment_doc_no ON kit_knowledge_source_segment (active_source_document_id, active_segment_no);
 CREATE INDEX idx_kit_knowledge_source_segment_document ON kit_knowledge_source_segment (source_document_id);
 
-CREATE TABLE kit_knowledge_source_document_role
+CREATE TABLE kit_knowledge_directory_role
 (
     id                 VARCHAR(24) PRIMARY KEY COMMENT '主键ID',
-    source_document_id VARCHAR(24) NOT NULL COMMENT '源文档ID',
+    directory_id       VARCHAR(24) NOT NULL COMMENT '授权目录ID',
     role_code          VARCHAR(100) NOT NULL COMMENT '角色编码',
     tenant_id          VARCHAR(50) DEFAULT NULL COMMENT '租户ID',
     create_op          VARCHAR(50) DEFAULT NULL COMMENT '创建人',
@@ -315,13 +328,33 @@ CREATE TABLE kit_knowledge_source_document_role
     modify_op          VARCHAR(50) DEFAULT NULL COMMENT '修改人',
     modify_time        DATETIME    DEFAULT NULL COMMENT '修改时间',
     deleted            SMALLINT    NOT NULL DEFAULT 0 COMMENT '删除标识：0-未删除 1-已删除',
-    active_source_document_id VARCHAR(24) GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN source_document_id ELSE NULL END) STORED COMMENT '未删除源文档唯一键',
+    active_directory_id VARCHAR(24) GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN directory_id ELSE NULL END) STORED COMMENT '未删除目录唯一键',
     active_role_code   VARCHAR(100) GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN role_code ELSE NULL END) STORED COMMENT '未删除角色唯一键',
     delete_op          VARCHAR(50) DEFAULT NULL COMMENT '删除人',
     delete_time        DATETIME    DEFAULT NULL COMMENT '删除时间'
-) COMMENT '知识源文档角色授权';
+) COMMENT '知识目录角色授权';
 
-CREATE UNIQUE INDEX uk_kit_knowledge_source_document_role_doc_role ON kit_knowledge_source_document_role (active_source_document_id, active_role_code);
+CREATE UNIQUE INDEX uk_kit_knowledge_directory_role ON kit_knowledge_directory_role (active_directory_id, active_role_code);
+CREATE INDEX idx_kit_knowledge_directory_role_role ON kit_knowledge_directory_role (role_code);
+
+CREATE TABLE kit_knowledge_document_event
+(
+    id VARCHAR(24) PRIMARY KEY,
+    document_id VARCHAR(24) NOT NULL,
+    task_id VARCHAR(24) DEFAULT NULL,
+    event_type VARCHAR(40) NOT NULL,
+    message VARCHAR(2000) DEFAULT NULL,
+    occurred_at DATETIME NOT NULL,
+    tenant_id VARCHAR(50) DEFAULT NULL,
+    create_op VARCHAR(50) DEFAULT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    modify_op VARCHAR(50) DEFAULT NULL,
+    modify_time DATETIME DEFAULT NULL,
+    deleted SMALLINT NOT NULL DEFAULT 0,
+    delete_op VARCHAR(50) DEFAULT NULL,
+    delete_time DATETIME DEFAULT NULL
+) COMMENT '知识文档事件日志';
+CREATE INDEX idx_kit_knowledge_event_doc_time ON kit_knowledge_document_event (document_id, occurred_at);
 
 CREATE TABLE kit_knowledge_page
 (

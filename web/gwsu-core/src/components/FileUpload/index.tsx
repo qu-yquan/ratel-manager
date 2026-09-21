@@ -19,6 +19,7 @@ export interface FileUploadProps {
   draggable?: boolean;
   value?: string[];
   onChange?: (fileIds: string[]) => void;
+  onUploadingChange?: (uploading: boolean) => void;
   uploadOptions?: FileUploadOptions;
 }
 
@@ -47,11 +48,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   draggable = false,
   value,
   onChange,
+  onUploadingChange,
   uploadOptions,
 }) => {
   const [fileList, setFileList] = React.useState<FileItem[]>([]);
   const [progressMap, setProgressMap] = React.useState<Record<string, ChunkUploadProgress>>({});
   const uploadIdRef = useRef<string>(createUploadId());
+
+  useEffect(() => {
+    onUploadingChange?.(fileList.some((item) => item.status === 'uploading'));
+  }, [fileList, onUploadingChange]);
 
   const getMaxAllowed = useCallback(() => {
     if (!multiple) {

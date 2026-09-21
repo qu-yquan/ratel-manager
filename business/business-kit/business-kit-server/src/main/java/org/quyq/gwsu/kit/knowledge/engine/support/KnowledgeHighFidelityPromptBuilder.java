@@ -4,6 +4,7 @@ import org.quyq.gwsu.kit.knowledge.engine.ingest.KnowledgeSourceSegmentDraft;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 高保真分段生成提示词构造器。
@@ -17,6 +18,9 @@ public class KnowledgeHighFidelityPromptBuilder {
                                    int batchNo,
                                    int batchTotal,
                                    List<KnowledgeSourceSegmentDraft> batchSegments) {
+        String allowedSegmentNos = batchSegments.stream()
+                .map(segment -> Integer.toString(segment.segmentNo()))
+                .collect(Collectors.joining(", "));
         StringBuilder source = new StringBuilder();
         for (KnowledgeSourceSegmentDraft segment : batchSegments) {
             source.append("## Segment ").append(segment.segmentNo())
@@ -32,11 +36,14 @@ public class KnowledgeHighFidelityPromptBuilder {
         }
         return """
                 你是高保真知识文档整理助手。
-                你的任务不是总结，而是把当前批次原文片段忠实整理为 Wiki blocks。
+                你的任务不是总结，而是把当前批次原文片段忠实整理为 Markdown blocks。
                 输出必须使用语言：%s。
                 源文语言：%s。
                 文件名：%s。
                 当前批次：%d/%d。
+                本批次允许使用的片段序号：[%s]。
+                sourceStartSegmentNo 和 sourceEndSegmentNo 只能填写上面列表中的一个整数，必须与 `## Segment N` 标记完全一致；不要填写原文正文中的数字，也不要新造序号。
+                每个 block 的来源范围必须落在当前批次，开始序号不得大于结束序号。无法确定范围时，请对照片段标记核查后再输出。
                 保持原文顺序，不得跨批次补写，不得删除重要限制条件，不得臆造结论。
                 如果原文出现图片标记 ![...](knowledge_image:fileId=...)，它表示已经完成 OCR/占位处理的图片内容，对这类图片标记必须逐字符原样保留，不能改 alt 文本，不能改 fileId，不能删除，不能移动到错误位置。
                 根据规则输出JSON对象。
@@ -44,7 +51,7 @@ public class KnowledgeHighFidelityPromptBuilder {
                 ```text
                 %s
                 ```
-                """.formatted(outputLanguage, sourceLanguage, fileName, batchNo, batchTotal, source);
+                """.formatted(outputLanguage, sourceLanguage, fileName, batchNo, batchTotal, allowedSegmentNos, source);
     }
 
     public String buildTitlePrompt(String fileName,
@@ -63,7 +70,7 @@ public class KnowledgeHighFidelityPromptBuilder {
         }
         return """
                 你是知识文档标题生成助手。
-                请基于文件名和文档开头的重要标题/导语，生成一个适合作为 Wiki Page 的标题。
+                请基于文件名和文档开头的重要标题/导语，生成一个适合作为知识文档的标题。
                 输出语言：%s。
                 源文语言：%s。
                 文件名：%s。

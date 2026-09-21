@@ -11,6 +11,8 @@ import org.quyq.gwsu.kit.api.knowledge.enums.KnowledgeChunkDirection;
 import org.quyq.gwsu.kit.api.knowledge.vo.KnowledgeSearchResultVO;
 import org.quyq.gwsu.kit.config.properties.KnowledgeProperties;
 import org.quyq.gwsu.kit.errcode.KitErrorCode;
+import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeSourceDocumentMapper;
+import org.quyq.gwsu.kit.knowledge.service.KnowledgeDirectoryService;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.IndexOperations;
 import org.springframework.data.elasticsearch.core.SearchHit;
@@ -31,6 +33,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Elasticsearch 知识 Chunk 索引仓储。
@@ -42,6 +47,8 @@ public class ElasticsearchKnowledgeChunkIndexRepository implements KnowledgeChun
     private final ElasticsearchOperations elasticsearchOperations;
 
     private final KnowledgeProperties properties;
+
+    private final KnowledgeSourceDocumentMapper nodeMapper;
 
     @Override
     public void ensureIndex() {
@@ -67,6 +74,14 @@ public class ElasticsearchKnowledgeChunkIndexRepository implements KnowledgeChun
             if (CollectionUtils.isEmpty(chunks)) {
                 return;
             }
+            Set<String> ids = chunks.stream().map(KnowledgeChunkDocument::getSourceDocumentId)
+                    .filter(StringUtils::hasText).collect(Collectors.toSet());
+            Map<String, List<String>> paths = new HashMap<>();
+            if (!ids.isEmpty()) {
+                nodeMapper.selectBatchIds(ids).forEach(node -> paths.put(node.getId(),
+                        KnowledgeDirectoryService.pathIds(node.getDirectoryPath())));
+            }
+            chunks.forEach(chunk -> chunk.setDirectoryPathIds(paths.getOrDefault(chunk.getSourceDocumentId(), List.of())));
             elasticsearchOperations.save(chunks, indexCoordinates());
         } catch (RuntimeException ex) {
             throw new BusinessException(KitErrorCode.E03011, ex);
@@ -91,21 +106,21 @@ public class ElasticsearchKnowledgeChunkIndexRepository implements KnowledgeChun
     @Override
     public List<KnowledgeSearchResultVO> search(
             String keyword,
-            Collection<String> visibleSourceDocumentIds,
+            Collection<String> directoryScopeIds,
             int size,
             Optional<float[]> queryEmbedding) {
-        if (CollectionUtils.isEmpty(visibleSourceDocumentIds)) {
+        if (CollectionUtils.isEmpty(directoryScopeIds)) {
             return List.of();
         }
         ensureIndex();
         try {
             List<KnowledgeSearchResultVO> lexicalResults = executeSearch(lexicalSearchQuery(
-                    keyword, visibleSourceDocumentIds, size));
+                    keyword, directoryScopeIds, size));
             if (queryEmbedding.isEmpty()) {
                 return lexicalResults;
             }
             List<KnowledgeSearchResultVO> vectorResults = executeSearch(vectorSearchQuery(
-                    visibleSourceDocumentIds, size, queryEmbedding.get()));
+                    directoryScopeIds, size, queryEmbedding.get()));
             return KnowledgeSearchRrfFusion.fuse(lexicalResults, vectorResults, size);
         } catch (RuntimeException ex) {
             throw new BusinessException(KitErrorCode.E03011, ex);
@@ -116,8 +131,8 @@ public class ElasticsearchKnowledgeChunkIndexRepository implements KnowledgeChun
     public Optional<KnowledgeSearchResultVO> findAdjacentChunk(
             String chunkId,
             KnowledgeChunkDirection direction,
-            Collection<String> visibleSourceDocumentIds) {
-        if (CollectionUtils.isEmpty(visibleSourceDocumentIds)) {
+            Collection<String> directoryScopeIds) {
+        if (CollectionUtils.isEmpty(directoryScopeIds)) {
             return Optional.empty();
         }
         ensureIndex();
@@ -126,10 +141,10 @@ public class ElasticsearchKnowledgeChunkIndexRepository implements KnowledgeChun
                     chunkId,
                     KnowledgeChunkDocument.class,
                     indexCoordinates());
-            if (current == null || !visibleSourceDocumentIds.contains(current.getSourceDocumentId())) {
+            if (current == null || !matchesScope(current, directoryScopeIds)) {
                 return Optional.empty();
             }
-            return elasticsearchOperations.search(adjacentQuery(current, direction, visibleSourceDocumentIds),
+            return elasticsearchOperations.search(adjacentQuery(current, direction, directoryScopeIds),
                             KnowledgeChunkDocument.class,
                             indexCoordinates())
                     .stream()
@@ -150,27 +165,28 @@ public class ElasticsearchKnowledgeChunkIndexRepository implements KnowledgeChun
 
     private Query lexicalSearchQuery(
             String keyword,
-            Collection<String> visibleSourceDocumentIds,
+            Collection<String> directoryScopeIds,
             int size) {
-        Criteria criteria = Criteria.where("content").matches(keyword)
-                .and("source_document_id").in(visibleSourceDocumentIds);
+        Criteria criteria = Criteria.where("content").matches(keyword);
+        if (!directoryScopeIds.contains("*")) criteria = criteria.and("directory_path_ids").in(directoryScopeIds);
         return CriteriaQuery.builder(criteria)
                 .withMaxResults(size)
                 .build();
     }
 
     private Query vectorSearchQuery(
-            Collection<String> visibleSourceDocumentIds,
+            Collection<String> directoryScopeIds,
             int size,
             float[] queryEmbedding) {
-        co.elastic.clients.elasticsearch._types.query_dsl.Query sourceFilter = sourceDocumentTermsQuery(visibleSourceDocumentIds);
         return NativeQuery.builder()
-                .withKnnSearches(KnnSearch.of(knn -> knn
-                        .field("embedding")
+                .withKnnSearches(KnnSearch.of(knn -> {
+                    knn.field("embedding")
                         .queryVector(toFloatList(queryEmbedding))
                         .k(size)
-                        .numCandidates(Math.max(size * 5, 20))
-                        .filter(sourceFilter)))
+                        .numCandidates(Math.max(size * 5, 20));
+                    if (!directoryScopeIds.contains("*")) knn.filter(directoryTermsQuery(directoryScopeIds));
+                    return knn;
+                }))
                 .withMaxResults(size)
                 .build();
     }
@@ -182,13 +198,18 @@ public class ElasticsearchKnowledgeChunkIndexRepository implements KnowledgeChun
                 .toList();
     }
 
-    private co.elastic.clients.elasticsearch._types.query_dsl.Query sourceDocumentTermsQuery(
-            Collection<String> visibleSourceDocumentIds) {
+    private co.elastic.clients.elasticsearch._types.query_dsl.Query directoryTermsQuery(
+            Collection<String> directoryScopeIds) {
         return co.elastic.clients.elasticsearch._types.query_dsl.Query.of(query -> query.terms(terms -> terms
-                .field("source_document_id")
-                .terms(values -> values.value(visibleSourceDocumentIds.stream()
+                .field("directory_path_ids")
+                .terms(values -> values.value(directoryScopeIds.stream()
                         .map(FieldValue::of)
                         .toList()))));
+    }
+
+    private boolean matchesScope(KnowledgeChunkDocument chunk, Collection<String> directoryScopeIds) {
+        return directoryScopeIds.contains("*") || (chunk.getDirectoryPathIds() != null
+                && chunk.getDirectoryPathIds().stream().anyMatch(directoryScopeIds::contains));
     }
 
     private List<Float> toFloatList(float[] vector) {
@@ -202,9 +223,9 @@ public class ElasticsearchKnowledgeChunkIndexRepository implements KnowledgeChun
     private Query adjacentQuery(
             KnowledgeChunkDocument current,
             KnowledgeChunkDirection direction,
-            Collection<String> visibleSourceDocumentIds) {
-        Criteria criteria = Criteria.where("page_version_id").is(current.getPageVersionId())
-                .and("source_document_id").in(visibleSourceDocumentIds);
+            Collection<String> directoryScopeIds) {
+        Criteria criteria = Criteria.where("page_version_id").is(current.getPageVersionId());
+        if (!directoryScopeIds.contains("*")) criteria = criteria.and("directory_path_ids").in(directoryScopeIds);
         Sort sort;
         if (direction == KnowledgeChunkDirection.PREVIOUS) {
             criteria = criteria.and("chunk_order").lessThan(current.getChunkOrder());
@@ -245,6 +266,7 @@ public class ElasticsearchKnowledgeChunkIndexRepository implements KnowledgeChun
         properties.put("page_version_id", keywordField());
         properties.put("page_block_id", keywordField());
         properties.put("source_document_id", keywordField());
+        properties.put("directory_path_ids", keywordField());
         properties.put("title", textField());
         properties.put("heading_path", textField());
         properties.put("content", textField());
