@@ -78,7 +78,7 @@ public class KnowledgeDocumentMarkdownService {
         String documentId = dto.getDocumentId();
         taskService.ensureNoActiveTask(documentId);
         cacheUtils.executeWithLock("knowledge:page:" + documentId, () -> {
-            var document = directoryService.requireReadableDocument(documentId);
+            var document = directoryService.requireEditableDocument(documentId);
             KitKnowledgePage page = pageMapper.selectById(document.getTargetPageId());
             if (page == null || !Objects.equals(page.getCurrentVersionId(), dto.getPageVersionId())) {
                 throw new BusinessException("文档内容已更新，请刷新后重试");

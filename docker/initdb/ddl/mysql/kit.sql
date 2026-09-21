@@ -322,6 +322,7 @@ CREATE TABLE kit_knowledge_directory_role
     id                 VARCHAR(24) PRIMARY KEY COMMENT '主键ID',
     directory_id       VARCHAR(24) NOT NULL COMMENT '授权目录ID',
     role_code          VARCHAR(100) NOT NULL COMMENT '角色编码',
+    permission_type    VARCHAR(16) NOT NULL COMMENT 'SEARCH、UPLOAD或MANAGE',
     tenant_id          VARCHAR(50) DEFAULT NULL COMMENT '租户ID',
     create_op          VARCHAR(50) DEFAULT NULL COMMENT '创建人',
     create_time        DATETIME    DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -330,11 +331,12 @@ CREATE TABLE kit_knowledge_directory_role
     deleted            SMALLINT    NOT NULL DEFAULT 0 COMMENT '删除标识：0-未删除 1-已删除',
     active_directory_id VARCHAR(24) GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN directory_id ELSE NULL END) STORED COMMENT '未删除目录唯一键',
     active_role_code   VARCHAR(100) GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN role_code ELSE NULL END) STORED COMMENT '未删除角色唯一键',
+    active_permission_type VARCHAR(16) GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN permission_type ELSE NULL END) STORED COMMENT '未删除权限类型唯一键',
     delete_op          VARCHAR(50) DEFAULT NULL COMMENT '删除人',
     delete_time        DATETIME    DEFAULT NULL COMMENT '删除时间'
 ) COMMENT '知识目录角色授权';
 
-CREATE UNIQUE INDEX uk_kit_knowledge_directory_role ON kit_knowledge_directory_role (active_directory_id, active_role_code);
+CREATE UNIQUE INDEX uk_kit_knowledge_directory_role ON kit_knowledge_directory_role (active_directory_id, active_role_code, active_permission_type);
 CREATE INDEX idx_kit_knowledge_directory_role_role ON kit_knowledge_directory_role (role_code);
 
 CREATE TABLE kit_knowledge_document_event

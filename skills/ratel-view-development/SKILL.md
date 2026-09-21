@@ -1,7 +1,6 @@
 ---
 name: ratel-view-development
 description: Ratel前端项目开发规范与指南，包含目录结构、命名规范、组件开发、微前端配置等，只要涉及到前端代码开发必读。
-type: skill
 ---
 
 # Ratel 前端项目开发技能
@@ -10,6 +9,7 @@ type: skill
 
 - 涉及前端 TypeScript/TSX/Less 代码的任何改动（**必读**）
 - 创建子应用、页面或组件
+- 开发菜单页面、新增功能按钮或调整按钮权限
 - 创建 API 服务或调用后端接口
 - 修改主题、状态管理或事件系统
 - 使用 @gwsu/core 共享库
@@ -23,6 +23,7 @@ type: skill
 | [03-core-library-and-api.md](reference/03-core-library-and-api.md) | @gwsu/core 完整指南、API 规范、状态管理、事件 | 使用共享库、调用接口 |
 | [04-list-page-pattern.md](reference/04-list-page-pattern.md) | 列表页模式、操作列、权限控制 | 开发列表页 |
 | [05-checklist.md](reference/05-checklist.md) | 开发检查清单 | 自查 |
+| [06-menu-permission-description.md](reference/06-menu-permission-description.md) | 菜单 INSERT、功能描述与界面布局写法 | 开发菜单页面或权限按钮 |
 
 ## 快速参考
 
@@ -90,6 +91,11 @@ const configMap = await fetchConfigsBatch(['site_name', 'max_upload_size']);
 <AuthGate buttonKey={PERM_ADD}><Button type="primary">新增</Button></AuthGate>
 const canEdit = useAuth(PERM_EDIT);
 ```
+
+### 菜单配置交付
+
+菜单功能开发完成、新增按钮或调整按钮权限后，必须阅读
+[06-menu-permission-description.md](reference/06-menu-permission-description.md)，同步菜单配置，并在交付结果中提供对应的 `security_menu` `INSERT` 语句。
 
 ### data-ai-approval 判断标准
 

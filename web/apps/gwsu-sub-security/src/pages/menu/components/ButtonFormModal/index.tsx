@@ -103,15 +103,12 @@ const ButtonFormModal: React.FC<ButtonFormModalProps> = ({
     ? permission.split(';').filter(Boolean)
     : [];
 
-  /** 渲染权限标识Tag，支持(main)前缀 */
+  /** 渲染权限标识 Tag */
   const renderPermTag = (tag: string, idx: number) => {
-    const isMain = tag.startsWith('(main)');
-    const pureTag = isMain ? tag.substring('(main)'.length) : tag;
-    const method = pureTag.split(':')[0] || '';
+    const method = tag.split(':')[0] || '';
     return (
       <Tag key={idx} color={METHOD_COLORS[method] || 'default'}>
-        {isMain && <span style={{ fontWeight: 600, marginRight: 2 }}>(main)</span>}
-        {pureTag}
+        {tag}
       </Tag>
     );
   };

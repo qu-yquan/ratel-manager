@@ -18,7 +18,7 @@ CREATE TABLE security_menu
     path        VARCHAR(200)         DEFAULT NULL COMMENT '路由路径',
     visible     SMALLINT   NOT NULL DEFAULT 1     COMMENT '是否显示：0-隐藏 1-显示',
     status      SMALLINT   NOT NULL DEFAULT 1     COMMENT '状态：0-禁用 1-正常',
-    permission  VARCHAR(100)         DEFAULT NULL COMMENT '权限标识',
+    permission  TEXT                 COMMENT '权限标识，可包含多个接口',
     position    INT                  DEFAULT NULL COMMENT '菜单位置类型：1-侧边栏 2-顶部栏',
     owner       INT                  DEFAULT NULL COMMENT '菜单所属类型：1-后端管理 2-移动端APP',
     button_key  VARCHAR(100)         DEFAULT NULL COMMENT '按钮标识，格式：菜单ID_标识，用于前端按钮显示控制',

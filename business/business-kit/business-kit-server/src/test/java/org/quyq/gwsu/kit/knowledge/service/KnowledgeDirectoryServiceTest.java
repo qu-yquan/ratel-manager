@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.Test;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeSourceDocument;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeDirectoryRole;
+import org.quyq.gwsu.kit.api.knowledge.enums.KnowledgeDirectoryPermission;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeDirectoryRoleMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeSourceDocumentMapper;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
@@ -50,7 +51,8 @@ class KnowledgeDirectoryServiceTest {
         KnowledgeDirectoryService directoryService = new KnowledgeDirectoryService(
                 mock(KnowledgeSourceDocumentMapper.class), roleMapper, mock(SecurityUtils.class));
         when(roleMapper.selectList(any())).thenReturn(List.of(new KitKnowledgeDirectoryRole()
-                .setDirectoryId(KnowledgeDirectoryService.ROOT_DIRECTORY_ID).setRoleCode("editor")));
+                .setDirectoryId(KnowledgeDirectoryService.ROOT_DIRECTORY_ID).setRoleCode("editor")
+                .setPermissionType(KnowledgeDirectoryPermission.SEARCH)));
 
         Set<String> grants = directoryService.grantedDirectoryIds(List.of("editor"));
         assertTrue(grants.contains("*"));
@@ -58,6 +60,37 @@ class KnowledgeDirectoryServiceTest {
                 .setNodeType(KnowledgeDirectoryService.DOCUMENT), grants));
         assertTrue(directoryService.canRead(new KitKnowledgeSourceDocument().setDirectoryPath("/team/")
                 .setNodeType(KnowledgeDirectoryService.DOCUMENT), grants));
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void permissionLevelsAndUploaderOwnershipAreEnforced() {
+        KnowledgeDirectoryRoleMapper roleMapper = mock(KnowledgeDirectoryRoleMapper.class);
+        SecurityUtils securityUtils = mock(SecurityUtils.class);
+        Subject subject = mock(Subject.class);
+        when(subject.getRoles()).thenReturn(List.of("editor"));
+        when(securityUtils.checkSubject()).thenReturn(subject);
+        when(securityUtils.getUsername()).thenReturn("alice");
+        when(roleMapper.selectList(any())).thenReturn(List.of(
+                new KitKnowledgeDirectoryRole().setDirectoryId("team").setRoleCode("editor")
+                        .setPermissionType(KnowledgeDirectoryPermission.UPLOAD),
+                new KitKnowledgeDirectoryRole().setDirectoryId("managed").setRoleCode("editor")
+                        .setPermissionType(KnowledgeDirectoryPermission.MANAGE)));
+        KnowledgeDirectoryService directoryService = new KnowledgeDirectoryService(
+                mock(KnowledgeSourceDocumentMapper.class), roleMapper, securityUtils);
+
+        assertEquals(Set.of("team", "managed"), directoryService.grantedDirectoryIds());
+        assertEquals(Set.of("team", "managed"), directoryService.grantedDirectoryIds(KnowledgeDirectoryPermission.UPLOAD));
+        assertEquals(Set.of("managed"), directoryService.grantedDirectoryIds(KnowledgeDirectoryPermission.MANAGE));
+        KitKnowledgeSourceDocument own = new KitKnowledgeSourceDocument().setNodeType("DOCUMENT").setDirectoryPath("/team/");
+        own.setCreateOp("alice");
+        KitKnowledgeSourceDocument other = new KitKnowledgeSourceDocument().setNodeType("DOCUMENT").setDirectoryPath("/team/");
+        other.setCreateOp("bob");
+        KitKnowledgeSourceDocument managed = new KitKnowledgeSourceDocument().setNodeType("DOCUMENT").setDirectoryPath("/managed/");
+        managed.setCreateOp("bob");
+        assertTrue(directoryService.canEditDocument(own));
+        assertFalse(directoryService.canEditDocument(other));
+        assertTrue(directoryService.canEditDocument(managed));
     }
 
     @Test
@@ -89,7 +122,8 @@ class KnowledgeDirectoryServiceTest {
         when(subject.getRoles()).thenReturn(List.of("reader"));
         when(securityUtils.checkSubject()).thenReturn(subject);
         when(roleMapper.selectList(any())).thenReturn(List.of(new KitKnowledgeDirectoryRole()
-                .setDirectoryId("child").setRoleCode("reader")));
+                .setDirectoryId("child").setRoleCode("reader")
+                .setPermissionType(KnowledgeDirectoryPermission.SEARCH)));
         when(nodeMapper.selectList(any())).thenReturn(List.of(
                 new KitKnowledgeSourceDocument().setId("root").setNodeType("DIRECTORY").setDirectoryPath("/root/"),
                 new KitKnowledgeSourceDocument().setId("child").setParentId("root")
@@ -118,7 +152,8 @@ class KnowledgeDirectoryServiceTest {
         when(subject.getRoles()).thenReturn(List.of("reader"));
         when(securityUtils.checkSubject()).thenReturn(subject);
         when(roleMapper.selectList(any())).thenReturn(List.of(new KitKnowledgeDirectoryRole()
-                .setDirectoryId("child").setRoleCode("reader")));
+                .setDirectoryId("child").setRoleCode("reader")
+                .setPermissionType(KnowledgeDirectoryPermission.SEARCH)));
         Page<KitKnowledgeSourceDocument> found = Page.of(1, 20, 1);
         found.setRecords(List.of(new KitKnowledgeSourceDocument().setId("document")
                 .setNodeType("DOCUMENT").setName("财务文档")));

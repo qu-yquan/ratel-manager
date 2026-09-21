@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Modal, Table, Input, Select, Tag, Button, Radio, Tooltip, App } from 'antd';
+import { Modal, Table, Input, Select, Tag, Button, App } from 'antd';
 import type { TableProps } from 'antd';
-import { SearchOutlined, QuestionCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import styles from './index.module.less';
 import { getApiResourcePage, getModuleList } from '../../services/apiResource';
 import type { ApiResourceItem, ApiResourceQuery, ModuleInfo } from '../../types';
@@ -34,12 +34,10 @@ const parsePermissionString = (permission: string) => {
     .split(';')
     .filter(Boolean)
     .map((part) => {
-      const isMain = part.startsWith('(main)');
-      const purePart = isMain ? part.substring('(main)'.length) : part;
-      const [method, modulePrefix, ...pathParts] = purePart.split(':');
+      const [method, modulePrefix, ...pathParts] = part.trim().split(':');
       const path = pathParts.join(':');
       const key = `${method}:${modulePrefix}:${path}`;
-      return { key, method, modulePrefix, path, isMain };
+      return { key, method, modulePrefix, path };
     });
 };
 
@@ -72,7 +70,6 @@ const ApiResourcePicker: React.FC<ApiResourcePickerProps> = ({
   const [selectedMap, setSelectedMap] = useState<Map<string, ApiResourceItem>>(
     new Map(),
   );
-  const [mainApiKey, setMainApiKey] = useState<string | null>(null);
   const [query, setQuery] = useState<ApiResourceQuery>({
     pageNum: 1,
     pageSize: 10,
@@ -113,24 +110,18 @@ const ApiResourcePicker: React.FC<ApiResourcePickerProps> = ({
     }
   }, [visible, loadData]);
 
-  // 打开弹窗时，解析当前权限恢复选中状态和主接口
+  // 打开弹窗时，解析当前权限并恢复选中状态
   useEffect(() => {
     if (visible) {
       if (currentPermission) {
         const parsed = parsePermissionString(currentPermission);
         const newMap = new Map<string, ApiResourceItem>();
-        let mainKey: string | null = null;
         for (const item of parsed) {
           newMap.set(item.key, createItemFromParsed(item));
-          if (item.isMain) {
-            mainKey = item.key;
-          }
         }
         setSelectedMap(newMap);
-        setMainApiKey(mainKey);
       } else {
         setSelectedMap(new Map());
-        setMainApiKey(null);
       }
       // 重置搜索条件
       setSearchModulePrefix(undefined);
@@ -181,7 +172,6 @@ const ApiResourcePicker: React.FC<ApiResourcePickerProps> = ({
       newMap.delete(key);
       return newMap;
     });
-    setMainApiKey((prev) => (prev === key ? null : prev));
   }, []);
 
   const selectedItems = Array.from(selectedMap.entries());
@@ -190,16 +180,8 @@ const ApiResourcePicker: React.FC<ApiResourcePickerProps> = ({
   // 生成权限标识字符串
   const buildPermissionString = useCallback((): string => {
     if (selectedCount === 0) return '';
-    const effectiveMainKey =
-      selectedCount === 1 ? selectedItems[0][0] : mainApiKey;
-    return selectedItems
-      .map(([key]) =>
-        effectiveMainKey && key === effectiveMainKey
-          ? `(main)${key}`
-          : key,
-      )
-      .join(';');
-  }, [selectedItems, mainApiKey, selectedCount]);
+    return selectedItems.map(([key]) => key).join(';');
+  }, [selectedItems, selectedCount]);
 
   const permissionPreview = buildPermissionString();
 
@@ -249,13 +231,9 @@ const ApiResourcePicker: React.FC<ApiResourcePickerProps> = ({
   ];
 
   const handleConfirm = useCallback(() => {
-    if (selectedCount > 1 && !mainApiKey) {
-      message.warning('请选择主接口');
-      return;
-    }
     onConfirm(permissionPreview);
     onClose();
-  }, [permissionPreview, onConfirm, onClose, selectedCount, mainApiKey]);
+  }, [permissionPreview, onConfirm, onClose]);
 
   return (
     <Modal
@@ -322,28 +300,19 @@ const ApiResourcePicker: React.FC<ApiResourcePickerProps> = ({
         </div>
         {selectedCount > 0 ? (
           <div className={styles.selectedTags}>
-            {selectedItems.map(([key, item]) => {
-              const isMain =
-                selectedCount > 1 && key === mainApiKey;
-              return (
-                <Tag
-                  key={key}
-                  color={METHOD_COLORS[item.reqMethod] || 'default'}
-                  closable
-                  onClose={(e) => {
-                    e.preventDefault();
-                    handleRemoveItem(key);
-                  }}
-                >
-                  {isMain && (
-                    <span style={{ fontWeight: 600, marginRight: 2 }}>
-                      (main)
-                    </span>
-                  )}
-                  {item.reqMethod}:{item.modulePrefix}:{item.reqPath}
-                </Tag>
-              );
-            })}
+            {selectedItems.map(([key, item]) => (
+              <Tag
+                key={key}
+                color={METHOD_COLORS[item.reqMethod] || 'default'}
+                closable
+                onClose={(e) => {
+                  e.preventDefault();
+                  handleRemoveItem(key);
+                }}
+              >
+                {item.reqMethod}:{item.modulePrefix}:{item.reqPath}
+              </Tag>
+            ))}
           </div>
         ) : (
           <div className={styles.selectedEmpty}>
@@ -360,60 +329,6 @@ const ApiResourcePicker: React.FC<ApiResourcePickerProps> = ({
           <div className={styles.permissionPreviewText}>
             {permissionPreview}
           </div>
-          {/* 主接口选择 */}
-          {selectedCount > 1 && (
-            <div className={styles.mainApiSection}>
-              <div className={styles.mainApiLabel}>
-                主接口
-                <Tooltip title="主接口是该功能最核心的接口。例如新增功能配置了新增接口和获取字典选项接口，则新增接口为主接口。主接口标识将用于后续AI分析和权限判断。">
-                  <QuestionCircleOutlined
-                    style={{
-                      marginLeft: 4,
-                      color: 'var(--text-secondary-color)',
-                    }}
-                  />
-                </Tooltip>
-              </div>
-              <Radio.Group
-                value={mainApiKey}
-                onChange={(e) => setMainApiKey(e.target.value)}
-                className={styles.mainApiRadioGroup}
-              >
-                {selectedItems.map(([key, item]) => (
-                  <Radio
-                    key={key}
-                    value={key}
-                    className={styles.mainApiRadio}
-                  >
-                    <Tag
-                      color={
-                        METHOD_COLORS[item.reqMethod] || 'default'
-                      }
-                      style={{ marginRight: 4 }}
-                    >
-                      {item.reqMethod}
-                    </Tag>
-                    {item.modulePrefix}:{item.reqPath}
-                    {item.summary && (
-                      <span
-                        style={{
-                          color: 'var(--text-secondary-color)',
-                          marginLeft: 4,
-                        }}
-                      >
-                        ({item.summary})
-                      </span>
-                    )}
-                  </Radio>
-                ))}
-              </Radio.Group>
-            </div>
-          )}
-          {selectedCount === 1 && (
-            <div className={styles.mainApiHint}>
-              仅选择了一个接口，该接口自动作为主接口
-            </div>
-          )}
         </div>
       )}
     </Modal>

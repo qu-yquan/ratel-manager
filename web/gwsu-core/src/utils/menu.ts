@@ -55,6 +55,7 @@ import {
 } from '@ant-design/icons';
 import { MenuItem } from '../services/route';
 import { MenuPosition, MenuRoute } from '../types/menu';
+import { getDirectoryMenuKey } from './menuKey';
 
 /**
  * 图标映射表（短名映射）
@@ -146,7 +147,7 @@ export function transformToMenuItems(menus: MenuItem[]): MenuRoute[] {
 
       if (shouldRenderAsSubMenu) {
         return {
-          key: menu.path,
+          key: getDirectoryMenuKey(menu),
           icon: getIconComponent(menu.icon),
           label: menu.menuName,
           'data-micro-app': menu.microApp,

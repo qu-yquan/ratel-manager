@@ -1,7 +1,6 @@
 ---
 name: ratel-backend-development
 description: Ratel后端项目开发规范与指南，包含目录结构、命名规范、公共模块使用等，只要涉及到后端代码开发必读。
-type: skill
 ---
 
 # Ratel 后端项目开发技能

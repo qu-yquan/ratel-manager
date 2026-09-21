@@ -31,4 +31,9 @@ public class KnowledgeNodeVO extends BaseVO {
     private LocalDateTime processedAt;
     private String processMessage;
     private Long documentCount;
+    private Boolean canSearch;
+    private Boolean canUpload;
+    private Boolean canManage;
+    private Boolean canEdit;
+    private Boolean canDelete;
 }

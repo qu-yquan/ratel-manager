@@ -1,4 +1,4 @@
-import { MenuPosition } from '@gwsu/core';
+import { getDirectoryMenuKey, MenuPosition } from '@gwsu/core';
 import type { MenuItem } from '@gwsu/core';
 
 /** 搜索菜单，同时保留命中项的父级目录结构 */
@@ -36,7 +36,7 @@ export function getAllMenuKeys(menus: MenuItem[]): string[] {
 
   for (const menu of menus) {
     if (menu.menuType === 1 && menu.children?.length) {
-      keys.push(menu.path);
+      keys.push(getDirectoryMenuKey(menu));
       keys.push(...getAllMenuKeys(menu.children));
     }
   }
@@ -51,7 +51,7 @@ export function getSiblingSubmenuKeys(
 ): string[] {
   const submenuKeys = menus
     .filter((menu) => menu.menuType === 1 && menu.children?.length)
-    .map((menu) => menu.path);
+    .map(getDirectoryMenuKey);
 
   if (submenuKeys.includes(targetKey)) {
     return submenuKeys.filter((key) => key !== targetKey);

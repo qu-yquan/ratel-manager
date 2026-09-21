@@ -1,5 +1,7 @@
 export type NodeType = 'DIRECTORY' | 'DOCUMENT';
 export type DocumentStatus = 'UPLOADED' | 'PROCESSING' | 'PROCESSED' | 'FAILED';
+export type KnowledgePermission = 'SEARCH' | 'UPLOAD' | 'MANAGE';
+export interface KnowledgeDirectoryGrant { directoryId: string; permissionType: KnowledgePermission }
 
 export interface PageResult<T> {
   records: T[];
@@ -28,6 +30,11 @@ export interface KnowledgeNode {
   processMessage?: string;
   createTime?: string;
   modifyTime?: string;
+  canSearch?: boolean;
+  canUpload?: boolean;
+  canManage?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export interface KnowledgeDocument extends KnowledgeNode {

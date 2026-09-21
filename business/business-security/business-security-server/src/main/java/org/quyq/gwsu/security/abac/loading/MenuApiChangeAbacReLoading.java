@@ -44,7 +44,8 @@ public class MenuApiChangeAbacReLoading implements IAbacAlterationProvider {
 
         wrapper.removeByIds(oldAbacPermissionIds);
         List<String> perArr = Stream.of(permissionStr.split(";"))
-                .map(v -> v.replace("(main)", "").trim()).toList();
+                .map(String::trim)
+                .toList();
 
 
         List<SecurityRoleMenuPermission> oldRmpMap = context.getParam(OLD_ROLE_MENU_PERMISSION);

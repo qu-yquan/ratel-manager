@@ -12,6 +12,7 @@ type CreateTab = 'directory' | 'document';
 interface Props {
   open: boolean;
   directories: KnowledgeNode[];
+  rootCapabilities?: KnowledgeNode;
   initialDirectoryId?: string;
   canCreateDirectory: boolean;
   canUpload: boolean;
@@ -19,16 +20,17 @@ interface Props {
   onCreated: () => Promise<void>;
 }
 
-function directoryOptions(nodes: KnowledgeNode[], parentId?: string): NonNullable<TreeSelectProps['treeData']> {
+function directoryOptions(nodes: KnowledgeNode[], permission: 'canManage' | 'canUpload', parentId?: string): NonNullable<TreeSelectProps['treeData']> {
   return nodes.filter((node) => (node.parentId ?? undefined) === parentId).map((node) => ({
     title: node.name,
     value: node.id,
-    children: directoryOptions(nodes, node.id),
+    selectable: node[permission] === true,
+    children: directoryOptions(nodes, permission, node.id),
   }));
 }
 
 const KnowledgeCreateModal: React.FC<Props> = ({
-  open, directories, initialDirectoryId, canCreateDirectory, canUpload, onClose, onCreated,
+  open, directories, rootCapabilities, initialDirectoryId, canCreateDirectory, canUpload, onClose, onCreated,
 }) => {
   const [activeTab, setActiveTab] = useState<CreateTab>('directory');
   const [directoryParentId, setDirectoryParentId] = useState(ROOT_ID);
@@ -38,9 +40,14 @@ const KnowledgeCreateModal: React.FC<Props> = ({
   const [submittedIds, setSubmittedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm<{ name: string }>();
-  const treeData = useMemo<NonNullable<TreeSelectProps['treeData']>>(() => [{
-    title: '根目录', value: ROOT_ID, children: directoryOptions(directories),
-  }], [directories]);
+  const directoryTreeData = useMemo<NonNullable<TreeSelectProps['treeData']>>(() => [{
+    title: '根目录', value: ROOT_ID, selectable: rootCapabilities?.canManage === true,
+    children: directoryOptions(directories, 'canManage'),
+  }], [directories, rootCapabilities]);
+  const uploadTreeData = useMemo<NonNullable<TreeSelectProps['treeData']>>(() => [{
+    title: '根目录', value: ROOT_ID, selectable: rootCapabilities?.canUpload === true,
+    children: directoryOptions(directories, 'canUpload'),
+  }], [directories, rootCapabilities]);
 
   useEffect(() => {
     if (!open) return;
@@ -103,7 +110,7 @@ const KnowledgeCreateModal: React.FC<Props> = ({
     <Tabs activeKey={activeTab} onChange={(key) => setActiveTab(key as CreateTab)} items={[
       ...(canCreateDirectory ? [{ key: 'directory', label: '创建目录', children: <Form form={form} layout="vertical">
         <Form.Item label="所属目录"><TreeSelect className={styles.fullWidth} value={directoryParentId} onChange={setDirectoryParentId}
-          treeData={treeData} treeDefaultExpandAll showSearch treeNodeFilterProp="title" /></Form.Item>
+          treeData={directoryTreeData} treeDefaultExpandAll showSearch treeNodeFilterProp="title" /></Form.Item>
         <Form.Item name="name" label="目录名称" rules={[{ required: true, whitespace: true, message: '请输入目录名称' }, { max: 200 }]}>
           <Input maxLength={200} placeholder="请输入目录名称" />
         </Form.Item>
@@ -111,7 +118,7 @@ const KnowledgeCreateModal: React.FC<Props> = ({
       ...(canUpload ? [{ key: 'document', label: '上传文档', children: <div>
         <div className={styles.fieldLabel}>所属目录</div>
         <TreeSelect className={styles.fullWidth} value={uploadParentId} onChange={setUploadParentId}
-          treeData={treeData} treeDefaultExpandAll showSearch treeNodeFilterProp="title" />
+          treeData={uploadTreeData} treeDefaultExpandAll showSearch treeNodeFilterProp="title" />
         <div className={styles.uploadField}>
           <div className={styles.fieldLabel}>选择文件</div>
           <FileUpload property={{ scope: FileScope.PROTECTED, categorize: 'knowledge' }} multiple draggable

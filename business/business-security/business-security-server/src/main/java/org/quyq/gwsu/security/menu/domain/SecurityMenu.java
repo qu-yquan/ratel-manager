@@ -93,4 +93,5 @@ public class SecurityMenu extends BaseDO {
         vo.copyBaseProperties(this);
         return vo;
     }
+
 }

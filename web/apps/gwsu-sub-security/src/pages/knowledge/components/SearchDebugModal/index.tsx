@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Descriptions, Empty, Form, Input, List, Modal, Radio, Segmented, Select, Space, Tag, TreeSelect, Typography, message } from 'antd';
 import type { TreeSelectProps } from 'antd';
+import { useUserStore } from '@gwsu/core';
 import MarkdownPreview from '../../../../components/MarkdownPreview';
 import { getRoleList } from '../../../role/services/role';
 import type { RoleInfo } from '../../../role/types';
@@ -29,11 +30,13 @@ function directoryTree(nodes: KnowledgeNode[], parentId?: string): NonNullable<T
   return nodes.filter((node) => (node.parentId ?? undefined) === parentId).map((node) => ({
     title: node.name,
     value: node.id,
+    selectable: node.canSearch === true,
     children: directoryTree(nodes, node.id),
   }));
 }
 
 const SearchDebugModal: React.FC<Props> = ({ open, onClose }) => {
+  const isAdmin = useUserStore((state) => state.userInfo?.admin === true || state.userInfo?.roles?.includes('super_admin') === true);
   const [mode, setMode] = useState<Mode>('DIRECTORY');
   const [directoryId, setDirectoryId] = useState<string>();
   const [roleCode, setRoleCode] = useState<string>();
@@ -50,13 +53,13 @@ const SearchDebugModal: React.FC<Props> = ({ open, onClose }) => {
 
   useEffect(() => {
     if (!open) return;
-    void Promise.all([getRoleList(1), getDirectoryTree(true)]).then(([roleList, directoryTree]) => {
+    void Promise.all([isAdmin ? getRoleList(1) : Promise.resolve([]), getDirectoryTree()]).then(([roleList, directoryTree]) => {
       setRoles(roleList);
       setDirectories(directoryTree);
     });
-  }, [open]);
+  }, [open, isAdmin]);
   const directoryTreeData = useMemo<NonNullable<TreeSelectProps['treeData']>>(() => [{
-    title: '根目录（全部文档）', value: 'ROOT', children: directoryTree(directories),
+    title: '全部有权限的文档', value: 'ROOT', children: directoryTree(directories),
   }], [directories]);
   const resetDetail = () => {
     setSelectedResult(undefined);
@@ -101,7 +104,7 @@ const SearchDebugModal: React.FC<Props> = ({ open, onClose }) => {
   return <Modal title="检索调试" open={open} onCancel={onClose} footer={null} width={900} destroyOnHidden>
     <Form layout="vertical">
       <Form.Item label="测试范围"><Radio.Group value={mode} onChange={(event) => { setMode(event.target.value); setResults([]); resetDetail(); }}
-        options={[{ label: '按目录', value: 'DIRECTORY' }, { label: '按角色', value: 'ROLE' }]} /></Form.Item>
+        options={[{ label: '按目录', value: 'DIRECTORY' }, ...(isAdmin ? [{ label: '按角色', value: 'ROLE' }] : [])]} /></Form.Item>
       <Form.Item label={mode === 'DIRECTORY' ? '目录及其子目录' : '角色授权范围'}>
         {mode === 'DIRECTORY' ? <TreeSelect className={styles.directorySelect} value={directoryId}
           onChange={(value) => { setDirectoryId(value); setResults([]); resetDetail(); }}

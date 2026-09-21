@@ -252,7 +252,7 @@ const RolePage: React.FC = () => {
       buttons.push({
         key: "tablePermission",
         icon: <TableOutlined />,
-        label: "AI表模型",
+        label: "业务模型权限",
         onClick: () => handleTableModelPermission(record),
       });
     }
@@ -261,7 +261,7 @@ const RolePage: React.FC = () => {
       buttons.push({
         key: 'knowledgeDirectoryPermission',
         icon: <LockOutlined />,
-        label: '知识目录权限',
+        label: '知识文档权限',
         onClick: () => setKnowledgeRole(record),
       });
     }

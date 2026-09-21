@@ -36,7 +36,7 @@ public class KnowledgeIngestApplicationService {
     public String retryAndSubmit(String taskId) {
         var originalTask = ingestTaskService.getById(taskId);
         if (originalTask == null) throw new org.quyq.gwsu.common.core.exception.BusinessException("导入任务不存在");
-        directoryService.requireReadableDocument(originalTask.getSourceDocumentId());
+        directoryService.requireEditableDocument(originalTask.getSourceDocumentId());
         String retryTaskId = ingestTaskService.retry(taskId);
         var task = ingestTaskService.getById(retryTaskId);
         eventService.append(task.getSourceDocumentId(), retryTaskId, "RETRY_SUBMITTED", "已重新提交导入任务");

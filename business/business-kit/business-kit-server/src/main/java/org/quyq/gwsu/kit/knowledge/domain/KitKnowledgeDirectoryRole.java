@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 import org.quyq.gwsu.common.core.domain.BaseDO;
+import org.quyq.gwsu.kit.api.knowledge.enums.KnowledgeDirectoryPermission;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -17,4 +18,5 @@ public class KitKnowledgeDirectoryRole extends BaseDO {
     private String id;
     private String directoryId;
     private String roleCode;
+    private KnowledgeDirectoryPermission permissionType;
 }

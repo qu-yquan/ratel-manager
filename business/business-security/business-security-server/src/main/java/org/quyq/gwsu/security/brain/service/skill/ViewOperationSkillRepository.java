@@ -158,7 +158,7 @@ public class ViewOperationSkillRepository implements AgentSkillRepository, LazyR
                 |------|------|
                 | 路由 | 前端视图层界面跳转地址 |
                 | 位置 | 菜单在视图层的展示位置 |
-                | 接口权限 | 菜单对应的后端接口权限标识，`(main)` 标注的为主要接口 |
+                | 接口权限 | 菜单对应的后端接口权限标识 |
                 | 页面说明文件（按钮权限） | 当前页面按钮、权限和操作说明的单独文档，按需加载 |
                 
                 ## 操作流程
@@ -239,7 +239,7 @@ public class ViewOperationSkillRepository implements AgentSkillRepository, LazyR
             sb.append("| 位置 | ").append(menu.getPosition().getDescription()).append(" |\n");
         }
         if (StringUtils.hasText(menu.getPermission())) {
-            sb.append("| 主接口权限 | `").append(menu.getPermission()).append("` |\n");
+            sb.append("| 接口权限 | `").append(menu.getPermission()).append("` |\n");
         }
         sb.append("| 页面资源路径 | `").append(buildPageResourcePath(menu)).append("` |\n\n");
 

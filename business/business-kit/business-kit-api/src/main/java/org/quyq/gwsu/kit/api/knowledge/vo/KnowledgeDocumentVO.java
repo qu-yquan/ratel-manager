@@ -25,6 +25,7 @@ public class KnowledgeDocumentVO extends BaseVO {
     private String id;
 
     private String parentId;
+    private Boolean canEdit;
 
     private Long fileSize;
 

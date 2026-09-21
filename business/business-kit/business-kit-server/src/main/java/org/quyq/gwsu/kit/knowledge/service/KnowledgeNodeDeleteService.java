@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.quyq.gwsu.common.core.exception.BusinessException;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeDirectoryRole;
+import org.quyq.gwsu.kit.api.knowledge.enums.KnowledgeDirectoryPermission;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeSourceDocument;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeDirectoryRoleMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeSourceDocumentMapper;
@@ -34,12 +35,16 @@ public class KnowledgeNodeDeleteService {
         if (CollectionUtils.isEmpty(ids) || ids.size() > 500 || ids.stream().anyMatch(id -> !StringUtils.hasText(id))) {
             throw new BusinessException("请选择要删除的目录或文档，单次最多500项");
         }
-        Set<String> grants = directoryService.grantedDirectoryIds();
+        Set<String> managers = directoryService.grantedDirectoryIds(KnowledgeDirectoryPermission.MANAGE);
+        Set<String> uploads = directoryService.grantedDirectoryIds(KnowledgeDirectoryPermission.UPLOAD);
         Map<String, KitKnowledgeSourceDocument> targets = new LinkedHashMap<>();
         for (String id : ids) {
             KitKnowledgeSourceDocument node = nodeMapper.selectById(id);
-            if (node == null || Boolean.TRUE.equals(node.getDeleted()) || !directoryService.canRead(node, grants)) {
-                throw new BusinessException("知识目录或文档不存在，或无访问权限");
+            if (node == null || Boolean.TRUE.equals(node.getDeleted())
+                    || (KnowledgeDirectoryService.DIRECTORY.equals(node.getNodeType())
+                        ? !directoryService.canRead(node, managers)
+                        : !directoryService.canEditDocument(node, managers, uploads))) {
+                throw new BusinessException("知识目录或文档不存在，或无删除权限");
             }
             targets.put(id, node);
         }

@@ -121,7 +121,7 @@ public class DatabaseSearchSkillRepository implements AgentSkillRepository, Lazy
                     .name(SKILL_NAME)
                     .source(repositoryInfo.getLocation())
                     .description(skillDescription())
-                    .skillContent("系统表模型未初始化，该功能不可用，请回复用户，让其`联系管理员在'AI表模型管理'中采集所有表模型`")
+                    .skillContent("系统表模型未初始化，该功能不可用，请回复用户，让其`联系管理员在'业务模型管理'中采集所有表模型`")
                     .build();
         }
 

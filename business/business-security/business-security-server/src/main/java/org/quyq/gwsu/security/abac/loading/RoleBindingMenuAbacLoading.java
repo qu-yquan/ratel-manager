@@ -235,7 +235,7 @@ public class RoleBindingMenuAbacLoading implements IAbacAlterationProvider {
         List<SecurityRoleMenuPermission> roleMenuPermissions = new ArrayList<>();
 
         for (String urlPermission : urlPermissions) {
-            String p = urlPermission.trim().replace("(main)", "");
+            String p = urlPermission.trim();
             String[] tmp = p.split(":");
 
             SecurityAbacPermission abacP = new SecurityAbacPermission()

@@ -67,9 +67,8 @@ public class KnowledgeSourceDocumentServiceImpl
         }
         KitKnowledgeSourceDocument directory = StringUtils.hasText(dto.getParentId())
                 ? directoryService.requireDirectory(dto.getParentId()) : null;
-        if (directory == null ? !directoryService.canReadRoot()
-                : !directoryService.canRead(directory, directoryService.grantedDirectoryIds())) {
-            throw new BusinessException("没有目标目录的访问权限");
+        if (directory == null ? !directoryService.canUploadRoot() : !directoryService.canUpload(directory)) {
+            throw new BusinessException("没有目标目录的上传权限");
         }
         var fileInfo = FileUtils.getFileInfo(dto.getFileId());
         if (fileInfo == null) throw new BusinessException("上传文件不存在");
@@ -120,12 +119,13 @@ public class KnowledgeSourceDocumentServiceImpl
             throw new org.quyq.gwsu.common.core.exception.BusinessException(KitErrorCode.E03001);
         }
         directoryService.requireReadableDocument(documentId);
-        return toDocumentVO(document, groupLatestTasks(List.of(document.getId())).get(document.getId()));
+        return toDocumentVO(document, groupLatestTasks(List.of(document.getId())).get(document.getId()))
+                .setCanEdit(directoryService.canEditDocument(document));
     }
 
     @Override
     public void updateEnabled(String documentId, boolean enabled) {
-        directoryService.requireReadableDocument(documentId);
+        directoryService.requireEditableDocument(documentId);
         long updated = baseMapper.update(null, new LambdaUpdateWrapper<KitKnowledgeSourceDocument>()
                 .eq(KitKnowledgeSourceDocument::getId, documentId)
                 .eq(KitKnowledgeSourceDocument::getDeleted, false)

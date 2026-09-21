@@ -100,6 +100,12 @@ public class KnowledgeController implements KnowledgeClientApi {
         return R.ok(directoryService.tree(false));
     }
 
+    @GetMapping("/directory/root/capabilities")
+    @Operation(summary = "获取知识根目录操作权限")
+    public R<KnowledgeNodeVO> rootCapabilities() {
+        return R.ok(directoryService.rootCapabilities());
+    }
+
     @GetMapping("/directory/manage/tree")
     @Operation(summary = "获取授权管理目录树")
     public R<List<KnowledgeNodeVO>> managementDirectoryTree() {
@@ -132,7 +138,7 @@ public class KnowledgeController implements KnowledgeClientApi {
 
     @GetMapping("/role/{roleCode}/directories")
     @Operation(summary = "获取角色已授权知识目录")
-    public R<List<String>> roleDirectories(@PathVariable String roleCode) {
+    public R<List<KnowledgeRoleScopeSaveDTO.Grant>> roleDirectories(@PathVariable String roleCode) {
         return R.ok(directoryService.grantsForRole(roleCode));
     }
 
@@ -211,12 +217,16 @@ public class KnowledgeController implements KnowledgeClientApi {
     private List<String> debugScopes(String mode, String directoryId, String roleCode) {
         if ("DIRECTORY".equals(mode)) {
             if (directoryId == null || directoryId.isBlank()) throw new BusinessException("请选择目录");
-            if (KnowledgeDirectoryService.ROOT_DIRECTORY_ID.equals(directoryId)) return List.of("*");
-            directoryService.requireDirectory(directoryId);
+            if (KnowledgeDirectoryService.ROOT_DIRECTORY_ID.equals(directoryId))
+                return List.copyOf(directoryService.grantedDirectoryIds());
+            var directory = directoryService.requireDirectory(directoryId);
+            if (!directoryService.canRead(directory, directoryService.grantedDirectoryIds()))
+                throw new BusinessException("没有该目录的检索权限");
             return List.of(directoryId);
         }
         if ("ROLE".equals(mode)) {
             if (roleCode == null || roleCode.isBlank()) throw new BusinessException("请选择角色");
+            if (!directoryService.isAdministrator()) throw new BusinessException("只有管理员可以按角色调试检索");
             return List.copyOf(directoryService.grantedDirectoryIds(
                     List.of(roleCode, SecurityConstants.Authentication.ROLE_COMMON_FLAG)));
         }

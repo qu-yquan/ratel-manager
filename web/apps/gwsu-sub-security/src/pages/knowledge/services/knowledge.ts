@@ -1,5 +1,5 @@
 import { get, getFileInfo, post } from '@gwsu/core';
-import type { KnowledgeBlockType, KnowledgeDocument, KnowledgeDocumentBlocks, KnowledgeEvent, KnowledgeNode, KnowledgeSearchResult, PageResult } from '../types';
+import type { KnowledgeBlockType, KnowledgeDirectoryGrant, KnowledgeDocument, KnowledgeDocumentBlocks, KnowledgeEvent, KnowledgeNode, KnowledgeSearchResult, PageResult } from '../types';
 
 const BASE = '/kit/knowledge';
 
@@ -7,6 +7,11 @@ export async function getDirectoryTree(management = false): Promise<KnowledgeNod
   const path = management ? '/directory/manage/tree' : '/directory/tree';
   const response = await get<KnowledgeNode[]>(`${BASE}${path}`);
   return response.data ?? [];
+}
+
+export async function getRootCapabilities(): Promise<KnowledgeNode> {
+  const response = await get<KnowledgeNode>(`${BASE}/directory/root/capabilities`);
+  return response.data;
 }
 
 export async function getChildren(parentId: string | undefined, name: string, pageNum: number, pageSize: number): Promise<PageResult<KnowledgeNode>> {
@@ -90,13 +95,13 @@ export async function getAdjacentKnowledgeChunks(data: {
   return response.data ?? [];
 }
 
-export async function getRoleDirectoryIds(roleCode: string): Promise<string[]> {
-  const response = await get<string[]>(`${BASE}/role/${encodeURIComponent(roleCode)}/directories`);
+export async function getRoleDirectoryGrants(roleCode: string): Promise<KnowledgeDirectoryGrant[]> {
+  const response = await get<KnowledgeDirectoryGrant[]>(`${BASE}/role/${encodeURIComponent(roleCode)}/directories`);
   return response.data ?? [];
 }
 
-export async function saveRoleDirectoryIds(roleCode: string, directoryIds: string[]): Promise<void> {
-  await post<void>(`${BASE}/role/directories`, { roleCode, directoryIds });
+export async function saveRoleDirectoryGrants(roleCode: string, grants: KnowledgeDirectoryGrant[]): Promise<void> {
+  await post<void>(`${BASE}/role/directories`, { roleCode, grants });
 }
 
 export async function resolveFileName(fileId: string): Promise<string> {

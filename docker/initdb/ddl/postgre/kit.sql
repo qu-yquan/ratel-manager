@@ -504,6 +504,7 @@ CREATE TABLE kit_knowledge_directory_role
     id                 VARCHAR(24) PRIMARY KEY,
     directory_id       VARCHAR(24)  NOT NULL,
     role_code          VARCHAR(100) NOT NULL,
+    permission_type    VARCHAR(16) NOT NULL,
     tenant_id          VARCHAR(50) DEFAULT NULL,
     create_op          VARCHAR(50) DEFAULT NULL,
     create_time        TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
@@ -518,8 +519,9 @@ COMMENT ON TABLE kit_knowledge_directory_role IS '知识目录角色授权';
 COMMENT ON COLUMN kit_knowledge_directory_role.id IS '主键ID';
 COMMENT ON COLUMN kit_knowledge_directory_role.directory_id IS '目录ID';
 COMMENT ON COLUMN kit_knowledge_directory_role.role_code IS '角色编码';
+COMMENT ON COLUMN kit_knowledge_directory_role.permission_type IS 'SEARCH、UPLOAD或MANAGE';
 
-CREATE UNIQUE INDEX uk_kit_knowledge_directory_role ON kit_knowledge_directory_role (directory_id, role_code) WHERE deleted = 0;
+CREATE UNIQUE INDEX uk_kit_knowledge_directory_role ON kit_knowledge_directory_role (directory_id, role_code, permission_type) WHERE deleted = 0;
 CREATE INDEX idx_kit_knowledge_directory_role_role ON kit_knowledge_directory_role (role_code) WHERE deleted = 0;
 
 CREATE TABLE kit_knowledge_document_event

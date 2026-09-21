@@ -120,15 +120,12 @@ const MenuDetail: React.FC<MenuDetailProps> = ({
     [menu, onRefresh],
   );
 
-  /** 解析权限标识Tag，支持(main)前缀 */
+  /** 渲染权限标识 Tag */
   const renderPermissionTag = (tag: string, idx: number) => {
-    const isMain = tag.startsWith('(main)');
-    const pureTag = isMain ? tag.substring('(main)'.length) : tag;
-    const method = pureTag.split(':')[0] || '';
+    const method = tag.split(':')[0] || '';
     return (
       <Tag key={idx} color={METHOD_COLORS[method] || 'default'} style={{ marginBottom: 2 }}>
-        {isMain && <span style={{ fontWeight: 600, marginRight: 2 }}>(main)</span>}
-        {pureTag}
+        {tag}
       </Tag>
     );
   };

@@ -18,7 +18,7 @@ CREATE TABLE security_menu
     path        VARCHAR(200)         DEFAULT NULL,
     visible     SMALLINT    NOT NULL DEFAULT 1,
     status      SMALLINT    NOT NULL DEFAULT 1,
-    permission  VARCHAR(500)         DEFAULT NULL,
+    permission  TEXT                 DEFAULT NULL,
     position    INT                  DEFAULT NULL,
     owner       INT                  DEFAULT NULL,
     button_key  VARCHAR(100)         DEFAULT NULL,

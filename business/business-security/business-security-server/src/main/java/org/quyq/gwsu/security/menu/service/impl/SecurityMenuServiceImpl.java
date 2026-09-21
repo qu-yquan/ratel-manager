@@ -226,11 +226,11 @@ public class SecurityMenuServiceImpl extends ServiceImpl<SecurityMenuMapper, Sec
         }
 
         Set<String> newPs = Stream.of(newPermission.split(";"))
-                .map(v -> v.replace("(main)", ""))
+                .map(String::trim)
                 .collect(Collectors.toSet());
 
         Set<String> oldPs = Stream.of(oldPermission.split(";"))
-                .map(v -> v.replace("(main)", ""))
+                .map(String::trim)
                 .collect(Collectors.toSet());
 
         return !newPs.equals(oldPs);

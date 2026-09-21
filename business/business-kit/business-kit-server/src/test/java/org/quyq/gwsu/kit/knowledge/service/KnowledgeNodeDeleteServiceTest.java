@@ -3,6 +3,7 @@ package org.quyq.gwsu.kit.knowledge.service;
 import org.junit.jupiter.api.Test;
 import org.quyq.gwsu.common.core.exception.BusinessException;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeSourceDocument;
+import org.quyq.gwsu.kit.api.knowledge.enums.KnowledgeDirectoryPermission;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeDirectoryRoleMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeSourceDocumentMapper;
 
@@ -27,7 +28,8 @@ class KnowledgeNodeDeleteServiceTest {
         KitKnowledgeSourceDocument directory = node("directory", "DIRECTORY", "/directory/");
         KitKnowledgeSourceDocument nested = node("nested", "DIRECTORY", "/directory/nested/");
         KitKnowledgeSourceDocument document = node("document", "DOCUMENT", "/directory/nested/");
-        when(directoryService.grantedDirectoryIds()).thenReturn(Set.of("directory"));
+        when(directoryService.grantedDirectoryIds(KnowledgeDirectoryPermission.MANAGE)).thenReturn(Set.of("directory"));
+        when(directoryService.grantedDirectoryIds(KnowledgeDirectoryPermission.UPLOAD)).thenReturn(Set.of("directory"));
         when(directoryService.canRead(directory, Set.of("directory"))).thenReturn(true);
         when(nodeMapper.selectById("directory")).thenReturn(directory);
         when(nodeMapper.selectList(any())).thenReturn(List.of(nested, document));
@@ -43,7 +45,8 @@ class KnowledgeNodeDeleteServiceTest {
     @Test
     void inaccessibleDirectoryCannotBeDeleted() {
         KitKnowledgeSourceDocument directory = node("directory", "DIRECTORY", "/directory/");
-        when(directoryService.grantedDirectoryIds()).thenReturn(Set.of());
+        when(directoryService.grantedDirectoryIds(KnowledgeDirectoryPermission.MANAGE)).thenReturn(Set.of());
+        when(directoryService.grantedDirectoryIds(KnowledgeDirectoryPermission.UPLOAD)).thenReturn(Set.of());
         when(nodeMapper.selectById("directory")).thenReturn(directory);
 
         assertThrows(BusinessException.class, () -> service.delete(List.of("directory")));
@@ -56,7 +59,8 @@ class KnowledgeNodeDeleteServiceTest {
     void activeImportStopsWholeDeleteBeforeCleanup() {
         KitKnowledgeSourceDocument directory = node("directory", "DIRECTORY", "/directory/");
         KitKnowledgeSourceDocument document = node("document", "DOCUMENT", "/directory/");
-        when(directoryService.grantedDirectoryIds()).thenReturn(Set.of("directory"));
+        when(directoryService.grantedDirectoryIds(KnowledgeDirectoryPermission.MANAGE)).thenReturn(Set.of("directory"));
+        when(directoryService.grantedDirectoryIds(KnowledgeDirectoryPermission.UPLOAD)).thenReturn(Set.of("directory"));
         when(directoryService.canRead(directory, Set.of("directory"))).thenReturn(true);
         when(nodeMapper.selectById("directory")).thenReturn(directory);
         when(nodeMapper.selectList(any())).thenReturn(List.of(document));

@@ -9,6 +9,7 @@ import org.quyq.gwsu.common.security.constants.SecurityConstants;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.quyq.gwsu.kit.api.knowledge.dto.KnowledgeDirectorySaveDTO;
 import org.quyq.gwsu.kit.api.knowledge.dto.KnowledgeRoleScopeSaveDTO;
+import org.quyq.gwsu.kit.api.knowledge.enums.KnowledgeDirectoryPermission;
 import org.quyq.gwsu.kit.api.knowledge.vo.KnowledgeNodeVO;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeDirectoryRole;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeSourceDocument;
@@ -55,6 +56,41 @@ public class KnowledgeDirectoryService {
         return document;
     }
 
+    public KitKnowledgeSourceDocument requireEditableDocument(String id) {
+        KitKnowledgeSourceDocument document = requireReadableDocument(id);
+        if (!canEditDocument(document)) throw new BusinessException("没有文档的编辑权限");
+        return document;
+    }
+
+    public boolean canEditDocument(KitKnowledgeSourceDocument document) {
+        return canEditDocument(document, grantedDirectoryIds(KnowledgeDirectoryPermission.MANAGE),
+                grantedDirectoryIds(KnowledgeDirectoryPermission.UPLOAD));
+    }
+
+    public boolean canEditDocument(KitKnowledgeSourceDocument document, Collection<String> managers,
+                                   Collection<String> uploads) {
+        if (canRead(document, managers)) return true;
+        String username = securityUtils.getUsername();
+        return StringUtils.hasText(username) && Objects.equals(username, document.getCreateOp())
+                && canRead(document, uploads);
+    }
+
+    public boolean canManage(KitKnowledgeSourceDocument directory) {
+        return canRead(directory, grantedDirectoryIds(KnowledgeDirectoryPermission.MANAGE));
+    }
+
+    public boolean canUpload(KitKnowledgeSourceDocument directory) {
+        return canRead(directory, grantedDirectoryIds(KnowledgeDirectoryPermission.UPLOAD));
+    }
+
+    public boolean canManageRoot() {
+        return grantedDirectoryIds(KnowledgeDirectoryPermission.MANAGE).contains("*");
+    }
+
+    public boolean canUploadRoot() {
+        return grantedDirectoryIds(KnowledgeDirectoryPermission.UPLOAD).contains("*");
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public String saveDirectory(KnowledgeDirectorySaveDTO dto) {
         if (dto == null || !StringUtils.hasText(dto.getName()) || dto.getName().trim().length() > 200) {
@@ -63,15 +99,15 @@ public class KnowledgeDirectoryService {
         String name = dto.getName().trim();
         if (StringUtils.hasText(dto.getId())) {
             KitKnowledgeSourceDocument old = requireDirectory(dto.getId());
-            if (!canRead(old, grantedDirectoryIds())) throw new BusinessException("没有目录的访问权限");
+            if (!canManage(old)) throw new BusinessException("没有目录的管理权限");
             assertUnique(old.getParentId(), name, old.getId());
             nodeMapper.updateById(new KitKnowledgeSourceDocument().setId(old.getId()).setName(name));
             return old.getId();
         }
         KitKnowledgeSourceDocument parent = StringUtils.hasText(dto.getParentId()) ? requireDirectory(dto.getParentId()) : null;
-        if (parent == null && !canReadRoot()) throw new BusinessException("没有根目录的访问权限");
-        if (parent != null && !canRead(parent, grantedDirectoryIds())) {
-            throw new BusinessException("没有父目录的访问权限");
+        if (parent == null && !canManageRoot()) throw new BusinessException("没有根目录的管理权限");
+        if (parent != null && !canManage(parent)) {
+            throw new BusinessException("没有父目录的管理权限");
         }
         assertUnique(dto.getParentId(), name, null);
         KitKnowledgeSourceDocument directory = new KitKnowledgeSourceDocument()
@@ -106,6 +142,8 @@ public class KnowledgeDirectoryService {
                 .orderByAsc(KitKnowledgeSourceDocument::getSortNo)
                 .orderByAsc(KitKnowledgeSourceDocument::getName));
         Set<String> grants = management ? Set.of("*") : grantedDirectoryIds();
+        Set<String> uploads = management ? Set.of() : grantedDirectoryIds(KnowledgeDirectoryPermission.UPLOAD);
+        Set<String> managers = management ? Set.of() : grantedDirectoryIds(KnowledgeDirectoryPermission.MANAGE);
         Set<String> visible = new HashSet<>();
         if (management || grants.contains("*")) {
             directories.forEach(directory -> visible.add(directory.getId()));
@@ -133,7 +171,7 @@ public class KnowledgeDirectoryService {
             }
         }
         return directories.stream().filter(directory -> visible.contains(directory.getId()))
-                .map(directory -> toVO(directory).setDocumentCount(counts.getOrDefault(directory.getId(), 0L)))
+                .map(directory -> toVO(directory, grants, uploads, managers).setDocumentCount(counts.getOrDefault(directory.getId(), 0L)))
                 .toList();
     }
 
@@ -152,13 +190,17 @@ public class KnowledgeDirectoryService {
         IPage<KitKnowledgeSourceDocument> page = nodeMapper.searchAccessibleDocuments(
                 Page.of(pageNum, pageSize), name.trim(), allDirectories, roles);
         Page<KnowledgeNodeVO> result = Page.of(pageNum, pageSize, page.getTotal());
-        result.setRecords(page.getRecords().stream().map(this::toVO).toList());
+        Set<String> uploads = grantedDirectoryIds(KnowledgeDirectoryPermission.UPLOAD);
+        Set<String> managers = grantedDirectoryIds(KnowledgeDirectoryPermission.MANAGE);
+        result.setRecords(page.getRecords().stream().map(node -> toVO(node, grants, uploads, managers)).toList());
         return result;
     }
 
     public IPage<KnowledgeNodeVO> children(String parentId, String name, long pageNum, long pageSize) {
         KitKnowledgeSourceDocument parent = StringUtils.hasText(parentId) ? requireDirectory(parentId) : null;
         Set<String> grants = grantedDirectoryIds();
+        Set<String> uploads = grantedDirectoryIds(KnowledgeDirectoryPermission.UPLOAD);
+        Set<String> managers = grantedDirectoryIds(KnowledgeDirectoryPermission.MANAGE);
         boolean full = grants.contains("*") || (parent != null && canRead(parent, grants));
         LambdaQueryWrapper<KitKnowledgeSourceDocument> query = new LambdaQueryWrapper<KitKnowledgeSourceDocument>()
                 .eq(KitKnowledgeSourceDocument::getDeleted, false)
@@ -171,7 +213,7 @@ public class KnowledgeDirectoryService {
         if (full) {
             IPage<KitKnowledgeSourceDocument> page = nodeMapper.selectPage(Page.of(pageNum, pageSize), query);
             Page<KnowledgeNodeVO> result = Page.of(pageNum, pageSize, page.getTotal());
-            result.setRecords(page.getRecords().stream().map(this::toVO).toList());
+            result.setRecords(page.getRecords().stream().map(node -> toVO(node, grants, uploads, managers)).toList());
             return result;
         }
         query.eq(KitKnowledgeSourceDocument::getNodeType, DIRECTORY);
@@ -183,7 +225,7 @@ public class KnowledgeDirectoryService {
         }
         List<KnowledgeNodeVO> visible = candidates.stream()
                 .filter(d -> visibleAncestorIds.contains(d.getId()))
-                .map(this::toVO).toList();
+                .map(node -> toVO(node, grants, uploads, managers)).toList();
         long from = Math.min(visible.size(), Math.max(0, pageNum - 1) * pageSize);
         long to = Math.min(visible.size(), from + pageSize);
         Page<KnowledgeNodeVO> result = Page.of(pageNum, pageSize, visible.size());
@@ -191,45 +233,81 @@ public class KnowledgeDirectoryService {
         return result;
     }
 
-    public List<String> grantsForRole(String roleCode) {
+    public List<KnowledgeRoleScopeSaveDTO.Grant> grantsForRole(String roleCode) {
         if (!StringUtils.hasText(roleCode)) return List.of();
         return roleMapper.selectList(new LambdaQueryWrapper<KitKnowledgeDirectoryRole>()
                 .eq(KitKnowledgeDirectoryRole::getRoleCode, roleCode)
                 .eq(KitKnowledgeDirectoryRole::getDeleted, false)).stream()
-                .map(KitKnowledgeDirectoryRole::getDirectoryId).toList();
+                .map(row -> {
+                    var grant = new KnowledgeRoleScopeSaveDTO.Grant();
+                    grant.setDirectoryId(row.getDirectoryId());
+                    grant.setPermissionType(row.getPermissionType());
+                    return grant;
+                }).toList();
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void saveRoleScope(KnowledgeRoleScopeSaveDTO dto) {
         if (dto == null || !StringUtils.hasText(dto.getRoleCode())) throw new BusinessException("角色编码不能为空");
-        Set<String> ids = new HashSet<>(Objects.requireNonNullElse(dto.getDirectoryIds(), List.of()));
-        for (String id : ids) if (!ROOT_DIRECTORY_ID.equals(id)) requireDirectory(id);
+        List<KnowledgeRoleScopeSaveDTO.Grant> grants = Objects.requireNonNullElse(dto.getGrants(), List.of());
+        Set<String> keys = new HashSet<>();
+        for (var grant : grants) {
+            if (grant == null || !StringUtils.hasText(grant.getDirectoryId()) || grant.getPermissionType() == null)
+                throw new BusinessException("目录权限配置不正确");
+            if (!ROOT_DIRECTORY_ID.equals(grant.getDirectoryId())) requireDirectory(grant.getDirectoryId());
+            if (!keys.add(grant.getDirectoryId() + ":" + grant.getPermissionType()))
+                throw new BusinessException("目录权限重复");
+        }
         roleMapper.delete(new LambdaQueryWrapper<KitKnowledgeDirectoryRole>()
                 .eq(KitKnowledgeDirectoryRole::getRoleCode, dto.getRoleCode())
                 .eq(KitKnowledgeDirectoryRole::getDeleted, false));
-        for (String id : ids) roleMapper.insert(new KitKnowledgeDirectoryRole().setRoleCode(dto.getRoleCode()).setDirectoryId(id));
+        for (var grant : grants) roleMapper.insert(new KitKnowledgeDirectoryRole()
+                .setRoleCode(dto.getRoleCode()).setDirectoryId(grant.getDirectoryId())
+                .setPermissionType(grant.getPermissionType()));
     }
 
     public Set<String> grantedDirectoryIds() {
+        return grantedDirectoryIds(KnowledgeDirectoryPermission.SEARCH);
+    }
+
+    public Set<String> grantedDirectoryIds(KnowledgeDirectoryPermission required) {
         List<String> roles = securityUtils.checkSubject().getRoles();
         if (roles.contains(SecurityConstants.Authentication.ROLE_SUPER_ADMIN_FLAG)) return Set.of("*");
-        return grantedDirectoryIds(roles);
+        return grantedDirectoryIds(roles, required);
     }
 
     public Set<String> grantedDirectoryIds(Collection<String> roles) {
+        return grantedDirectoryIds(roles, KnowledgeDirectoryPermission.SEARCH);
+    }
+
+    public Set<String> grantedDirectoryIds(Collection<String> roles, KnowledgeDirectoryPermission required) {
         if (roles == null || roles.isEmpty()) return Set.of();
         if (roles.contains(SecurityConstants.Authentication.ROLE_SUPER_ADMIN_FLAG)) return Set.of("*");
         List<KitKnowledgeDirectoryRole> grants = roleMapper.selectList(new LambdaQueryWrapper<KitKnowledgeDirectoryRole>()
                 .in(KitKnowledgeDirectoryRole::getRoleCode, roles)
                 .eq(KitKnowledgeDirectoryRole::getDeleted, false));
         Set<String> ids = new HashSet<>();
-        grants.forEach(grant -> ids.add(grant.getDirectoryId()));
+        grants.stream().filter(grant -> grant.getPermissionType() != null && grant.getPermissionType().allows(required))
+                .forEach(grant -> ids.add(grant.getDirectoryId()));
         if (ids.contains(ROOT_DIRECTORY_ID)) return Set.of("*");
         return ids;
     }
 
     public boolean canReadRoot() {
         return grantedDirectoryIds().contains("*");
+    }
+
+    public boolean isAdministrator() {
+        return securityUtils.checkSubject().isAdmin();
+    }
+
+    public KnowledgeNodeVO rootCapabilities() {
+        boolean search = canReadRoot();
+        boolean upload = canUploadRoot();
+        boolean manage = canManageRoot();
+        return new KnowledgeNodeVO().setId(ROOT_DIRECTORY_ID).setNodeType(DIRECTORY)
+                .setName("全部目录").setCanSearch(search).setCanUpload(upload)
+                .setCanManage(manage).setCanEdit(manage).setCanDelete(false);
     }
 
     public boolean canRead(KitKnowledgeSourceDocument node, Collection<String> grants) {
@@ -246,6 +324,12 @@ public class KnowledgeDirectoryService {
     }
 
     public KnowledgeNodeVO toVO(KitKnowledgeSourceDocument node) {
+        return toVO(node, grantedDirectoryIds(), grantedDirectoryIds(KnowledgeDirectoryPermission.UPLOAD),
+                grantedDirectoryIds(KnowledgeDirectoryPermission.MANAGE));
+    }
+
+    private KnowledgeNodeVO toVO(KitKnowledgeSourceDocument node, Set<String> searches,
+                                 Set<String> uploads, Set<String> managers) {
         KnowledgeNodeVO vo = new KnowledgeNodeVO().setId(node.getId()).setParentId(node.getParentId())
                 .setNodeType(node.getNodeType()).setName(node.getName()).setSortNo(node.getSortNo())
                 .setFileId(node.getFileId()).setFileName(node.getFileName()).setFileSize(node.getFileSize())
@@ -255,6 +339,13 @@ public class KnowledgeDirectoryService {
                 .setProcessedAt(node.getProcessedAt())
                 .setProcessMessage(node.getProcessMessage());
         vo.copyBaseProperties(node);
+        boolean manage = canRead(node, managers);
+        boolean upload = canRead(node, uploads);
+        boolean edit = manage || (DOCUMENT.equals(node.getNodeType()) && upload
+                && StringUtils.hasText(securityUtils.getUsername())
+                && Objects.equals(securityUtils.getUsername(), node.getCreateOp()));
+        vo.setCanSearch(canRead(node, searches)).setCanUpload(upload).setCanManage(manage)
+                .setCanEdit(edit).setCanDelete(DIRECTORY.equals(node.getNodeType()) ? manage : edit);
         return vo;
     }
 }

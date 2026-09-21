@@ -9,6 +9,7 @@ import { createStore } from 'zustand/vanilla';
 import type { StoreApi } from 'zustand/vanilla';
 import { useStore } from 'zustand';
 import { MenuItem } from '../services';
+import { getDirectoryMenuKey } from '../utils/menuKey';
 
 /**
  * 获取真实 window 对象，绕过 qiankun JS 沙箱的 Proxy 代理
@@ -44,51 +45,49 @@ interface MenuState {
  * 根据路径在菜单树中查找匹配的菜单项
  */
 export function findMenuByPath(menus: MenuItem[], path: string): MenuItem | null {
-  for (const menu of menus) {
-    // 直接匹配
-    if (menu.path === path) {
-      return menu;
-    }
-    // 路径前缀匹配（用于子路由）
-    if (path.startsWith(menu.path + '/')) {
-      // 在子菜单中查找
-      if (menu.children?.length) {
-        const found = findMenuByPath(menu.children, path);
-        if (found) return found;
+  let exactMatch: MenuItem | null = null;
+  let prefixMatch: MenuItem | null = null;
+
+  const visit = (items: MenuItem[]) => {
+    for (const menu of items) {
+      if (menu.path === path) {
+        exactMatch = menu;
+      } else if (
+        menu.path &&
+        path.startsWith(menu.path + '/') &&
+        (!prefixMatch || menu.path.length > prefixMatch.path.length)
+      ) {
+        prefixMatch = menu;
       }
-      return menu;
+
+      if (menu.children?.length) visit(menu.children);
     }
-    // 在子菜单中递归查找
-    if (menu.children?.length) {
-      const found = findMenuByPath(menu.children, path);
-      if (found) return found;
-    }
-  }
-  return null;
+  };
+
+  // 目录与子菜单可能不在同一路径前缀下，优先查完整棵树的精确匹配。
+  visit(menus);
+  return exactMatch ?? prefixMatch;
 }
 
 /**
  * 根据路径在菜单树中查找所有需要展开的父级目录的 key
- * 返回从顶层到选中菜单所在层级的所有目录 path
+ * 返回从顶层到选中菜单所在层级的所有目录 key
  */
 export function findOpenKeys(menus: MenuItem[], path: string): string[] {
+  const matchedMenu = findMenuByPath(menus, path);
+  if (!matchedMenu) return [];
+
   function find(items: MenuItem[], dirKeys: string[]): string[] | null {
     for (const menu of items) {
-      // 精确匹配
-      if (menu.path === path) {
-        return dirKeys;
+      if (menu === matchedMenu) {
+        return menu.menuType === 1 && menu.path !== path
+          ? [...dirKeys, getDirectoryMenuKey(menu)]
+          : dirKeys;
       }
-      // 前缀匹配 — 路径在此菜单下
-      if (path.startsWith(menu.path + '/') && menu.children?.length) {
-        const newDirKeys = menu.menuType === 1 ? [...dirKeys, menu.path] : dirKeys;
-        const result = find(menu.children, newDirKeys);
-        if (result) return result;
-        // 子菜单中未精确匹配，仍展开当前目录
-        return newDirKeys;
-      }
-      // 无前缀匹配，递归搜索子菜单
       if (menu.children?.length) {
-        const newDirKeys = menu.menuType === 1 ? [...dirKeys, menu.path] : dirKeys;
+        const newDirKeys = menu.menuType === 1
+          ? [...dirKeys, getDirectoryMenuKey(menu)]
+          : dirKeys;
         const result = find(menu.children, newDirKeys);
         if (result) return result;
       }
