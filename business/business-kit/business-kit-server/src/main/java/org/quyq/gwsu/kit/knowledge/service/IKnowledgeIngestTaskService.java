@@ -8,7 +8,7 @@ import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgeIngestTask;
  */
 public interface IKnowledgeIngestTaskService extends IService<KitKnowledgeIngestTask> {
 
-    String createOrResetTask(String sourceDocumentId, boolean incrementRetryCount);
+    String createTask(String sourceDocumentId);
 
     void ensureNoActiveTask(String sourceDocumentId);
 

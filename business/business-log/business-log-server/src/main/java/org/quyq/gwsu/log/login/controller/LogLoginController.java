@@ -4,15 +4,18 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.quyq.gwsu.common.core.domain.KeyValue;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.log.annotation.LogIgnore;
 import org.quyq.gwsu.common.log.vo.LogLoginVO;
 import org.quyq.gwsu.common.security.annotation.TableModelPermission;
+import org.quyq.gwsu.common.security.enums.AccountType;
 import org.quyq.gwsu.log.api.dto.LogLoginQueryDTO;
 import org.quyq.gwsu.log.login.domain.LogLogin;
 import org.quyq.gwsu.log.login.service.ILogLoginService;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 
 @RestController
@@ -38,10 +41,12 @@ public class LogLoginController {
         return R.ok(logLoginService.pageByCondition(query));
     }
 
-    @DeleteMapping
-    @Operation(summary = "批量删除认证日志")
+    @GetMapping("/account-types")
+    @Operation(summary = "查询认证日志账号类型")
     @LogIgnore
-    public R<Boolean> remove(@RequestBody List<String> ids) {
-        return R.ok(logLoginService.removeByIds(ids));
+    public R<List<KeyValue<String, String>>> accountTypes() {
+        return R.ok(Arrays.stream(AccountType.values())
+                .map(item -> new KeyValue<>(item.name(), item.getMsg()))
+                .toList());
     }
 }

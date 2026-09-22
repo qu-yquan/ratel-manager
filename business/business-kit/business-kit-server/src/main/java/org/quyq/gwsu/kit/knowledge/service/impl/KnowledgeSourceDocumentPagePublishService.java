@@ -19,6 +19,7 @@ import org.quyq.gwsu.kit.knowledge.mapper.KnowledgePageMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgePageSourceRefMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgePageVersionMapper;
 import org.quyq.gwsu.kit.knowledge.mapper.KnowledgeSourceDocumentMapper;
+import org.quyq.gwsu.kit.knowledge.task.KnowledgeIngestSupersededException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -44,7 +45,23 @@ public class KnowledgeSourceDocumentPagePublishService {
     private final KnowledgeSourceDocumentMapper sourceDocumentMapper;
 
     @Transactional(rollbackFor = Exception.class)
+    public String publish(String taskId, String sourceDocumentId, GeneratedKnowledgePageDraft draft) {
+        KitKnowledgeSourceDocument sourceDocument = sourceDocumentMapper.selectByIdForUpdate(sourceDocumentId);
+        if (sourceDocument == null || !Objects.equals(taskId, sourceDocument.getActiveTaskId())) {
+            throw new KnowledgeIngestSupersededException(taskId);
+        }
+        return publishLocked(sourceDocument, draft, taskId);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
     public String publish(KitKnowledgeSourceDocument sourceDocument, GeneratedKnowledgePageDraft draft) {
+        KitKnowledgeSourceDocument lockedDocument = sourceDocumentMapper.selectByIdForUpdate(sourceDocument.getId());
+        return publishLocked(lockedDocument, draft, null);
+    }
+
+    private String publishLocked(KitKnowledgeSourceDocument sourceDocument,
+                                 GeneratedKnowledgePageDraft draft,
+                                 String taskId) {
         String pageId = resolvePageId(sourceDocument);
         KitKnowledgePage page = ensurePage(pageId, draft.title());
         archiveCurrentVersion(page.getCurrentVersionId());
@@ -83,10 +100,14 @@ public class KnowledgeSourceDocumentPagePublishService {
                 new LambdaUpdateWrapper<KitKnowledgePage>()
                         .eq(KitKnowledgePage::getId, pageId)
                         .eq(KitKnowledgePage::getDeleted, false));
-        sourceDocumentMapper.update(new KitKnowledgeSourceDocument().setTargetPageId(pageId),
+        LambdaUpdateWrapper<KitKnowledgeSourceDocument> documentUpdate =
                 new LambdaUpdateWrapper<KitKnowledgeSourceDocument>()
                         .eq(KitKnowledgeSourceDocument::getId, sourceDocument.getId())
-                        .eq(KitKnowledgeSourceDocument::getDeleted, false));
+                        .eq(KitKnowledgeSourceDocument::getDeleted, false);
+        if (StringUtils.hasText(taskId)) {
+            documentUpdate.eq(KitKnowledgeSourceDocument::getActiveTaskId, taskId);
+        }
+        sourceDocumentMapper.update(new KitKnowledgeSourceDocument().setTargetPageId(pageId), documentUpdate);
         return newVersionId;
     }
 

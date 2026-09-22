@@ -429,6 +429,7 @@ CREATE TABLE kit_knowledge_node
     file_format      VARCHAR(32)           DEFAULT NULL,
     document_status  VARCHAR(32)           DEFAULT NULL,
     target_page_id   VARCHAR(24)           DEFAULT NULL,
+    active_task_id   VARCHAR(24)           DEFAULT NULL,
     process_message  VARCHAR(1000)         DEFAULT NULL,
     image_file_ids_json TEXT               DEFAULT NULL,
     image_ocr_parsed INT2         NOT NULL DEFAULT 0,
@@ -456,6 +457,7 @@ COMMENT ON COLUMN kit_knowledge_node.file_id IS '文件ID';
 COMMENT ON COLUMN kit_knowledge_node.file_name IS '文件名';
 COMMENT ON COLUMN kit_knowledge_node.document_status IS '文档处理状态';
 COMMENT ON COLUMN kit_knowledge_node.target_page_id IS '目标Page ID';
+COMMENT ON COLUMN kit_knowledge_node.active_task_id IS '当前生效的导入任务ID';
 COMMENT ON COLUMN kit_knowledge_node.process_message IS '处理信息';
 COMMENT ON COLUMN kit_knowledge_node.image_file_ids_json IS '导入图片文件ID JSON';
 COMMENT ON COLUMN kit_knowledge_node.image_ocr_parsed IS '图片是否已完成 OCR 解析：0-否 1-是';
@@ -467,6 +469,7 @@ CREATE INDEX idx_kit_knowledge_node_parent ON kit_knowledge_node (parent_id, nod
 CREATE UNIQUE INDEX uk_kit_knowledge_node_sibling ON kit_knowledge_node (COALESCE(parent_id, 'ROOT'), node_type, name) WHERE deleted = 0;
 CREATE INDEX idx_kit_knowledge_node_file_id ON kit_knowledge_node (file_id) WHERE deleted = 0;
 CREATE INDEX idx_kit_knowledge_node_status ON kit_knowledge_node (document_status);
+CREATE INDEX idx_kit_knowledge_node_active_task ON kit_knowledge_node (active_task_id) WHERE deleted = 0;
 
 CREATE TABLE kit_knowledge_source_segment
 (

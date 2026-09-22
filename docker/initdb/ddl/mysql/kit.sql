@@ -269,6 +269,7 @@ CREATE TABLE kit_knowledge_node
     file_format      VARCHAR(32)           DEFAULT NULL COMMENT '文件格式',
     document_status  VARCHAR(32)           DEFAULT NULL COMMENT '文档处理状态',
     target_page_id   VARCHAR(24)           DEFAULT NULL COMMENT '目标Page ID',
+    active_task_id   VARCHAR(24)           DEFAULT NULL COMMENT '当前生效的导入任务ID',
     process_message  VARCHAR(1000)         DEFAULT NULL COMMENT '处理信息',
     image_file_ids_json TEXT               DEFAULT NULL COMMENT '导入图片文件ID JSON',
     image_ocr_parsed SMALLINT      NOT NULL DEFAULT 0 COMMENT '图片是否已完成 OCR 解析：0-否 1-是',
@@ -292,6 +293,7 @@ CREATE INDEX idx_kit_knowledge_node_parent ON kit_knowledge_node (parent_id, nod
 CREATE UNIQUE INDEX uk_kit_knowledge_node_sibling ON kit_knowledge_node (active_parent_key, node_type, active_name);
 CREATE INDEX idx_kit_knowledge_node_file_id ON kit_knowledge_node (file_id);
 CREATE INDEX idx_kit_knowledge_node_status ON kit_knowledge_node (document_status);
+CREATE INDEX idx_kit_knowledge_node_active_task ON kit_knowledge_node (active_task_id);
 
 CREATE TABLE kit_knowledge_source_segment
 (

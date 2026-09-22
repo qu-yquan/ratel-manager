@@ -4,23 +4,39 @@ import {
   SaveOutlined,
   ReloadOutlined,
   GlobalOutlined,
+  FileTextOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { fetchConfigsBatch, useProjectConfigStore } from '@gwsu/core';
-import { getCaptchaTypeOptions, saveOrUpdateConfig } from '../services/config';
+import {
+  getCaptchaTypeOptions,
+  getLogStorageMediumOptions,
+  saveOrUpdateConfig,
+} from '../services/config';
 import type { ConfigInfo } from '../services/config';
 import { ConfigValueType, ConfigType } from '@gwsu/core';
-import type { BaseUrlConfig, CaptchaConfig, CaptchaTypeOption, GeneralTabKey } from './types';
+import type {
+  BaseUrlConfig,
+  CaptchaConfig,
+  CaptchaTypeOption,
+  GeneralTabKey,
+  LogStorageConfig,
+  LogStorageMediumOption,
+} from './types';
 import {
   BASE_URL_CONFIG_KEY,
   CAPTCHA_CONFIG_KEY,
   createDefaultBaseUrlConfig,
   createDefaultCaptchaConfig,
+  createDefaultLogStorageConfig,
   DEFAULT_BASE_URL_CONFIG,
+  LOG_STORAGE_CONFIG_KEY,
   normalizeCaptchaConfig,
+  normalizeLogStorageConfig,
 } from './types';
 import ProjectUrlForm from './ProjectUrlForm';
 import CaptchaConfigForm from './CaptchaConfigForm';
+import LogConfigForm from './LogConfigForm';
 import styles from './index.module.less';
 
 const GeneralConfigTab: React.FC = () => {
@@ -30,17 +46,37 @@ const GeneralConfigTab: React.FC = () => {
   const [activeTab, setActiveTab] = useState<GeneralTabKey>('projectUrl');
 
   // 基础地址配置
-  const [baseUrlConfig, setBaseUrlConfig] = useState<BaseUrlConfig>(createDefaultBaseUrlConfig());
+  const [baseUrlConfig, setBaseUrlConfig] = useState<BaseUrlConfig>(
+    createDefaultBaseUrlConfig(),
+  );
   const [baseUrlConfigId, setBaseUrlConfigId] = useState<string | undefined>();
-  const [captchaConfig, setCaptchaConfig] = useState<CaptchaConfig>(createDefaultCaptchaConfig());
+  const [captchaConfig, setCaptchaConfig] = useState<CaptchaConfig>(
+    createDefaultCaptchaConfig(),
+  );
   const [captchaConfigId, setCaptchaConfigId] = useState<string | undefined>();
-  const [captchaTypeOptions, setCaptchaTypeOptions] = useState<CaptchaTypeOption[]>([]);
+  const [captchaTypeOptions, setCaptchaTypeOptions] = useState<
+    CaptchaTypeOption[]
+  >([]);
   const [captchaTypeLoading, setCaptchaTypeLoading] = useState(false);
+  const [logStorageConfig, setLogStorageConfig] = useState<LogStorageConfig>(
+    createDefaultLogStorageConfig(),
+  );
+  const [logStorageConfigId, setLogStorageConfigId] = useState<
+    string | undefined
+  >();
+  const [logStorageMediumOptions, setLogStorageMediumOptions] = useState<
+    LogStorageMediumOption[]
+  >([]);
+  const [logStorageMediumLoading, setLogStorageMediumLoading] = useState(false);
 
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     try {
-      const configMap = await fetchConfigsBatch([BASE_URL_CONFIG_KEY, CAPTCHA_CONFIG_KEY]);
+      const configMap = await fetchConfigsBatch([
+        BASE_URL_CONFIG_KEY,
+        CAPTCHA_CONFIG_KEY,
+        LOG_STORAGE_CONFIG_KEY,
+      ]);
 
       // 解析基础地址配置
       const urlInfo = configMap[BASE_URL_CONFIG_KEY] as ConfigInfo | undefined;
@@ -60,10 +96,14 @@ const GeneralConfigTab: React.FC = () => {
       }
 
       // 解析图形验证码配置
-      const captchaInfo = configMap[CAPTCHA_CONFIG_KEY] as ConfigInfo | undefined;
+      const captchaInfo = configMap[CAPTCHA_CONFIG_KEY] as
+        | ConfigInfo
+        | undefined;
       if (captchaInfo?.configValue) {
         try {
-          const parsed = JSON.parse(captchaInfo.configValue) as Partial<CaptchaConfig>;
+          const parsed = JSON.parse(
+            captchaInfo.configValue,
+          ) as Partial<CaptchaConfig>;
           setCaptchaConfig(normalizeCaptchaConfig(parsed));
           setCaptchaConfigId(captchaInfo.id);
         } catch {
@@ -74,6 +114,26 @@ const GeneralConfigTab: React.FC = () => {
       } else {
         setCaptchaConfig(createDefaultCaptchaConfig());
         setCaptchaConfigId(undefined);
+      }
+
+      const logStorageInfo = configMap[LOG_STORAGE_CONFIG_KEY] as
+        | ConfigInfo
+        | undefined;
+      if (logStorageInfo?.configValue) {
+        try {
+          const parsed = JSON.parse(
+            logStorageInfo.configValue,
+          ) as Partial<LogStorageConfig>;
+          setLogStorageConfig(normalizeLogStorageConfig(parsed));
+          setLogStorageConfigId(logStorageInfo.id);
+        } catch {
+          message.warning('日志配置解析失败，已恢复默认值');
+          setLogStorageConfig(createDefaultLogStorageConfig());
+          setLogStorageConfigId(logStorageInfo.id);
+        }
+      } else {
+        setLogStorageConfig(createDefaultLogStorageConfig());
+        setLogStorageConfigId(undefined);
       }
     } catch {
       // error handled by request util
@@ -94,10 +154,22 @@ const GeneralConfigTab: React.FC = () => {
     }
   }, []);
 
+  const fetchLogStorageMediums = useCallback(async () => {
+    setLogStorageMediumLoading(true);
+    try {
+      setLogStorageMediumOptions(await getLogStorageMediumOptions());
+    } catch {
+      // error handled by request util
+    } finally {
+      setLogStorageMediumLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchConfig();
     fetchCaptchaTypes();
-  }, [fetchConfig, fetchCaptchaTypes]);
+    fetchLogStorageMediums();
+  }, [fetchConfig, fetchCaptchaTypes, fetchLogStorageMediums]);
 
   const handleBaseUrlConfigChange = (updated: BaseUrlConfig) => {
     setBaseUrlConfig(updated);
@@ -107,9 +179,14 @@ const GeneralConfigTab: React.FC = () => {
     setCaptchaConfig(updated);
   };
 
+  const handleLogStorageConfigChange = (updated: LogStorageConfig) => {
+    setLogStorageConfig(updated);
+  };
+
   const handleReload = () => {
     fetchConfig();
     fetchCaptchaTypes();
+    fetchLogStorageMediums();
   };
 
   const handleSave = async () => {
@@ -141,9 +218,33 @@ const GeneralConfigTab: React.FC = () => {
         message.warning('请填写有效的验证码有效时间');
         return;
       }
-      if (!captchaConfig.verificationExpireSeconds || captchaConfig.verificationExpireSeconds <= 0) {
+      if (
+        !captchaConfig.verificationExpireSeconds ||
+        captchaConfig.verificationExpireSeconds <= 0
+      ) {
         message.warning('请填写有效的二次校验凭证有效时间');
         return;
+      }
+    }
+    if (activeTab === 'log') {
+      const configs = [
+        { name: '操作日志', value: logStorageConfig.operationLog },
+        { name: '表操作日志', value: logStorageConfig.tableLog },
+        { name: '登录日志', value: logStorageConfig.loginLog },
+      ];
+      for (const config of configs) {
+        const { coldMinAge, deleteMinAge } = config.value.dataLifeCycle;
+        if (!deleteMinAge || deleteMinAge <= 0) {
+          message.warning(`请填写有效的${config.name}自动删除天数`);
+          return;
+        }
+        if (
+          config.value.medium === 'ES' &&
+          (coldMinAge < 0 || coldMinAge >= deleteMinAge)
+        ) {
+          message.warning(`${config.name}进入冷数据天数必须小于自动删除天数`);
+          return;
+        }
       }
     }
 
@@ -181,6 +282,23 @@ const GeneralConfigTab: React.FC = () => {
           fetchConfig();
         }
       }
+      if (activeTab === 'log') {
+        const success = await saveOrUpdateConfig({
+          id: logStorageConfigId,
+          configKey: LOG_STORAGE_CONFIG_KEY,
+          configName: '日志配置',
+          configValue: JSON.stringify(
+            normalizeLogStorageConfig(logStorageConfig),
+          ),
+          valueType: ConfigValueType.JSON,
+          configType: ConfigType.SYSTEM,
+          description: '操作日志、表操作日志和登录日志的存储媒介及生命周期配置',
+        });
+        if (success) {
+          message.success('日志配置保存成功');
+          fetchConfig();
+        }
+      }
     } catch {
       // error handled by request util
     } finally {
@@ -198,7 +316,12 @@ const GeneralConfigTab: React.FC = () => {
 
   const tabs: { key: GeneralTabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'projectUrl', label: '项目信息', icon: <GlobalOutlined /> },
-    { key: 'captcha', label: '图形验证码', icon: <SafetyCertificateOutlined /> },
+    {
+      key: 'captcha',
+      label: '图形验证码',
+      icon: <SafetyCertificateOutlined />,
+    },
+    { key: 'log', label: '日志配置', icon: <FileTextOutlined /> },
   ];
 
   return (
@@ -209,7 +332,9 @@ const GeneralConfigTab: React.FC = () => {
           {tabs.map((tab) => (
             <button
               key={tab.key}
-              className={`${styles.sideTab} ${activeTab === tab.key ? styles.sideTabActive : ''}`}
+              className={`${styles.sideTab} ${
+                activeTab === tab.key ? styles.sideTabActive : ''
+              }`}
               onClick={() => setActiveTab(tab.key)}
             >
               <span className={styles.sideTabIcon}>{tab.icon}</span>
@@ -221,7 +346,10 @@ const GeneralConfigTab: React.FC = () => {
         {/* 右侧内容区 */}
         <div className={styles.sideTabContent}>
           {activeTab === 'projectUrl' && (
-            <ProjectUrlForm value={baseUrlConfig} onChange={handleBaseUrlConfigChange} />
+            <ProjectUrlForm
+              value={baseUrlConfig}
+              onChange={handleBaseUrlConfigChange}
+            />
           )}
           {activeTab === 'captcha' && (
             <CaptchaConfigForm
@@ -231,13 +359,27 @@ const GeneralConfigTab: React.FC = () => {
               onChange={handleCaptchaConfigChange}
             />
           )}
+          {activeTab === 'log' && (
+            <LogConfigForm
+              value={logStorageConfig}
+              mediumOptions={logStorageMediumOptions}
+              mediumLoading={logStorageMediumLoading}
+              onChange={handleLogStorageConfigChange}
+            />
+          )}
 
           {/* 操作栏 */}
           <div className={styles.actionBar}>
             <Button icon={<ReloadOutlined />} onClick={handleReload}>
               重置
             </Button>
-            <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave} data-ai-approval>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              loading={saving}
+              onClick={handleSave}
+              data-ai-approval
+            >
               保存
             </Button>
           </div>

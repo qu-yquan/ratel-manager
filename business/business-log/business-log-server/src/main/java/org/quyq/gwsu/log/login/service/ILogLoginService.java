@@ -6,7 +6,7 @@ import org.quyq.gwsu.common.log.vo.LogLoginVO;
 import org.quyq.gwsu.log.api.dto.LogLoginQueryDTO;
 import org.quyq.gwsu.log.login.domain.LogLogin;
 
-import java.util.List;
+import java.time.LocalDateTime;
 
 public interface ILogLoginService extends IService<LogLogin> {
 
@@ -14,5 +14,5 @@ public interface ILogLoginService extends IService<LogLogin> {
     IPage<LogLoginVO> pageByCondition(LogLoginQueryDTO query);
     Boolean saveLog(LogLoginVO vo);
     boolean finishExpiredSession(String authorizationId);
-    Boolean removeByIds(List<String> ids);
+    int removeExpiredBefore(LocalDateTime expiredBefore, int batchSize);
 }

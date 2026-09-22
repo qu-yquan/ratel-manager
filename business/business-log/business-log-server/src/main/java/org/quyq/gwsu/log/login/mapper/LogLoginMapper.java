@@ -10,6 +10,7 @@ import org.quyq.gwsu.log.api.dto.LogLoginQueryDTO;
 import org.quyq.gwsu.log.login.domain.LogLogin;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public interface LogLoginMapper extends BaseMapper<LogLogin> {
 
@@ -23,4 +24,7 @@ public interface LogLoginMapper extends BaseMapper<LogLogin> {
     int finishSession(@Param("id") String id,
                       @Param("endType") LoginEndType endType,
                       @Param("endTime") LocalDateTime endTime);
+
+    List<String> selectExpiredIds(@Param("expiredBefore") LocalDateTime expiredBefore,
+                                  @Param("batchSize") int batchSize);
 }

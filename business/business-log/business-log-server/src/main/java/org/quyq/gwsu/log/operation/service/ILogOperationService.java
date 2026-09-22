@@ -6,7 +6,7 @@ import org.quyq.gwsu.common.log.vo.LogOperationVO;
 import org.quyq.gwsu.log.api.dto.LogOperationQueryDTO;
 import org.quyq.gwsu.log.operation.domain.LogOperation;
 
-import java.util.List;
+import java.time.LocalDateTime;
 
 /**
  * 操作日志服务接口
@@ -32,6 +32,14 @@ public interface ILogOperationService extends IService<LogOperation> {
     IPage<LogOperationVO> pageByCondition(LogOperationQueryDTO query);
 
     /**
+     * 根据链路标识查询树形操作日志。
+     *
+     * @param tid 链路标识
+     * @return 以网关日志为根节点的完整调用链
+     */
+    LogOperationVO getTreeByTid(String tid);
+
+    /**
      * 保存操作日志
      *
      * @param vo 操作日志VO
@@ -40,10 +48,12 @@ public interface ILogOperationService extends IService<LogOperation> {
     Boolean saveLog(LogOperationVO vo);
 
     /**
-     * 批量删除操作日志
+     * 分批物理删除指定时间之前的操作日志。
      *
-     * @param ids 日志ID列表
-     * @return 是否成功
+     * @param expiredBefore 过期截止时间
+     * @param batchSize 每批数量
+     * @return 删除数量
      */
-    Boolean removeByIds(List<String> ids);
+    int removeExpiredBefore(LocalDateTime expiredBefore, int batchSize);
+
 }

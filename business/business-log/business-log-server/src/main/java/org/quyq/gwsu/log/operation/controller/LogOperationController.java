@@ -13,8 +13,6 @@ import org.quyq.gwsu.log.operation.service.ILogOperationService;
 import org.quyq.gwsu.common.security.annotation.TableModelPermission;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 /**
  * 操作日志管理控制器
  *
@@ -43,10 +41,10 @@ public class LogOperationController {
         return R.ok(logOperationService.pageByCondition(query));
     }
 
-    @Operation(summary = "批量删除操作日志")
-    @DeleteMapping
+    @Operation(summary = "根据链路标识查询树形操作日志")
+    @GetMapping("/tid/{tid}")
     @LogIgnore
-    public R<Boolean> remove(@RequestBody List<String> ids) {
-        return R.ok(logOperationService.removeByIds(ids));
+    public R<LogOperationVO> getTreeByTid(@PathVariable String tid) {
+        return R.ok(logOperationService.getTreeByTid(tid));
     }
 }

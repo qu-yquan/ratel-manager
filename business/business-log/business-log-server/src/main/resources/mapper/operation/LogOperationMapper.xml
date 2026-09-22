@@ -4,7 +4,7 @@
 <mapper namespace="org.quyq.gwsu.log.operation.mapper.LogOperationMapper">
 
     <select id="selectPageVo" resultType="org.quyq.gwsu.common.log.vo.LogOperationVO">
-        SELECT id, authorization_id, tid, parent_id, module_prefix, from_app, api_module, menu_id,
+        SELECT id AS oper_id, authorization_id, tid, parent_id, module_prefix, from_app, api_module, menu_id,
                oper_subject, api_description, method, request_url, request_method,
                terminal, terminal_detail, oper_name,
                request_param, response_data, error_msg, status,
@@ -12,6 +12,8 @@
                create_op, create_time, modify_op, modify_time
         FROM log_operation
         WHERE deleted = 0
+          AND from_app = 'gateway'
+          AND parent_id IS NULL
         <if test="query.authorizationId != null and query.authorizationId != ''">
             AND authorization_id = #{query.authorizationId}
         </if>
@@ -45,6 +47,27 @@
         <if test="query.orderByColumn == null or query.orderByColumn == ''">
             ORDER BY request_time DESC
         </if>
+    </select>
+
+    <select id="selectByTid" resultType="org.quyq.gwsu.log.operation.domain.LogOperation">
+        SELECT id, authorization_id, tid, parent_id, module_prefix, from_app, api_module, menu_id,
+               oper_subject, api_description, method, request_url, request_method,
+               terminal, terminal_detail, oper_name,
+               request_param, response_data, error_msg, status,
+               request_time, response_time, consume_mill,
+               create_op, create_time, modify_op, modify_time
+        FROM log_operation
+        WHERE deleted = 0
+          AND tid = #{tid}
+        ORDER BY request_time ASC, id ASC
+    </select>
+
+    <select id="selectExpiredIds" resultType="java.lang.String">
+        SELECT id
+        FROM log_operation
+        WHERE request_time &lt; #{expiredBefore}
+        ORDER BY request_time ASC
+        LIMIT #{batchSize}
     </select>
 
 </mapper>

@@ -12,6 +12,7 @@ import org.quyq.gwsu.common.core.enums.TerminalType;
 import org.quyq.gwsu.common.log.enums.ViewOperationSubject;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * @author Quyq
@@ -22,6 +23,12 @@ import java.time.LocalDateTime;
 @Accessors(chain = true)
 @Data
 public class LogOperationVO extends BaseVO {
+
+    @Schema(description = "是否存在子链路日志")
+    private boolean hasChildren = true;
+
+    @Schema(description = "子链路日志")
+    private List<LogOperationVO> children;
 
     @Schema(description = "日志标识")
     private String operId;

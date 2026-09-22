@@ -59,6 +59,9 @@ public class KitKnowledgeSourceDocument extends BaseDO {
     @Schema(description = "目标Page ID")
     private String targetPageId;
 
+    @Schema(description = "当前生效的导入任务ID")
+    private String activeTaskId;
+
     @Schema(description = "处理信息")
     private String processMessage;
 

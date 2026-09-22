@@ -13,6 +13,6 @@ import org.springframework.aot.hint.RuntimeHintsRegistrar;
 public class DBRuntimeHintsRegistrar implements RuntimeHintsRegistrar {
     @Override
     public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
-        hints.resources().registerPattern("classpath*:mapper/**/*Mapper.xml");
+        hints.resources().registerPattern("mapper/**/*.xml");
     }
 }

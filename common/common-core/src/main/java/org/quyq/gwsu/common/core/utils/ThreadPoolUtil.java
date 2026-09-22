@@ -3,10 +3,12 @@ package org.quyq.gwsu.common.core.utils;
 
 import io.micrometer.context.ContextExecutorService;
 import io.micrometer.context.ContextRegistry;
+import io.micrometer.context.ContextScheduledExecutorService;
 import io.micrometer.context.ContextSnapshotFactory;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 
 /**
@@ -34,6 +36,14 @@ public class ThreadPoolUtil {
 
     public static ExecutorService newVirtualThreadPerTaskExecutor() {
         return ContextExecutorService.wrap(Executors.newVirtualThreadPerTaskExecutor(), FACTORY);
+    }
+
+    public static ScheduledExecutorService newSingleThreadScheduledExecutor() {
+        return ContextScheduledExecutorService.wrap(Executors.newSingleThreadScheduledExecutor(), FACTORY);
+    }
+
+    public static ScheduledExecutorService newSingleThreadScheduledExecutor(ThreadFactory factory) {
+        return ContextScheduledExecutorService.wrap(Executors.newSingleThreadScheduledExecutor(factory), FACTORY);
     }
 
     /**

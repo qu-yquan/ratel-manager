@@ -8,6 +8,9 @@ import org.quyq.gwsu.common.log.vo.LogOperationVO;
 import org.quyq.gwsu.log.api.dto.LogOperationQueryDTO;
 import org.quyq.gwsu.log.operation.domain.LogOperation;
 
+import java.util.List;
+import java.time.LocalDateTime;
+
 /**
  * 操作日志 Mapper 接口
  *
@@ -23,4 +26,9 @@ public interface LogOperationMapper extends BaseMapper<LogOperation> {
      * @return 分页结果
      */
     IPage<LogOperationVO> selectPageVo(Page<LogOperationVO> page, @Param("query") LogOperationQueryDTO query);
+
+    List<LogOperation> selectByTid(@Param("tid") String tid);
+
+    List<String> selectExpiredIds(@Param("expiredBefore") LocalDateTime expiredBefore,
+                                  @Param("batchSize") int batchSize);
 }

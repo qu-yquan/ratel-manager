@@ -64,4 +64,13 @@
           AND deleted = 0
           AND end_time IS NULL
     </update>
+
+    <select id="selectExpiredIds" resultType="java.lang.String">
+        SELECT id
+        FROM log_login
+        WHERE (status = 0 AND login_time &lt; #{expiredBefore})
+           OR (status = 1 AND end_time IS NOT NULL AND end_time &lt; #{expiredBefore})
+        ORDER BY COALESCE(end_time, login_time) ASC
+        LIMIT #{batchSize}
+    </select>
 </mapper>

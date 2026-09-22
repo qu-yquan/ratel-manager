@@ -295,9 +295,14 @@ const KnowledgePage: React.FC = () => {
       message.warning("文档暂无可重试的导入任务");
       return;
     }
+    const replacingActiveTask =
+      document.latestTaskStatus === "PENDING" ||
+      document.latestTaskStatus === "RUNNING";
     Modal.confirm({
       title: "确认重新导入？",
-      content: "重新导入成功后将覆盖当前 Markdown，包括人工编辑内容。",
+      content: replacingActiveTask
+        ? "当前导入任务将被作废，并立即启动新的导入任务。旧任务后续返回的结果不会覆盖新任务。"
+        : "重新导入成功后将覆盖当前 Markdown，包括人工编辑内容。",
       okButtonProps: { "data-ai-approval": "true" },
       onOk: async () => {
         await retryKnowledgeTask(document.latestTaskId!);

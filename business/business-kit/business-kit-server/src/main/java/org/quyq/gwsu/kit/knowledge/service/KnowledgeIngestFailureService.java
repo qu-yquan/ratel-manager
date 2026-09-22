@@ -38,6 +38,9 @@ public class KnowledgeIngestFailureService {
                 .eq(KitKnowledgeIngestTask::getId, taskId)
                 .eq(KitKnowledgeIngestTask::getDeleted, false));
         if (task == null) throw new BusinessException("知识导入任务不存在，无法记录失败状态");
+        if (task.getTaskStatus() == KnowledgeIngestTaskStatus.SUPERSEDED) {
+            return null;
+        }
 
         String message = failureMessage(cause);
         LocalDateTime now = LocalDateTime.now();
@@ -46,16 +49,21 @@ public class KnowledgeIngestFailureService {
                         .setErrorMessage(message)
                         .setFinishedAt(now), new LambdaUpdateWrapper<KitKnowledgeIngestTask>()
                 .eq(KitKnowledgeIngestTask::getId, taskId)
+                .in(KitKnowledgeIngestTask::getTaskStatus,
+                        KnowledgeIngestTaskStatus.PENDING, KnowledgeIngestTaskStatus.RUNNING)
                 .eq(KitKnowledgeIngestTask::getDeleted, false));
-        if (taskUpdated != 1) throw new BusinessException("知识导入任务失败状态写入失败");
+        if (taskUpdated != 1) return null;
 
         int documentUpdated = documentMapper.update(new KitKnowledgeSourceDocument()
                         .setDocumentStatus(KnowledgeDocumentStatus.FAILED)
                         .setProcessMessage(message), new LambdaUpdateWrapper<KitKnowledgeSourceDocument>()
                 .eq(KitKnowledgeSourceDocument::getId, task.getSourceDocumentId())
+                .eq(KitKnowledgeSourceDocument::getActiveTaskId, taskId)
                 .eq(KitKnowledgeSourceDocument::getDeleted, false));
         if (documentUpdated != 1) {
-            log.warn("知识文档已不存在，导入任务标记为失败, taskId={}, documentId={}", taskId, task.getSourceDocumentId());
+            log.info("知识导入任务已不再生效，仅保留任务失败状态, taskId={}, documentId={}",
+                    taskId, task.getSourceDocumentId());
+            return null;
         }
         return task.getSourceDocumentId();
     }

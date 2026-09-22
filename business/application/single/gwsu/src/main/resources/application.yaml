@@ -32,7 +32,7 @@ mybatis-plus:
   # 搜索指定包别名
   typeAliasesPackage: org.quyq.gwsu.**.domain,org.quyq.gwsu.**.vo
   # 配置mapper的扫描，找到所有的mapper.xml映射文件
-  mapperLocations: classpath*:mapper/**/*.xml
+  mapperLocations: classpath*:/mapper/**/*.xml
   configuration:
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   type-handlers-package: org.quyq.gwsu.common.database.typehandler

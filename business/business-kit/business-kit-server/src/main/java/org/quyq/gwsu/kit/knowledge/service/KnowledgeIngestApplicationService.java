@@ -26,7 +26,7 @@ public class KnowledgeIngestApplicationService {
     @Transactional(rollbackFor = Exception.class)
     public String saveDocumentAndSubmit(KnowledgeDocumentSaveDTO dto) {
         String sourceDocumentId = sourceDocumentService.saveDocument(dto);
-        String taskId = ingestTaskService.createOrResetTask(sourceDocumentId, false);
+        String taskId = ingestTaskService.createTask(sourceDocumentId);
         eventService.append(sourceDocumentId, taskId, "UPLOADED", "文档已加入知识库并提交解析");
         ingestDispatcher.dispatchAfterCommit(taskId);
         return taskId;

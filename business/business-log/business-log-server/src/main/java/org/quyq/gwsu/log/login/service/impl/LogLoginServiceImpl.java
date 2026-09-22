@@ -108,11 +108,6 @@ public class LogLoginServiceImpl extends ServiceImpl<LogLoginMapper, LogLogin>
         return true;
     }
 
-    @Override
-    public Boolean removeByIds(List<String> ids) {
-        return removeBatchByIds(ids);
-    }
-
     private LogLogin findOpenSession(String authorizationId) {
         if (!StringUtils.hasText(authorizationId)) {
             return null;
@@ -122,5 +117,21 @@ public class LogLoginServiceImpl extends ServiceImpl<LogLoginMapper, LogLogin>
 
     private void finishSession(String id, LoginEndType endType, LocalDateTime endTime) {
         baseMapper.finishSession(id, endType, endTime);
+    }
+
+    @Override
+    public int removeExpiredBefore(LocalDateTime expiredBefore, int batchSize) {
+        int removed = 0;
+        while (true) {
+            List<String> ids = baseMapper.selectExpiredIds(expiredBefore, batchSize);
+            if (ids.isEmpty()) {
+                return removed;
+            }
+            int affected = baseMapper.deleteByIds(ids);
+            removed += affected;
+            if (affected == 0 || ids.size() < batchSize) {
+                return removed;
+            }
+        }
     }
 }

@@ -1,9 +1,6 @@
 package org.quyq.gwsu.common.log.config.properties;
 
 
-import org.quyq.gwsu.common.log.dto.LogLifeCycle;
-import org.quyq.gwsu.common.log.dto.LogStorage;
-import org.quyq.gwsu.common.log.enums.SaveMedium;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.StringUtils;
 
@@ -20,8 +17,7 @@ import java.util.Objects;
 public record LogInfoConfigProperties(
         AccessLogProperties accessLog ,
         TableLogProperties tableLog ,
-        LogininfoProperties loginLog ,
-        Store store
+        LogininfoProperties loginLog
 ) {
 
     public LogInfoConfigProperties {
@@ -33,16 +29,6 @@ public record LogInfoConfigProperties(
         }
         if(Objects.isNull(loginLog)){
             loginLog = new LogininfoProperties(true);
-        }
-        if(Objects.isNull(store)){
-            store = new Store(
-                    //操作日志
-                    new LogStorage(SaveMedium.DATABASE ,new LogLifeCycle(60 , 180)) ,
-                    //表操作日志
-                    new LogStorage(SaveMedium.DATABASE , new LogLifeCycle(60 , 180)) ,
-                    // 登录日志
-                    new LogStorage(SaveMedium.DATABASE , new LogLifeCycle(360 , 720) )
-            );
         }
     }
 
@@ -130,11 +116,4 @@ public record LogInfoConfigProperties(
             boolean enabled
 
     ){}
-
-    public record Store(
-            LogStorage accessLog ,
-            LogStorage tableLog ,
-            LogStorage loginLog
-    ){}
-
 }

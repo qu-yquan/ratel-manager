@@ -320,17 +320,6 @@ const ApiResourcePicker: React.FC<ApiResourcePickerProps> = ({
           </div>
         )}
       </div>
-      {/* 权限标识预览 */}
-      {selectedCount > 0 && (
-        <div className={styles.permissionPreview}>
-          <div className={styles.permissionPreviewLabel}>
-            权限标识预览：
-          </div>
-          <div className={styles.permissionPreviewText}>
-            {permissionPreview}
-          </div>
-        </div>
-      )}
     </Modal>
   );
 };

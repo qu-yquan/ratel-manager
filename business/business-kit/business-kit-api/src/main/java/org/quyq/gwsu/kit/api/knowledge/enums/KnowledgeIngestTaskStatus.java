@@ -11,14 +11,15 @@ public enum KnowledgeIngestTaskStatus {
     PENDING,
     RUNNING,
     SUCCEEDED,
-    FAILED;
+    FAILED,
+    SUPERSEDED;
 
     public boolean canTransitTo(KnowledgeIngestTaskStatus target) {
         Set<KnowledgeIngestTaskStatus> targets = switch (this) {
-            case PENDING -> EnumSet.of(RUNNING);
-            case RUNNING -> EnumSet.of(SUCCEEDED, FAILED);
+            case PENDING -> EnumSet.of(RUNNING, SUPERSEDED);
+            case RUNNING -> EnumSet.of(SUCCEEDED, FAILED, SUPERSEDED);
             case FAILED -> EnumSet.of(PENDING);
-            case SUCCEEDED -> EnumSet.noneOf(KnowledgeIngestTaskStatus.class);
+            case SUCCEEDED, SUPERSEDED -> EnumSet.noneOf(KnowledgeIngestTaskStatus.class);
         };
         return targets.contains(target);
     }

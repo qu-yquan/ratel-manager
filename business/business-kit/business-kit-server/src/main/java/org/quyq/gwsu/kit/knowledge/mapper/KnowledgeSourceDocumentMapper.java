@@ -17,6 +17,8 @@ import java.util.Map;
  */
 @Mapper
 public interface KnowledgeSourceDocumentMapper extends BaseMapper<KitKnowledgeSourceDocument> {
+    KitKnowledgeSourceDocument selectByIdForUpdate(@Param("id") String id);
+
     List<Map<String, Object>> countDocumentsByParent();
 
     IPage<KitKnowledgeSourceDocument> searchAccessibleDocuments(Page<KitKnowledgeSourceDocument> page,
