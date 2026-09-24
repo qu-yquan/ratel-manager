@@ -26,6 +26,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { history, Outlet, useLocation } from 'umi';
 import { useOperationTabStore } from '@/stores/operationTab';
 import { useForwardedPropsStore } from '@/stores/forwardedProps';
+import { isStandaloneRoute } from '@/utils/routeDisplayRules';
 import styles from './index.module.less';
 
 export default function LayoutComponent() {
@@ -36,18 +37,18 @@ export default function LayoutComponent() {
   );
 }
 
-/** 路由层：根据是否登录页决定是否初始化 CopilotKit */
+/** 路由层：根据是否为独立布局页面决定是否初始化 CopilotKit */
 function LayoutRouter() {
   const location = useLocation();
   const { currentTheme } = useThemeContext();
-  const isLoginPage = location.pathname.includes('/login');
+  const isStandalonePage = isStandaloneRoute(location.pathname);
 
-  // 已登录时加载项目配置（登录页使用独立的免认证接口）
+  // 已登录时加载项目配置（独立布局页面使用自己的公开接口）
   useEffect(() => {
-    if (!isLoginPage && useUserStore.getState().checkLogin()) {
+    if (!isStandalonePage && useUserStore.getState().checkLogin()) {
       useProjectConfigStore.getState().loadConfig().catch(console.error);
     }
-  }, [isLoginPage]);
+  }, [isStandalonePage]);
 
   // 访问根路径时自动跳转首页 + 登录事件监听
   useEffect(() => {
@@ -87,8 +88,8 @@ function LayoutRouter() {
     };
   }, [location.pathname]);
 
-  // 登录页面：不初始化 CopilotKit，使用简单布局
-  if (isLoginPage) {
+  // 独立布局页面：不初始化 CopilotKit，也不展示主应用导航及智能助手
+  if (isStandalonePage) {
     return (
       <div className={`${styles.mainLayout} ${styles.loginMode}`}>
         <div className={styles.loginContent}>
@@ -98,7 +99,7 @@ function LayoutRouter() {
     );
   }
 
-  // 非登录页面：初始化 CopilotKit
+  // 主应用页面：初始化 CopilotKit
   return (
     <GwsuCopilotKitProvider>
       <RouteTracker />

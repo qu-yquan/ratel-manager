@@ -5,6 +5,7 @@
 import { useMenuStore, useUserStore } from '@gwsu/core';
 
 import { getLoginConfigInfo } from './services/config';
+import { isStandaloneRoute } from './utils/routeDisplayRules';
 
 const MICRO_APP_NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const DEVELOPMENT_ENTRY_PATTERN = /^(?:https?:)?\/\//;
@@ -81,14 +82,11 @@ export function onRouteChange({
   location: { pathname: string };
 }) {
   const isLoggedIn = useUserStore.getState().checkLogin();
+  const isStandalonePage = isStandaloneRoute(location.pathname);
 
   const { menus, loadMenus } = useMenuStore.getState();
-  // 已登录但菜单为空时，重新加载菜单
-  if (
-    isLoggedIn &&
-    menus.length === 0 &&
-    !location.pathname.includes('/login')
-  ) {
+  // 主应用页面已登录但菜单为空时，重新加载菜单
+  if (isLoggedIn && menus.length === 0 && !isStandalonePage) {
     loadMenus().catch(console.error);
   }
 }
