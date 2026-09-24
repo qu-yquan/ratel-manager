@@ -6,8 +6,8 @@
 web/
 ├── apps/
 │   ├── gwsu-main/           # 主应用（端口 8000）— qiankun master
-│   ├── gwsu-sub-system/     # 子应用-系统管理（端口 8001）
-│   └── gwsu-sub-security/   # 子应用-安全中心（端口 8002）
+│   ├── sub-system/          # 子应用-系统管理（端口 8001）
+│   └── sub-security/        # 子应用-安全中心（端口 8002）
 ├── gwsu-core/               # 共享核心库（@gwsu/core）
 │   └── src/
 │       ├── components/      # 共享组件（ThemeLayout, AuthGate, FileUpload, FileDownloadButton）
@@ -28,8 +28,11 @@ web/
 |--------|--------|--------|
 | base | `/` | `/sub-xxx`（与主应用路由前缀一致） |
 | mountElementId | 默认 | 各子应用唯一（如 `sub-system-root`） |
-| qiankun | `master: { apps: [...] }` | `slave: {}` |
+| qiankun | `master: {}`，在 `src/app.tsx` 运行时注册 | `slave: {}` |
 | esbuildMinifyIIFE | — | `true`（必须） |
+
+主应用从公开启动配置读取 `micro_app` 字典，动态生成 qiankun 的 `apps` 与 `routes`。
+字典值为微应用名，字典标签为开发环境入口；生产环境入口统一按 `/{微应用名}/` 推导。
 
 ## 1.3 业务页面目录结构
 

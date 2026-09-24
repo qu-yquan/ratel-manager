@@ -118,8 +118,8 @@ if %errorlevel% neq 0 (
 
 set "FRONTEND_OK=1"
 if not exist "%PROJECT_ROOT%\web\apps\gwsu-main\dist" set "FRONTEND_OK=0"
-if not exist "%PROJECT_ROOT%\web\apps\gwsu-sub-system\dist" set "FRONTEND_OK=0"
-if not exist "%PROJECT_ROOT%\web\apps\gwsu-sub-security\dist" set "FRONTEND_OK=0"
+if not exist "%PROJECT_ROOT%\web\apps\sub-system\dist" set "FRONTEND_OK=0"
+if not exist "%PROJECT_ROOT%\web\apps\sub-security\dist" set "FRONTEND_OK=0"
 if %FRONTEND_OK% equ 0 (
     echo [ERROR] 前端构建失败：未找到部分 dist 目录
     exit /b 1

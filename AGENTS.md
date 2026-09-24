@@ -71,8 +71,8 @@ UmiJS 4 + qiankun 微前端，pnpm monorepo。
 | 应用 | 角色 | 端口 |
 |------|------|------|
 | gwsu-main | 主应用 | 8000 |
-| gwsu-sub-system | 系统管理子应用 | 8001 |
-| gwsu-sub-security | 安全中心子应用 | 8002 |
+| sub-system | 系统管理子应用 | 8001 |
+| sub-security | 安全中心子应用 | 8002 |
 
 共享库 `@gwsu/core`：ThemeLayout、6种主题、AuthGate、FileUpload/Download、状态管理、事件系统。
 

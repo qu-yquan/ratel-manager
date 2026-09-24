@@ -244,6 +244,8 @@ export async function getDingTalkAuthUrl(): Promise<string> {
 export interface LoginConfigInfo {
     /** 项目名称 */
     projectName: string;
+    /** 微应用名与开发环境入口地址映射 */
+    microApps: Record<string, string>;
 }
 
 /**

@@ -108,7 +108,7 @@ fi
 info "执行前端构建: pnpm build:all"
 pnpm build:all
 
-FRONTEND_APPS=("gwsu-main" "gwsu-sub-system" "gwsu-sub-security")
+FRONTEND_APPS=("gwsu-main" "sub-system" "sub-security")
 for app in "${FRONTEND_APPS[@]}"; do
     if [ ! -d "$PROJECT_ROOT/web/apps/$app/dist" ]; then
         error "前端构建失败：未找到 $app/dist"

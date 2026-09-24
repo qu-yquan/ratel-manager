@@ -115,6 +115,20 @@ VALUES ('2102233320594235392', 'log_storage_config', '日志配置',
         4, 1, '操作日志、表操作日志和登录日志的存储媒介及生命周期配置', NULL, 'admin', '2026-09-22 11:07:35.893057',
         'admin', '2026-09-22 11:07:35.893057', 0, NULL, NULL);
 
+-- 微应用配置：字典值为微应用名，字典标签为开发环境入口地址
+INSERT INTO security_dict (id, dict_key, dict_name, dict_type, description, tenant_id, create_op, create_time,
+                           modify_op, modify_time, deleted, delete_op, delete_time)
+VALUES ('2103000000000000001', 'micro_app', '微应用配置', 1, '主应用动态注册的微应用及开发环境入口', NULL,
+        'admin', '2026-09-24 00:00:00', 'admin', '2026-09-24 00:00:00', 0, NULL, NULL);
+INSERT INTO security_dict_value (id, dict_key, dict_label, dict_value, sort, tenant_id, create_op, create_time,
+                                 modify_op, modify_time, deleted, delete_op, delete_time)
+VALUES ('2103000000000000002', 'micro_app', '//localhost:8001', 'sub-system', 1, NULL, 'admin',
+        '2026-09-24 00:00:00', 'admin', '2026-09-24 00:00:00', 0, NULL, NULL);
+INSERT INTO security_dict_value (id, dict_key, dict_label, dict_value, sort, tenant_id, create_op, create_time,
+                                 modify_op, modify_time, deleted, delete_op, delete_time)
+VALUES ('2103000000000000003', 'micro_app', '//localhost:8002', 'sub-security', 2, NULL, 'admin',
+        '2026-09-24 00:00:00', 'admin', '2026-09-24 00:00:00', 0, NULL, NULL);
+
 -- 菜单初始化
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('138666105', '181848697', '知识文档管理', 2, 6, NULL, '/sub-security/knowledge', 1, 1, 'GET:kit:/knowledge/node/children;GET:kit:/knowledge/directory/root/capabilities;GET:kit:/knowledge/directory/tree;POST:kit:/knowledge/document/{documentId};GET:kit:/knowledge/document/{documentId}/markdown;GET:kit:/knowledge/document/{documentId}/events;GET:kit:/knowledge/document/{documentId}/blocks;GET:kit:/knowledge/document/block-types;GET:kit:/knowledge/node/search', NULL, 'admin', '2026-07-20 22:47:43.117815', 'admin', '2026-09-21 19:47:52.644326', 0, NULL, NULL, 1, 1, NULL, '# 功能介绍
 按目录统一管理知识文档，支持文档上传、检索、解析、向量化、内容维护、重新导入和处理日志查看。用户只能访问角色授权的目录和文档，具体操作范围由检索、上传、管理权限决定。
