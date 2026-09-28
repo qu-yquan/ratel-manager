@@ -134,6 +134,21 @@ INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path
 按目录统一管理知识文档，支持文档上传、检索、解析、向量化、内容维护、重新导入和处理日志查看。用户只能访问角色授权的目录和文档，具体操作范围由检索、上传、管理权限决定。
 # 界面布局
 页面顶部为全局文档名称搜索区。主体左侧为目录树，展示可访问的目录层级和文档数量；右侧展示当前目录下的子目录和文档，目录排列在文档之前。点击文档后通过弹框查看内容、基础信息、Markdown 分块和处理日志。检索调试以弹框展示，支持按目录或角色限定范围并查看相邻 Chunk。');
+INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('184743785', '210921002', '服务日志检索', 3, 0, NULL, NULL, 1, 1, 'POST:log:/log/server-log/search;POST:log:/log/server-log/context;GET:log:/log/server-log/options', NULL, 'admin', '2026-09-25 14:42:53.363414', 'admin', '2026-09-25 14:48:02.914619', 0, NULL, NULL, 1, 1, '210921002_server_log_search', '# 功能介绍
+支持按关键词或TID检索服务器日志并查看命中上下文。分布式部署可按服务筛选，单体部署不展示服务筛选。');
+INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('72974723', '2', '数据权限', 2, 4, NULL, '/sub-security/dataresource', 1, 1, 'GET:security:/data-resource/enums/assert-type;GET:security:/data-resource/enums/condition-type;GET:system:/basic/dataResourceAttribute;POST:security:/data-resource/page', NULL, 'admin', '2026-04-30 14:23:21.750572', 'admin', '2026-09-28 14:38:22.912459', 0, NULL, NULL, 1, 1, NULL, '## 功能介绍
+配置数据表级别的行级权限过滤规则，使不同权限的用户在查询数据时自动受到数据范围约束，实现透明的行级数据权限控制。配置的规则会在运行时通过SQL拦截器自动追加WHERE条件，无需业务代码感知权限过滤逻辑。
+
+- 数据资源配置：维护需要受控的数据表规则。每条规则指定一个库（留空则匹配所有库）和一个表名，并可配置多条字段过滤条件。每条条件定义了：需要过滤的数据库字段名、映射到用户资源中的哪些属性值作为过滤依据、断言方式（等于精确匹配或LIKE模糊匹配）、多条件之间的关联关系（AND/OR）、以及是否在用户无对应资源值时仍显示该数据（显示Null）。支持启用/禁用规则，禁用的规则不参与运行时过滤。
+- SELF_ONLY模式：为表配置"仅查看自己数据"的能力。开启后指定表中代表数据创建者的字段名，运行时当用户数据范围为SELF_ONLY时，系统自动追加该字段等于当前用户名的过滤条件，无需额外配置字段条件。
+- 规则同步：配置变更后需同步至缓存方可生效，确保运行时拦截器能获取到最新规则。
+
+## 界面布局
+页面为单页结构：顶部搜索栏 + 下方数据资源列表表格。
+- 搜索栏：支持按表名、库名模糊搜索，以及按启用/禁用状态筛选。
+- 列表表格：展示库名（为空显示"全部"标签）、表名、描述、条件数量、启用状态（支持直接切换）、操作入口。支持多选行进行批量删除。
+- 新增/编辑：以弹窗形式打开，包含基本信息表单（库名、表名、描述、是否支持SELF_ONLY模式及对应字段、启用状态）和可编辑的条件列表表格。条件表格每行可配置字段名、用户资源字段（多选）、断言类型、关联关系、是否显示Null、排序号，支持动态增删条件行。
+- 详情查看：以右侧抽屉打开，上方展示基本信息（库名、表名、描述、SELF_ONLY配置、状态、创建时间），下方展示字段条件只读表格（字段名、用户资源字段、断言类型、关联关系、是否显示Null、排序号）。');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('95808001', '94991641', '新增业务功能', 3, 0, NULL, NULL, 1, 1, 'POST:security:/business-function', NULL, 'admin', '2026-06-08 10:00:00', 'admin', '2026-06-08 10:00:00', 0, NULL, NULL, 1, 1, '94991641_bf_add', '新增AI业务功能配置，包含业务名称、简介、详细介绍及关联表模型');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('95808002', '94991641', '删除业务功能', 3, 0, NULL, NULL, 1, 1, 'DELETE:security:/business-function', NULL, 'admin', '2026-06-08 10:00:00', 'admin', '2026-06-08 10:00:00', 0, NULL, NULL, 1, 1, '94991641_bf_remove', '批量删除业务功能配置');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('95808003', '94991641', '编辑业务功能', 3, 0, NULL, NULL, 1, 1, 'GET:security:/business-function/{id};POST:security:/business-function', NULL, 'admin', '2026-06-08 10:00:00', 'admin', '2026-06-08 10:00:00', 0, NULL, NULL, 1, 1, '94991641_bf_edit', '编辑业务功能配置，包含业务名称、简介、详细介绍及关联表模型');
@@ -149,19 +164,22 @@ INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('130300497', '129590745', '清理日志', 3, 0, NULL, NULL, 1, 1, 'POST:kit:/job/log/clearLog', NULL, 'admin', '2026-07-08 20:19:22.42503', 'admin', '2026-07-08 20:32:07.748707', 0, NULL, NULL, 1, 1, '129590745_job_clear_log', '# 功能介绍
 通过选择指定清理范围来清理定时调度日志');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('129590745', '2', '定时调度', 2, 2, NULL, '/sub-security/job', 1, 1, 'POST:kit:/job/info/page;GET:kit:/job/info/nextTriggerTime', NULL, 'admin', '2026-07-07 19:40:43.372513', 'admin', '2026-07-08 21:11:26.57838', 0, NULL, NULL, 1, 1, NULL, '配置定时任务');
-INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('182230681', NULL, '日志中心', 1, 4, 'FileOutlined', NULL, 1, 1, NULL, NULL, 'admin', '2026-09-21 23:27:15.924286', 'admin', '2026-09-21 23:34:17.387403', 0, NULL, NULL, 1, 1, NULL, '系统日志查看功能');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('134159585', NULL, 'API_KEY', 2, 3, NULL, '/sub-system/apikey', 1, 1, NULL, NULL, 'admin', '2026-07-14 10:19:08.372506', 'admin', '2026-07-14 10:19:08.372506', 0, NULL, NULL, 2, 1, NULL, '当前登录用户创建、查看和删除自己的API_KEY');
+INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('182230681', NULL, '日志中心', 1, 4, 'FileProtectOutlined', NULL, 1, 1, NULL, NULL, 'admin', '2026-09-21 23:27:15.924286', 'admin', '2026-09-28 14:42:41.842721', 0, NULL, NULL, 1, 1, NULL, '系统日志查看功能');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('90851377', '5', '字段权限', 3, 0, NULL, NULL, 1, 1, NULL, NULL, 'admin', '2026-05-12 18:33:42.415463', 'admin', '2026-05-12 18:33:42.415463', 0, NULL, NULL, 1, 1, '5_field_permission', '给角色配置字段权限');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('83953705', '5', '新增角色', 3, 0, NULL, NULL, 1, 1, 'POST:security:/role', NULL, 'admin', '2026-05-02 19:03:33.371084', 'admin', '2026-05-02 19:03:33.371084', 0, NULL, NULL, 1, 1, '5_add', '添加新角色');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('83956233', '5', '删除角色', 3, 0, NULL, NULL, 1, 1, 'DELETE:security:/role', NULL, 'admin', '2026-05-02 19:08:49.862952', 'admin', '2026-05-02 19:08:49.862952', 0, NULL, NULL, 1, 1, '5_remove', '批量删除角色');
-INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('210921002', '182230681', '操作日志', 2, 6, NULL, '/sub-security/operation-log', 1, 1, 'POST:log:/operation/page;GET:log:/operation/{id};GET:log:/operation/tid/{tid}', NULL, 'admin', '2026-09-21 18:00:00', 'admin', '2026-09-21 18:00:00', 0, NULL, NULL, 1, 1, NULL, '# 功能介绍
-查看从网关进入平台的操作记录及其完整服务调用链，日志仅支持查询与查看。
-# 界面布局
-页面顶部为筛选区，下方为仅展示网关入口节点的分页树形表格。点击行首箭头后按链路标识加载并逐级展开后续调用节点；点击任意节点详情后从右侧打开抽屉，分区展示操作信息、链路信息、终端信息、请求参数、响应数据和错误信息。');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('210921001', '182230681', '登录日志', 2, 5, NULL, '/sub-security/signin-log', 1, 1, 'GET:log:/login/account-types;POST:log:/login/page;GET:log:/login/{id}', NULL, 'admin', '2026-09-21 18:00:00', 'admin', '2026-09-22 00:05:09.024449', 0, NULL, NULL, 1, 1, NULL, '# 功能介绍
 按账号体系查看用户认证记录、访问环境、认证结果和会话生命周期，日志仅支持查询与查看。
 # 界面布局
 页面顶部按账号类型分为管理端账号和官网端账号两个页签；页签下方依次为筛选区和分页日志表格。点击列表详情后从右侧打开抽屉，分区展示身份认证、访问环境、会话周期和失败原因。');
+INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('210921002', '182230681', '操作日志', 2, 6, NULL, '/sub-security/operation-log', 1, 1, 'POST:log:/operation/page;GET:log:/operation/{id};GET:log:/operation/tid/{tid}', NULL, 'admin', '2026-09-21 18:00:00', 'admin', '2026-09-25 15:18:22.559166', 0, NULL, NULL, 1, 1, NULL, '# 功能介绍
+统一查看平台操作日志和服务器运行日志。操作日志用于追踪从网关进入平台的请求及完整服务调用链；服务器日志支持按关键词或 TID 检索、查看命中上下文，并根据权限下载日志文件。
+
+# 界面布局
+页面顶部为“操作日志”和“服务器日志”页签，无服务器日志检索权限时不展示对应页签。
+操作日志页签上方为筛选区，下方为网关入口日志分页树形表格。展开记录后按链路标识加载后续服务调用节点，点击详情后从右侧抽屉展示操作信息、链路信息、终端信息、请求参数、响应数据和错误信息。
+服务器日志页签上方为检索条件区，支持关键词或 TID、时间范围及命中数量筛选；分布式部署支持选择服务，单体部署不展示服务筛选。下方左侧为命中记录导航，右侧为日志正文区，选择记录后展示日志上下文并高亮命中行。');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('82470993', '6', '删除按钮', 3, 0, NULL, NULL, 1, 1, 'DELETE:security:/menu', NULL, 'admin', '2026-04-30 15:34:34.213706', 'admin', '2026-04-30 15:34:34.213706', 0, NULL, NULL, 1, 1, '6_remove_button', '删除界面的按钮权限');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('72970706', '4', '编辑用户', 3, 0, NULL, NULL, 1, 1, 'POST:system:/manager/{id}/account;DELETE:system:/manager/{id}/account/{accountId};DELETE:system:/user-dept;POST:system:/user-dept;PUT:system:/user-dept/primary;POST:system:/manager;GET:system:/manager/dingtalk/bindable', NULL, 'admin', '2026-04-30 10:52:37.283618', 'admin', '2026-06-23 20:12:37.839726', 0, NULL, NULL, 1, 1, '4_edit', '编辑已有用户信息，包含基本信息、账号绑定/解绑、部门关联');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('129592857', '129590745', '立即执行', 3, 0, NULL, NULL, 1, 1, 'POST:kit:/job/info/trigger', NULL, 'admin', '2026-07-07 19:45:07.704116', 'admin', '2026-07-08 21:02:26.680862', 0, NULL, NULL, 1, 1, '129590745_job_trigger', '# 功能介绍
@@ -319,19 +337,6 @@ INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path
 修改当前登录用户的昵称、性别、邮箱和手机号
 # 界面布局
 弹框表单，编辑个人资料并保存');
-INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('72974723', '2', '数据权限管理', 2, 4, NULL, '/sub-security/dataresource', 1, 1, 'GET:security:/data-resource/enums/assert-type;GET:security:/data-resource/enums/condition-type;GET:system:/basic/dataResourceAttribute;POST:security:/data-resource/page', NULL, 'admin', '2026-04-30 14:23:21.750572', 'admin', '2026-09-21 10:12:31.832225', 0, NULL, NULL, 1, 1, NULL, '## 功能介绍
-配置数据表级别的行级权限过滤规则，使不同权限的用户在查询数据时自动受到数据范围约束，实现透明的行级数据权限控制。配置的规则会在运行时通过SQL拦截器自动追加WHERE条件，无需业务代码感知权限过滤逻辑。
-
-- 数据资源配置：维护需要受控的数据表规则。每条规则指定一个库（留空则匹配所有库）和一个表名，并可配置多条字段过滤条件。每条条件定义了：需要过滤的数据库字段名、映射到用户资源中的哪些属性值作为过滤依据、断言方式（等于精确匹配或LIKE模糊匹配）、多条件之间的关联关系（AND/OR）、以及是否在用户无对应资源值时仍显示该数据（显示Null）。支持启用/禁用规则，禁用的规则不参与运行时过滤。
-- SELF_ONLY模式：为表配置"仅查看自己数据"的能力。开启后指定表中代表数据创建者的字段名，运行时当用户数据范围为SELF_ONLY时，系统自动追加该字段等于当前用户名的过滤条件，无需额外配置字段条件。
-- 规则同步：配置变更后需同步至缓存方可生效，确保运行时拦截器能获取到最新规则。
-
-## 界面布局
-页面为单页结构：顶部搜索栏 + 下方数据资源列表表格。
-- 搜索栏：支持按表名、库名模糊搜索，以及按启用/禁用状态筛选。
-- 列表表格：展示库名（为空显示"全部"标签）、表名、描述、条件数量、启用状态（支持直接切换）、操作入口。支持多选行进行批量删除。
-- 新增/编辑：以弹窗形式打开，包含基本信息表单（库名、表名、描述、是否支持SELF_ONLY模式及对应字段、启用状态）和可编辑的条件列表表格。条件表格每行可配置字段名、用户资源字段（多选）、断言类型、关联关系、是否显示Null、排序号，支持动态增删条件行。
-- 详情查看：以右侧抽屉打开，上方展示基本信息（库名、表名、描述、SELF_ONLY配置、状态、创建时间），下方展示字段条件只读表格（字段名、用户资源字段、断言类型、关联关系、是否显示Null、排序号）。');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('82470289', '6', '编辑按钮', 3, 0, NULL, NULL, 1, 1, 'POST:security:/menu;POST:security:/apiResource/page', NULL, 'admin', '2026-04-30 15:33:06.513462', 'admin', '2026-04-30 15:34:53.899148', 0, NULL, NULL, 1, 1, '6_edit_button', '编辑界面的按钮权限');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('72970506', '4', '重置密码', 3, 0, NULL, NULL, 1, 1, 'PUT:system:/manager/{id}/password', NULL, 'admin', '2026-04-30 11:03:36.107681', 'admin', '2026-04-30 11:03:36.107681', 0, NULL, NULL, 1, 1, '4_change_pwd', '重置用户密码');
 INSERT INTO security_menu (id, parent_id, menu_name, menu_type, sort, icon, path, visible, status, permission, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time, position, owner, button_key, description) VALUES ('83983617', '4', '分配角色', 3, 0, NULL, NULL, 1, 1, 'PUT:security:/role/allocationRole/{subjectId};GET:security:/role/list;GET:security:/role/list/{subjectId}', NULL, 'admin', '2026-05-02 20:05:52.505684', 'admin', '2026-05-02 20:05:52.505684', 0, NULL, NULL, 1, 1, '4_role', '给用户分配角色');
@@ -453,3 +458,8 @@ INSERT INTO security_role_menu_permission (id, role_menu_id, abac_permission_id,
 VALUES ('2074860015021391873', '2074860014992031744', '2074860014992031745', NULL, 'admin',
         '2026-07-08 22:15:51.273691', 'admin', '2026-07-08 22:15:51.273691', 0, NULL, NULL,
         '8faec24b53244693328279c72c808e2e');
+
+
+-- oauth 公共scope脚本
+INSERT INTO security_oauth_scope (id, scope_code, scope_name, description, account_type, status, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time) VALUES ('2097505740360134656', 'manager.user.info', '用户信息', '获取用户基本信息', 'MANAGER', 'ENABLED', NULL, 'admin', '2026-09-09 10:01:52.931337', 'admin', '2026-09-09 10:01:52.931337', 0, NULL, NULL);
+INSERT INTO security_oauth_scope_resource (id, scope_id, api_resource_id, tenant_id, create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time) VALUES ('2097505740385300480', '2097505740360134656', 'ef3b11581280327cd6103b5a1f005f7f', NULL, 'admin', '2026-09-09 10:01:52.937731', 'admin', '2026-09-09 10:01:52.937731', 0, NULL, NULL);
