@@ -26,12 +26,17 @@
 .mainLayout {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
   background: var(--background-color);
 }
 
 /* 登录页模式 - 移除背景让子应用控制 */
 .loginMode {
+  height: auto;
+  min-height: 100dvh;
+  overflow: auto;
   background: transparent;
 }
 
@@ -171,8 +176,10 @@
    ============================================ */
 .contentLayout {
   margin-top: var(--app-header-height);
-  min-height: calc(100vh - var(--app-header-height));
+  height: calc(100dvh - var(--app-header-height));
+  min-height: 0;
   display: flex;
+  overflow: hidden;
   background: var(--background-color);
 }
 

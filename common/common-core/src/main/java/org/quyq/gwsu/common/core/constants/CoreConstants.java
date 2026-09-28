@@ -73,10 +73,16 @@ public interface CoreConstants {
     interface Headers {
 
         /**
+         * 上一服务的操作日志标识。
+         */
+        String PARENT_LOG_ID = "x-parent-log-id";
+
+        /**
          * 服务调用请求头传递时忽略的内容
          */
         List<String> REQUEST_IGNORE_HEADER = Arrays.asList("content-length", "connection", "origin", "cookie", "accept", "request-origion", "referer", //NOSONAR
-                "host", "forwarded", "content-md5", "cache-control", "etag", "server", "accept-encoding", "content-encoding", "transfer-encoding", "content-type");
+                "host", "forwarded", "content-md5", "cache-control", "etag", "server", "accept-encoding", "content-encoding", "transfer-encoding", "content-type",
+                PARENT_LOG_ID);
 
         /**
          * 认证主体的用户名

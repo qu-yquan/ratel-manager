@@ -4,6 +4,8 @@
   flex: 1;
   display: flex;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
   background: var(--background-color);
   min-width: 0;
   position: relative;
@@ -13,8 +15,10 @@
    操作区内容
    ============================================ */
 .operationContent {
+  display: flex;
   flex: 1;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
   background: var(--background-color);
   min-width: 0;
 
@@ -39,7 +43,15 @@
 }
 
 .microAppContainer {
-  height: 100%;
+  flex: 1;
+  height: auto;
+  min-height: 0;
   padding: 24px;
   overflow: auto;
+  box-sizing: border-box;
+}
+
+.microAppContainer > :global(*) {
+  height: 100%;
+  min-height: 0;
 }

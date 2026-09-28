@@ -97,7 +97,8 @@ const ThemeLayout: React.FC<ThemeLayoutProps> = ({ children }) => {
           <div
             className="theme-layout-wrapper"
             style={{
-              minHeight: '100vh',
+              height: '100%',
+              minHeight: 0,
               background: currentTheme.colors.background,
               color: currentTheme.colors.text,
             }}>

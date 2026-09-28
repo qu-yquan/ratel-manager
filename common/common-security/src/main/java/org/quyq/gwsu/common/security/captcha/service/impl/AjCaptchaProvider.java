@@ -5,18 +5,13 @@ import com.anji.captcha.model.vo.CaptchaVO;
 import lombok.RequiredArgsConstructor;
 import org.quyq.gwsu.common.core.exception.errcode.CommonErrorCode;
 import org.quyq.gwsu.common.core.utils.AssertUtils;
-import org.quyq.gwsu.common.security.captcha.domain.CaptchaCheckRequest;
-import org.quyq.gwsu.common.security.captcha.domain.CaptchaCheckResponse;
-import org.quyq.gwsu.common.security.captcha.domain.CaptchaGetRequest;
-import org.quyq.gwsu.common.security.captcha.domain.CaptchaGetResponse;
-import org.quyq.gwsu.common.security.captcha.domain.CaptchaVerifyRequest;
+import org.quyq.gwsu.common.security.captcha.domain.*;
 import org.quyq.gwsu.common.security.captcha.enums.CaptchaType;
 import org.quyq.gwsu.common.security.captcha.properties.CaptchaProperties;
 import org.quyq.gwsu.common.security.captcha.service.CaptchaProvider;
 import org.quyq.gwsu.common.security.captcha.service.CaptchaServiceManager;
 import org.quyq.gwsu.common.security.exception.SecurityException;
 import org.quyq.gwsu.common.security.utils.ConfigInfoUtils;
-import org.springframework.stereotype.Component;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
@@ -29,7 +24,6 @@ import java.util.Set;
  *
  * @author Quyq
  */
-@Component
 @RequiredArgsConstructor
 public class AjCaptchaProvider implements CaptchaProvider {
 

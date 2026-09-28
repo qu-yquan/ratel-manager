@@ -53,8 +53,6 @@ import java.util.*;
 @RequiredArgsConstructor
 public class LogAspectInterceptor implements MethodInterceptor {
 
-    private static final String ARGS_KEY = "args";
-
     private final LogInfoConfigProperties.AccessLogProperties logProperties;
 
     private final AccessLogHandlerService logService;
@@ -235,9 +233,7 @@ public class LogAspectInterceptor implements MethodInterceptor {
 
         Map<String, String> headers = ServletUtils.getHeaders();
 
-        String parentId = Optional.ofNullable(headers.get(LogInfoConstants.HEADER_TRACE_INFO))
-                        .map(v ->v.split("-")[2]).orElse(null);
-
+        String parentId = headers.get(LogInfoConstants.HEADER_PARENT_LOG_ID);
 
         accessLog
                 .setTid(MDC.get(LogInfoConstants.TRACE_ID))
@@ -283,7 +279,7 @@ public class LogAspectInterceptor implements MethodInterceptor {
                         "\n├── 路径： {}:{} \n├── 来源： {} \n├── 入参： {} " +
                         "\n└───────────────────────", request.getMethod().toUpperCase(), request.getRequestURI(),
                 "%s端 - %s".formatted(accessLog.getTerminal(), accessLog.getOperName()),
-                requestParam.get(ARGS_KEY).isEmpty() ? "无" : objectMapper.writeValueAsString(requestParam.get(ARGS_KEY)));
+                extractor.isEmpty(requestParam) ? "无" : objectMapper.writeValueAsString(requestParam));
 
         return accessLog;
 

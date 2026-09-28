@@ -1,11 +1,52 @@
 .page {
   display: flex;
+  box-sizing: border-box;
   flex-direction: column;
   height: 100%;
   min-height: 0;
   padding: 16px;
   gap: 12px;
+  overflow: hidden;
   background: var(--background-color);
+}
+
+.pageTabs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--background-color);
+}
+
+.pageTabs > :global(.ant-tabs-nav) {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 16px;
+  background: var(--surface-color);
+}
+
+.pageTabs > :global(.ant-tabs-content-holder) {
+  height: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.pageTabs :global(.ant-tabs-content),
+.pageTabs :global(.ant-tabs-tabpane) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.serverTabContent {
+  display: flex;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  padding: 16px;
+  overflow: hidden;
 }
 
 .accountTabs {

@@ -42,6 +42,14 @@ interface InfoItem {
   wide?: boolean;
 }
 
+interface RequestParameterGroup {
+  key: string;
+  label: string;
+  title: string;
+  value: unknown;
+  legacy?: boolean;
+}
+
 const EMPTY_VALUE = <span className={styles.emptyValue}>—</span>;
 
 function formatTime(value?: string): string {
@@ -56,6 +64,74 @@ function formatPayload(value?: string): string {
     return JSON.stringify(JSON.parse(value), null, 2);
   } catch {
     return value;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isEmptyPayloadValue(value: unknown): boolean {
+  if (value === null || value === undefined || value === "") {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+  return isRecord(value) && Object.keys(value).length === 0;
+}
+
+function formatPayloadValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  return JSON.stringify(value, null, 2) ?? String(value);
+}
+
+function parseRequestParameterGroups(
+  value?: string
+): RequestParameterGroup[] | null {
+  if (!value) {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!isRecord(parsed)) {
+      return null;
+    }
+    if ("query" in parsed || "path" in parsed || "body" in parsed) {
+      return [
+        {
+          key: "query",
+          label: "Query",
+          title: "查询参数",
+          value: parsed.query,
+        },
+        { key: "path", label: "Path", title: "路径参数", value: parsed.path },
+        { key: "body", label: "Body", title: "请求体", value: parsed.body },
+      ];
+    }
+    if ("args" in parsed || "params" in parsed) {
+      return [
+        {
+          key: "params",
+          label: "Legacy",
+          title: "请求参数（历史格式）",
+          value: parsed.params,
+          legacy: true,
+        },
+        {
+          key: "args",
+          label: "Legacy",
+          title: "方法参数（历史格式）",
+          value: parsed.args,
+          legacy: true,
+        },
+      ];
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 
@@ -129,6 +205,74 @@ const PayloadBlock: React.FC<{ value?: string; label: string }> = ({
         </Tooltip>
       </div>
       <pre className={styles.payloadContent}>{formatted}</pre>
+    </div>
+  );
+};
+
+const RequestPayloadBlock: React.FC<{ value?: string }> = ({ value }) => {
+  const { message } = App.useApp();
+  const formatted = useMemo(() => formatPayload(value), [value]);
+  const groups = useMemo(() => parseRequestParameterGroups(value), [value]);
+
+  const handleCopy = useCallback(async () => {
+    if (!formatted) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(formatted);
+      message.success("已复制");
+    } catch {
+      message.error("复制失败");
+    }
+  }, [formatted, message]);
+
+  if (groups === null) {
+    return <PayloadBlock label="请求参数" value={value} />;
+  }
+  if (!formatted) {
+    return (
+      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无请求参数" />
+    );
+  }
+
+  return (
+    <div className={styles.payloadBlock}>
+      <div className={styles.payloadToolbar}>
+        <span>请求参数</span>
+        <Tooltip title="复制全部请求参数">
+          <Button
+            aria-label="复制全部请求参数"
+            icon={<CopyOutlined aria-hidden="true" />}
+            onClick={() => void handleCopy()}
+            size="small"
+            type="text"
+          />
+        </Tooltip>
+      </div>
+      <div className={styles.parameterGroups}>
+        {groups.map((group) => {
+          const empty = isEmptyPayloadValue(group.value);
+          return (
+            <section className={styles.parameterGroup} key={group.key}>
+              <div className={styles.parameterGroupHeader}>
+                <Tag color={group.legacy ? "default" : "blue"}>
+                  {group.label}
+                </Tag>
+                <span className={styles.parameterGroupTitle}>
+                  {group.title}
+                </span>
+              </div>
+              {empty ? (
+                <span className={styles.parameterEmpty}>无参数</span>
+              ) : (
+                <pre className={styles.parameterContent}>
+                  {formatPayloadValue(group.value)}
+                </pre>
+              )}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -234,7 +378,7 @@ const OperationDetail: React.FC<{ data: OperationLogItem }> = ({ data }) => {
     {
       key: "request",
       label: "请求参数",
-      children: <PayloadBlock label="请求参数" value={data.requestParam} />,
+      children: <RequestPayloadBlock value={data.requestParam} />,
     },
     {
       key: "response",

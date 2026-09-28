@@ -56,10 +56,11 @@ public class AccessLogHandlerService implements InitializingBean, DisposableBean
         if (!StringUtils.hasText(vo.getOperId())) {
             vo.setOperId(IdUtil.getSnowflakeNextIdStr());
         }
-        int index = getQueueIndex(vo.getOperId());
-        boolean offered = queues.get(index).offer(vo);
+        LogOperationVO snapshot = vo.snapshot();
+        int index = getQueueIndex(snapshot.getOperId());
+        boolean offered = queues.get(index).offer(snapshot);
         if (!offered) {
-            log.warn("日志队列【{}】已满，操作日志记录失败：operId={}", index, vo.getOperId());
+            log.warn("日志队列【{}】已满，操作日志记录失败：operId={}", index, snapshot.getOperId());
         }
     }
 
@@ -112,8 +113,11 @@ public class AccessLogHandlerService implements InitializingBean, DisposableBean
                 try {
                     LogOperationVO vo = queue.take();
                     R<Boolean> result = logClientApi.saveOperLog(vo);
-                    if (!result.isSuccess()) {
-                        log.warn("操作日志记录失败：operId={}，原因：{}", vo.getOperId(), result.msg());
+                    if (result == null || !result.isSuccess() || !Boolean.TRUE.equals(result.data())) {
+                        String reason = result == null
+                                ? "日志服务无响应"
+                                : result.isSuccess() ? "日志服务未写入数据" : result.msg();
+                        log.warn("操作日志记录失败：operId={}，原因：{}", vo.getOperId(), reason);
                     }
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();

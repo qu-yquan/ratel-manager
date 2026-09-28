@@ -1,1 +1,2 @@
 org.quyq.gwsu.common.log.config.LogInfoConfiguration
+org.quyq.gwsu.common.log.serverfile.config.ServerFileLogAutoConfiguration

@@ -6,6 +6,7 @@ import {
   Input,
   Select,
   Table,
+  Tabs,
   Tag,
   Tooltip,
 } from "antd";
@@ -20,9 +21,11 @@ import {
   SearchOutlined,
 } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
+import { useAuth } from "@gwsu/core";
 import { useLocation } from "umi";
 
 import LogDetailDrawer from "../log/components/LogDetailDrawer";
+import ServerLogPanel from "./components/ServerLogPanel";
 import { useLogPage } from "../log/hooks/useLogPage";
 import {
   getOperationLogById,
@@ -30,6 +33,7 @@ import {
   getOperationLogTreeByTid,
 } from "../log/services/log";
 import type { OperationLogItem, OperationLogQuery } from "../log/types";
+import { PERM_SERVER_LOG_SEARCH } from "./permissionConstants";
 
 import styles from "../log/index.module.less";
 
@@ -45,7 +49,7 @@ interface OperationSearchValues {
 
 const DEFAULT_QUERY: OperationLogQuery = {
   pageNum: 1,
-  pageSize: 20,
+  pageSize: 10,
 };
 
 const STATUS_OPTIONS = [
@@ -63,7 +67,7 @@ function formatTime(value?: string): string {
   return value ? dayjs(value).format("YYYY-MM-DD HH:mm:ss.SSS") : "—";
 }
 
-const OperationLogPage: React.FC = () => {
+const OperationLogPanel: React.FC = () => {
   const location = useLocation();
   const authorizationId = useMemo(
     () =>
@@ -436,6 +440,30 @@ const OperationLogPage: React.FC = () => {
       />
     </div>
   );
+};
+
+const OperationLogPage: React.FC = () => {
+  const canSearchServerLog = useAuth(PERM_SERVER_LOG_SEARCH);
+  const items = [
+    {
+      key: "operation",
+      label: "操作日志",
+      children: <OperationLogPanel />,
+    },
+  ];
+  if (canSearchServerLog) {
+    items.push({
+      key: "server",
+      label: "服务器日志",
+      children: (
+        <div className={styles.serverTabContent}>
+          <ServerLogPanel />
+        </div>
+      ),
+    });
+  }
+
+  return <Tabs className={styles.pageTabs} destroyOnHidden={false} items={items} />;
 };
 
 export default OperationLogPage;

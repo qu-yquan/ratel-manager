@@ -41,6 +41,9 @@ public enum CommonErrorCode implements ReturnCode {
 
     E05001("智能体会话存储失败"),
     E05002("智能体会话删除失败"),
+
+    E06001("日志查询开始时间不能晚于结束时间"),
+    E06002("日志查询时间跨度超过限制"),
     ;
 
     private final String msg;

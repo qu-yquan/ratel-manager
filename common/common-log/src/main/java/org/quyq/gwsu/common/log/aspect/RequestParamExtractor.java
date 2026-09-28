@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.BeanDescription;
 import tools.jackson.databind.JavaType;
@@ -17,6 +19,7 @@ import tools.jackson.databind.node.ObjectNode;
 import tools.jackson.databind.ser.BeanPropertyWriter;
 import tools.jackson.databind.ser.ValueSerializerModifier;
 
+import java.lang.reflect.Parameter;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -35,7 +38,11 @@ import java.util.stream.Collectors;
  */
 public class RequestParamExtractor {
 
-    private static final String ARGS_KEY = "args";
+    private static final String QUERY_KEY = "query";
+
+    private static final String PATH_KEY = "path";
+
+    private static final String BODY_KEY = "body";
 
     private final ObjectMapper filteringMapper;
 
@@ -50,34 +57,85 @@ public class RequestParamExtractor {
     }
 
     /**
-     * 提取请求参数，返回包含方法参数和查询参数的JSON节点
+     * 按 HTTP 参数来源提取请求参数。
      *
      * @param request    HTTP请求
      * @param invocation 方法调用信息
-     * @return 包含args和query的JsonNode
+     * @return 固定包含 query、path、body 的 JsonNode
      */
     public JsonNode getRequestParam(HttpServletRequest request, MethodInvocation invocation) {
-        Object[] arguments = invocation.getArguments();
         ObjectNode allParams = filteringMapper.createObjectNode();
-        ObjectNode argsNode = filteringMapper.createObjectNode();
-
-        for (int i = 0; i < arguments.length; i++) {
-            Object param = arguments[i];
-            if (Objects.isNull(param) || isFilterObject(param)) {
-                continue;
-            }
-            try {
-                JsonNode paramNode = filteringMapper.valueToTree(param);
-                argsNode.set(String.valueOf(i), paramNode);
-            } catch (Exception ex) {
-                argsNode.put(String.valueOf(i), String.valueOf(param));
-            }
-        }
-
-        allParams.set(ARGS_KEY, argsNode);
-        allParams.set("params", filteringMapper.valueToTree(request.getParameterMap()));
+        allParams.set(QUERY_KEY, extractQueryParams(request));
+        allParams.set(PATH_KEY, extractPathParams(request));
+        allParams.set(BODY_KEY, extractRequestBody(invocation));
 
         return allParams;
+    }
+
+    private ObjectNode extractQueryParams(HttpServletRequest request) {
+        ObjectNode query = filteringMapper.createObjectNode();
+        request.getParameterMap().forEach((name, values) -> {
+            if (values == null || values.length == 0) {
+                query.putNull(name);
+            } else if (values.length == 1) {
+                query.put(name, values[0]);
+            } else {
+                query.set(name, filteringMapper.valueToTree(values));
+            }
+        });
+        return query;
+    }
+
+    private ObjectNode extractPathParams(HttpServletRequest request) {
+        ObjectNode path = filteringMapper.createObjectNode();
+        Object attribute = request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
+        if (attribute instanceof Map<?, ?> variables) {
+            variables.forEach((name, value) -> path.set(
+                    String.valueOf(name),
+                    serializeValue(value)));
+        }
+        return path;
+    }
+
+    private JsonNode extractRequestBody(MethodInvocation invocation) {
+        Parameter[] parameters = invocation.getMethod().getParameters();
+        Object[] arguments = invocation.getArguments();
+        for (int i = 0; i < parameters.length && i < arguments.length; i++) {
+            if (!parameters[i].isAnnotationPresent(RequestBody.class)) {
+                continue;
+            }
+            Object argument = arguments[i];
+            if (argument == null || isFilterObject(argument)) {
+                return filteringMapper.createObjectNode();
+            }
+            return serializeValue(argument);
+        }
+        return filteringMapper.createObjectNode();
+    }
+
+    private JsonNode serializeValue(Object value) {
+        if (value == null) {
+            return filteringMapper.nullNode();
+        }
+        try {
+            return filteringMapper.valueToTree(value);
+        } catch (Exception ex) {
+            return filteringMapper.valueToTree(String.valueOf(value));
+        }
+    }
+
+    public boolean isEmpty(JsonNode requestParam) {
+        if (requestParam == null || requestParam.isNull()) {
+            return true;
+        }
+        Iterator<JsonNode> values = requestParam.iterator();
+        while (values.hasNext()) {
+            JsonNode value = values.next();
+            if (value != null && !value.isNull() && !value.isEmpty()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

@@ -1,11 +1,13 @@
 package org.quyq.gwsu.common.log.config;
 
 
+import org.quyq.gwsu.common.core.constants.CoreConstants;
 import org.quyq.gwsu.common.core.provider.BusinessModuleInfoProvider;
 import org.quyq.gwsu.common.log.api.ILogClientApi;
 import org.quyq.gwsu.common.log.aspect.LogAnnotationAdvisor;
 import org.quyq.gwsu.common.log.aspect.LogAspectInterceptor;
 import org.quyq.gwsu.common.log.config.properties.LogInfoConfigProperties;
+import org.quyq.gwsu.common.log.interceptor.LogIdPropagationInterceptor;
 import org.quyq.gwsu.common.log.service.AccessLogHandlerService;
 import org.quyq.gwsu.common.log.service.AsyncLoginLogHandlerService;
 import org.quyq.gwsu.common.log.service.LoginLogHandlerService;
@@ -35,13 +37,18 @@ import java.util.List;
 public class LogInfoConfiguration {
 
     @Bean
-    @ConditionalOnProperty(prefix = "dtt.log.access-log", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public LogIdPropagationInterceptor logIdPropagationInterceptor() {
+        return new LogIdPropagationInterceptor();
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = CoreConstants.Yaml.PROJECT_CONFIG_PREFIX + ".log.access-log", name = "enabled", havingValue = "true", matchIfMissing = true)
     public AccessLogHandlerService accessLogHandlerService(ILogClientApi logClientApi, LogInfoConfigProperties properties) {
         return new AccessLogHandlerService(logClientApi, properties.accessLog().recordThreadCount());
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "dtt.log.login-log", name = "enabled", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(prefix =CoreConstants.Yaml.PROJECT_CONFIG_PREFIX +  ".log.login-log", name = "enabled", havingValue = "true", matchIfMissing = true)
     public LoginLogHandlerService asyncLoginLogHandlerService(ILogClientApi logClientApi) {
         return new AsyncLoginLogHandlerService(logClientApi);
     }

@@ -85,8 +85,8 @@ public class OAuthSecurityConfiguration {
                                 .authorizationRequestConverter(new OAuth2DefaultScopeAuthenticationConverter(
                                         new OAuth2AuthorizationCodeRequestAuthenticationConverter(),
                                         registeredClientRepository))
-                                .consentPage(frontendEndpointResolver.apiUrl(
-                                        pathResolver.resolve("/auth/oauth2/loginConsent"))))
+                                // 使用本服务相对路径，避免创建安全过滤链时远程读取 security 配置。
+                                .consentPage(pathResolver.resolve("/auth/oauth2/loginConsent")))
                         .tokenEndpoint(token -> token
                                 .accessTokenRequestConverter(new OAuth2DefaultScopeAuthenticationConverter(
                                         new OAuth2ClientCredentialsAuthenticationConverter(),
@@ -100,8 +100,8 @@ public class OAuthSecurityConfiguration {
                                 .deviceAuthorizationResponseHandler(successResponseHandler)
                                 .errorResponseHandler(errorResponseHandler))
                         .deviceVerificationEndpoint(device -> device
-                                .consentPage(frontendEndpointResolver.apiUrl(
-                                        pathResolver.resolve("/auth/oauth2/loginDeviceConsent")))
+                                // 实际进入页面时再由处理器解析前端地址，实现跨服务配置懒加载。
+                                .consentPage(pathResolver.resolve("/auth/oauth2/loginDeviceConsent"))
                                 .deviceVerificationResponseHandler(deviceVerificationResultHandler)
                                 .errorResponseHandler(deviceVerificationResultHandler))
                         .tokenIntrospectionEndpoint(introspection -> introspection

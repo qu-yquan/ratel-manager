@@ -165,4 +165,41 @@ public class LogOperationVO extends BaseVO {
     @Schema(description = "耗时，ms")
     private long consumeMill;
 
+    /**
+     * 创建当前状态的独立快照，避免异步入队后被响应阶段继续修改。
+     */
+    public LogOperationVO snapshot() {
+        LogOperationVO snapshot = new LogOperationVO();
+        snapshot.setHasChildren(this.hasChildren);
+        snapshot.setChildren(this.children == null ? null : this.children.stream()
+                .map(LogOperationVO::snapshot)
+                .toList());
+        snapshot.setOperId(this.operId);
+        snapshot.setAuthorizationId(this.authorizationId);
+        snapshot.setTid(this.tid);
+        snapshot.setParentId(this.parentId);
+        snapshot.setModulePrefix(this.modulePrefix);
+        snapshot.setFromApp(this.fromApp);
+        snapshot.setApiModule(this.apiModule);
+        snapshot.setMenuId(this.menuId);
+        snapshot.setOperSubject(this.operSubject);
+        snapshot.setApiDescription(this.apiDescription);
+        snapshot.setMethod(this.method);
+        snapshot.setRequestUrl(this.requestUrl);
+        snapshot.setRequestMethod(this.requestMethod);
+        snapshot.setTerminal(this.terminal);
+        snapshot.setTerminalDetail(this.terminalDetail);
+        snapshot.setOperName(this.operName);
+        snapshot.setTokenId(this.tokenId);
+        snapshot.setRequestParam(this.requestParam);
+        snapshot.setResponseData(this.responseData);
+        snapshot.setErrorMsg(this.errorMsg);
+        snapshot.setStatus(this.status);
+        snapshot.setRequestTime(this.requestTime);
+        snapshot.setResponseTime(this.responseTime);
+        snapshot.setConsumeMill(this.consumeMill);
+        snapshot.copyBaseProperties(this);
+        return snapshot;
+    }
+
 }

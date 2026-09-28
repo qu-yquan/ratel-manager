@@ -7,10 +7,16 @@ import type {
   OperationLogItem,
   OperationLogQuery,
   PageResult,
+  ServerLogContext,
+  ServerLogContextQuery,
+  ServerLogOptions,
+  ServerLogSearchQuery,
+  ServerLogSearchResult,
 } from "../types";
 
 const LOGIN_BASE = "/log/log/login";
 const OPERATION_BASE = "/log/log/operation";
+const SERVER_LOG_BASE = "/log/log/server-log";
 
 export async function getLoginAccountTypes(): Promise<KeyValueOption[]> {
   const response = await get<KeyValueOption[]>(`${LOGIN_BASE}/account-types`);
@@ -53,5 +59,30 @@ export async function getOperationLogTreeByTid(
   tid: string
 ): Promise<OperationLogItem> {
   const response = await get<OperationLogItem>(`${OPERATION_BASE}/tid/${tid}`);
+  return response.data;
+}
+
+export async function getServerLogOptions(): Promise<ServerLogOptions> {
+  const response = await get<ServerLogOptions>(`${SERVER_LOG_BASE}/options`);
+  return response.data;
+}
+
+export async function searchServerLogs(
+  query: ServerLogSearchQuery
+): Promise<ServerLogSearchResult> {
+  const response = await post<ServerLogSearchResult>(
+    `${SERVER_LOG_BASE}/search`,
+    query
+  );
+  return response.data;
+}
+
+export async function getServerLogContext(
+  query: ServerLogContextQuery
+): Promise<ServerLogContext> {
+  const response = await post<ServerLogContext>(
+    `${SERVER_LOG_BASE}/context`,
+    query
+  );
   return response.data;
 }

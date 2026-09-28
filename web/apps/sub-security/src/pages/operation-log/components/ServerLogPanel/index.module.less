@@ -1,0 +1,246 @@
+.panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface-color);
+  gap: 8px;
+}
+
+.serviceSelect {
+  min-width: 220px;
+}
+
+.resultArea {
+  --server-log-result-height: clamp(360px, calc(100dvh - 360px), 680px);
+
+  display: grid;
+  height: var(--server-log-result-height);
+  min-height: 0;
+  flex: 0 0 var(--server-log-result-height);
+  grid-template-columns: 240px minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface-color);
+}
+
+.hitPane,
+.viewerPane {
+  min-width: 0;
+  min-height: 0;
+}
+
+.hitPane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border-color);
+}
+
+.hitPaneHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.hitCount {
+  color: var(--text-secondary-color);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.hitSpin {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.hitSpin :global(.ant-spin-container) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.hitList {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.hitItem {
+  display: flex;
+  width: 100%;
+  padding: 10px 12px;
+  flex-direction: column;
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-color);
+  background: transparent;
+  cursor: pointer;
+  gap: 4px;
+  text-align: left;
+}
+
+.hitItem:hover,
+.hitItemSelected {
+  background: var(--primary-color-light);
+}
+
+.hitItem:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+.hitMeta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-secondary-color);
+  font-size: 12px;
+}
+
+.hitService,
+.hitPreview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hitService {
+  font-size: 12px;
+}
+
+.hitPreview {
+  color: var(--text-secondary-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.hitEmpty {
+  padding-top: 72px;
+}
+
+.viewerPane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.viewerToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-color);
+  gap: 12px;
+}
+
+.viewerHeading {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viewerTitle {
+  overflow: hidden;
+  color: var(--text-color);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewerMeta {
+  overflow: hidden;
+  color: var(--text-secondary-color);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewerActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.viewerSpin {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.viewerSpin :global(.ant-spin-container) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.logContent {
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  color: var(--text-color);
+  background: var(--background-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.logLine {
+  display: flex;
+  min-width: max-content;
+  white-space: pre;
+}
+
+.matchedLine {
+  background: var(--primary-color-light);
+}
+
+.matchedText {
+  padding: 0 1px;
+  border-radius: 2px;
+  color: inherit;
+  background: color-mix(in srgb, var(--warning-color) 48%, transparent);
+}
+
+.lineNumber {
+  width: 72px;
+  margin-right: 12px;
+  padding-right: 10px;
+  flex: 0 0 auto;
+  color: var(--text-secondary-color);
+  border-right: 1px solid var(--border-color);
+  text-align: right;
+  user-select: none;
+}
+
+@media (max-width: 1200px) {
+  .resultArea {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+}

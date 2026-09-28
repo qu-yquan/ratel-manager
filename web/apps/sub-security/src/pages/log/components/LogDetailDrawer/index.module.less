@@ -175,6 +175,55 @@
   word-break: break-word;
 }
 
+.parameterGroups {
+  display: grid;
+  padding: 12px;
+  gap: 10px;
+}
+
+.parameterGroup {
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: var(--surface-color);
+}
+
+.parameterGroupHeader {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 12px;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.parameterGroupTitle {
+  color: var(--text-secondary-color);
+  font-size: 12px;
+}
+
+.parameterContent {
+  max-height: 240px;
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  color: var(--text-color);
+  background: var(--background-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.parameterEmpty {
+  display: block;
+  padding: 12px 14px;
+  color: var(--text-secondary-color);
+  background: var(--background-color);
+  font-size: 12px;
+}
+
 @media (max-width: 640px) {
   .hero {
     align-items: flex-start;

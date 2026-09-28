@@ -222,8 +222,9 @@ public class UrlJobHandler implements ApplicationRunner {
 
     private void invokeRemote(UrlHandlerParam paramObj) throws Exception {
         // 1. 通过模块前缀查找服务名
-        Map<String, String> moduleMapping = DeployUtils.getDistributedServerModuleMapping();
-        String serviceName = moduleMapping.get(paramObj.prefix());
+        var moduleMapping = DeployUtils.getDistributedServerModuleMapping();
+        var serverInfo = moduleMapping.get(paramObj.prefix());
+        String serviceName = serverInfo == null ? null : serverInfo.applicationName();
         if (!StringUtils.hasText(serviceName)) {
             throw new IllegalStateException("找不到模块前缀对应的服务: " + paramObj.prefix());
         }

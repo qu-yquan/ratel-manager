@@ -14,7 +14,6 @@ import org.quyq.gwsu.common.security.utils.ConfigInfoUtils;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.support.GenericApplicationContext;
-import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.Map;
@@ -27,7 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author Quyq
  */
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class CaptchaServiceManager {
 

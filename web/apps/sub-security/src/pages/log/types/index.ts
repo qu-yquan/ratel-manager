@@ -89,3 +89,66 @@ export interface OperationLogQuery extends PageQuery {
   requestTimeStart?: string;
   requestTimeEnd?: string;
 }
+
+export interface ServerLogOptions {
+  distributed: boolean;
+  services: KeyValueOption[];
+}
+
+export interface ServerLogSearchQuery {
+  content?: string;
+  tid?: string;
+  serviceNames?: string[];
+  startTime?: string;
+  endTime?: string;
+}
+
+export interface ServerLogMatch {
+  fileId: string;
+  fileName: string;
+  lineNumber: number;
+  logTime?: string;
+  preview: string;
+}
+
+export interface ServerLogGroup {
+  targetId: string;
+  serviceName: string;
+  serviceNote: string;
+  instanceName: string;
+  latestTime?: string;
+  matches: ServerLogMatch[];
+}
+
+export interface ServerLogWarning {
+  serviceName: string;
+  instanceName: string;
+  message: string;
+}
+
+export interface ServerLogSearchResult {
+  groups: ServerLogGroup[];
+  warnings: ServerLogWarning[];
+  truncated: boolean;
+  elapsedMillis: number;
+}
+
+export interface ServerLogContextQuery {
+  targetId: string;
+  fileId: string;
+  startLine: number;
+  lineCount: number;
+}
+
+export interface ServerLogLine {
+  lineNumber: number;
+  text: string;
+}
+
+export interface ServerLogContext {
+  startLine: number;
+  endLine: number;
+  beginningOfFile: boolean;
+  endOfFile: boolean;
+  lines: ServerLogLine[];
+}

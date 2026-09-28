@@ -44,7 +44,7 @@ interface LoginSearchValues {
 const DEFAULT_QUERY: LoginLogQuery = {
   accountType: "MANAGER",
   pageNum: 1,
-  pageSize: 20,
+  pageSize: 10,
 };
 
 const STATUS_OPTIONS = [

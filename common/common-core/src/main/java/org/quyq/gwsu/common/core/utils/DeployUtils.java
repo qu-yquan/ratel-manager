@@ -2,9 +2,11 @@ package org.quyq.gwsu.common.core.utils;
 
 
 import org.quyq.gwsu.common.core.constants.CoreConstants;
+import org.quyq.gwsu.common.core.domain.DistributedServerInfo;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.core.env.Environment;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.List;
@@ -38,7 +40,7 @@ public class DeployUtils {
      *
      * @return
      */
-    public static Map<String, String> getDistributedServerModuleMapping() {
+    public static Map<String, DistributedServerInfo> getDistributedServerModuleMapping() {
 
         if (isSingle() || !ProxyUtil.hasClass("org.springframework.cloud.client.discovery.DiscoveryClient")) {
             return Map.of();
@@ -51,20 +53,22 @@ public class DeployUtils {
             return Map.of();
         }
 
-        Map<String, String> result = new HashMap<>();
+        Map<String, DistributedServerInfo> result = new HashMap<>();
         for (String service : services) {
-            Optional<String> prefix = Optional.ofNullable(discoveryClient.getInstances(service)
-                            .getFirst()
-                            .getMetadata())
-                    .map(v -> v.get("prefix"));
-
-            if (prefix.isEmpty()) {
-                continue;
-            }
-            result.put(prefix.get(), service);
+            discoveryClient.getInstances(service).stream().findFirst().ifPresent(instance -> {
+                Map<String, String> metadata = instance.getMetadata();
+                String prefix = metadata.get("prefix");
+                if (!StringUtils.hasText(prefix)) {
+                    return;
+                }
+                String note = Optional.ofNullable(metadata.get("note"))
+                        .filter(StringUtils::hasText)
+                        .orElse(service);
+                result.put(prefix, new DistributedServerInfo(service, note));
+            });
         }
 
-        return result;
+        return Map.copyOf(result);
     }
 
 

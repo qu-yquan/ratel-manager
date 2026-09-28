@@ -1,6 +1,7 @@
 package org.quyq.gwsu.common.log.config.properties;
 
 
+import org.quyq.gwsu.common.core.constants.CoreConstants;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.StringUtils;
 
@@ -13,7 +14,7 @@ import java.util.Objects;
  * @date 2026/5/14
  * @description
  */
-@ConfigurationProperties("dtt.log")
+@ConfigurationProperties(CoreConstants.Yaml.PROJECT_CONFIG_PREFIX + ".log")
 public record LogInfoConfigProperties(
         AccessLogProperties accessLog ,
         TableLogProperties tableLog ,

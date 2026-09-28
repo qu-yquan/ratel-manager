@@ -788,8 +788,9 @@ public class DatabaseSearchTool {
 
 
     private RestClient getRestClient(String modulePrefix) {
-        String serviceName = DeployUtils.getDistributedServerModuleMapping()
+        var serverInfo = DeployUtils.getDistributedServerModuleMapping()
                 .get(modulePrefix);
+        String serviceName = serverInfo == null ? null : serverInfo.applicationName();
         if (StringUtils.isBlank(serviceName)) {
             throw new AgentException("%s 服务未启动，请联系管理员".formatted(modulePrefix));
         }
