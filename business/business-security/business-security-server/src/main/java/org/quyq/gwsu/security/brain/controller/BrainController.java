@@ -16,6 +16,7 @@ import org.quyq.gwsu.common.ai.agui.web.WebToolCallbackRequest;
 import org.quyq.gwsu.common.ai.loop.domain.HumanApprovalInfo;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.core.domain.visitor.UserInfo;
+import org.quyq.gwsu.common.log.annotation.LogIgnore;
 import org.quyq.gwsu.common.security.annotation.LoginAllowAccess;
 import org.quyq.gwsu.common.security.api.vo.ConfigVO;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
@@ -153,6 +154,7 @@ public class BrainController implements DisposableBean {
 
     @Operation(summary = "前端工具执行结果回调")
     @PostMapping("tool/callback")
+    @LogIgnore
     public R<Void> toolCallback(@RequestBody WebToolCallbackRequest request) {
         return aguiController.handleToolCallback(request);
     }

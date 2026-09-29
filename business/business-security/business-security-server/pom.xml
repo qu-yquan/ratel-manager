@@ -40,6 +40,11 @@
 
         <dependency>
             <groupId>org.quyq.gwsu</groupId>
+            <artifactId>common-log</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.quyq.gwsu</groupId>
             <artifactId>common-database</artifactId>
         </dependency>
 
