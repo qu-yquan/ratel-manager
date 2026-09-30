@@ -18,10 +18,13 @@ import io.agentscope.core.tool.AgentTool;
 import io.agentscope.core.tool.ToolCallParam;
 import lombok.RequiredArgsConstructor;
 import org.quyq.gwsu.common.core.domain.R;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.function.ServerRequest;
 import org.springframework.web.servlet.function.ServerResponse;
+import tools.jackson.databind.JavaType;
+import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -34,9 +37,14 @@ import java.util.Base64;
 @RequiredArgsConstructor
 public final class DynamicSkillInternalHandler {
 
+    static final ParameterizedTypeReference<R<ToolResultBlock>> TOOL_RESULT_RESPONSE_TYPE =
+            new ParameterizedTypeReference<>() {
+            };
+
     private final LocalSkillToolRegistry localToolRegistry;
     private final LocalSkillResourceRegistry localResourceRegistry;
     private final SkillCatalogHolder catalogHolder;
+    private final ObjectMapper objectMapper;
 
     public ServerResponse invoke(ServerRequest request) throws Exception {
         SkillToolInvokeDTO input = request.body(SkillToolInvokeDTO.class);
@@ -64,7 +72,7 @@ public final class DynamicSkillInternalHandler {
                         .runtimeContext(input.runtimeContext().toRuntimeContext())
                         .build())
                 .block();
-        return json(R.ok(result));
+        return json(R.ok(result), TOOL_RESULT_RESPONSE_TYPE);
     }
 
     public ServerResponse readResource(ServerRequest request) throws Exception {
@@ -101,5 +109,16 @@ public final class DynamicSkillInternalHandler {
         return ServerResponse.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body);
+    }
+
+    private <T> ServerResponse json(T body, ParameterizedTypeReference<T> bodyType) {
+        JavaType javaType = objectMapper.getTypeFactory()
+                .constructType(bodyType.getType());
+
+        String value = objectMapper.writerFor(javaType)
+                .writeValueAsString(body);
+        return ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(value);
     }
 }

@@ -1,5 +1,6 @@
 package org.quyq.gwsu.common.ai.skill.dynamic.tool;
 
+import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.common.ai.skill.dynamic.model.RegisteredToolManifest;
 import org.quyq.gwsu.common.ai.skill.dynamic.model.SkillRuntimeContextDTO;
 import org.quyq.gwsu.common.ai.skill.dynamic.model.SkillToolInvokeDTO;
@@ -14,6 +15,7 @@ import org.springframework.web.client.RestClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+@Slf4j
 public final class RemoteSkillToolInvoker {
 
     private static final ParameterizedTypeReference<R<ToolResultBlock>> RESULT_TYPE =
@@ -38,19 +40,25 @@ public final class RemoteSkillToolInvoker {
         return Mono.fromCallable(() -> {
             String toolCallId = param.getToolUseBlock() == null
                     ? null : param.getToolUseBlock().getId();
-            R<ToolResultBlock> response = DynamicSkillRestClientFactory.create(
-                            restClientBuilder, applicationName, properties)
-                    .post()
-                    .uri("/internal/ai/tools/invoke")
-                    .body(new SkillToolInvokeDTO(
-                            skillId, tool.exposedName(), toolCallId, param.getInput(),
-                            SkillRuntimeContextDTO.from(param.getRuntimeContext())))
-                    .retrieve()
-                    .body(RESULT_TYPE);
-            if (response == null || !response.isSuccess() || response.data() == null) {
-                throw new IllegalStateException("远程动态技能工具调用失败：" + tool.exposedName());
+            try {
+                R<ToolResultBlock> response = DynamicSkillRestClientFactory.create(
+                                restClientBuilder, applicationName, properties)
+                        .post()
+                        .uri("/internal/ai/tools/invoke")
+                        .body(new SkillToolInvokeDTO(
+                                skillId, tool.exposedName(), toolCallId, param.getInput(),
+                                SkillRuntimeContextDTO.from(param.getRuntimeContext())))
+                        .retrieve()
+                        .body(RESULT_TYPE);
+                if (response == null || !response.isSuccess() || response.data() == null) {
+                    throw new IllegalStateException("远程动态技能工具调用失败：" + tool.exposedName());
+                }
+                return response.data();
+            }catch (Exception e){
+                log.error(e.getMessage(), e);
+                throw e;
             }
-            return response.data();
+
         }).subscribeOn(Schedulers.boundedElastic());
     }
 }

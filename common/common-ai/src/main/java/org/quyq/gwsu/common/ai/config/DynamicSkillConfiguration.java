@@ -179,9 +179,10 @@ public class DynamicSkillConfiguration {
     public DynamicSkillInternalHandler dynamicSkillInternalHandler(
             LocalSkillToolRegistry localToolRegistry,
             LocalSkillResourceRegistry localResourceRegistry,
-            SkillCatalogHolder catalogHolder) {
+            SkillCatalogHolder catalogHolder ,
+            ObjectMapper objectMapper) {
         return new DynamicSkillInternalHandler(
-                localToolRegistry, localResourceRegistry, catalogHolder);
+                localToolRegistry, localResourceRegistry, catalogHolder , objectMapper);
     }
 
     @Bean
