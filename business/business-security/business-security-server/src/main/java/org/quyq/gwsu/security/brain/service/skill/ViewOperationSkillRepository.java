@@ -6,6 +6,7 @@ import io.agentscope.core.skill.repository.AgentSkillRepository;
 import io.agentscope.core.skill.repository.AgentSkillRepositoryInfo;
 import io.agentscope.harness.agent.skill.LazyResourceCapable;
 import io.agentscope.harness.agent.skill.SkillResources;
+import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.security.api.menu.vo.MenuVO;
 import org.springframework.util.StringUtils;
 
@@ -13,6 +14,7 @@ import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class ViewOperationSkillRepository implements AgentSkillRepository, LazyResourceCapable {
 
     public static final String SKILL_NAME = "system_view_operation";
@@ -276,6 +278,7 @@ public class ViewOperationSkillRepository implements AgentSkillRepository, LazyR
         }
         sb.append("\n");
         sb.append("执行该页面操作前，只能使用上表中已经明确列出的按钮与权限信息。\n");
+        log.debug(sb.toString());
         return sb.toString();
     }
 

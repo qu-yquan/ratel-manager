@@ -1,5 +1,10 @@
 package org.quyq.gwsu.security.brain.service.impl;
 
+import org.quyq.gwsu.common.ai.skill.dynamic.registry.DynamicSkillToolkitChangedEvent;
+import org.quyq.gwsu.common.ai.skill.dynamic.repository.RedisDynamicAgentSkillRepository;
+import org.quyq.gwsu.common.ai.skill.dynamic.runtime.AgentRuntimeManager;
+import org.quyq.gwsu.common.ai.skill.dynamic.runtime.AgentRuntimeSnapshot;
+import org.quyq.gwsu.common.ai.skill.dynamic.tool.DynamicSkillToolBinder;
 
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.model.ExecutionConfig;
@@ -15,7 +20,6 @@ import io.agentscope.harness.agent.memory.compaction.ToolResultEvictionConfig;
 import io.agentscope.harness.agent.subagent.SubagentDeclaration;
 import io.agentscope.harness.agent.subagent.WorkspaceMode;
 import lombok.RequiredArgsConstructor;
-import org.quyq.gwsu.common.ai.agui.processor.AguiRequestProcessor;
 import org.quyq.gwsu.common.ai.agui.tool.AskUserQuestionTool;
 import org.quyq.gwsu.common.ai.model.ModelProvider;
 import org.quyq.gwsu.common.api.utils.FeignUtils;
@@ -43,6 +47,7 @@ import org.quyq.gwsu.security.menu.service.ISecurityMenuService;
 import org.quyq.gwsu.security.tablemodel.service.ISecurityBusinessFunctionService;
 import org.quyq.gwsu.security.tablemodel.service.ISecurityTableModelTableService;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -96,12 +101,19 @@ public class BrainServiceImpl implements IBrainService {
 
     private final ISecurityBusinessFunctionService businessFunctionService;
 
+    private final DynamicSkillToolBinder dynamicSkillToolBinder;
+
+    private final RedisDynamicAgentSkillRepository dynamicSkillRepository;
+
+    private final AgentRuntimeManager agentRuntimeManager;
+
     private static final String PERMISSION_SOURCE = "central-brain";
-    private final Object processorInitMonitor = new Object();
-    private volatile Agent singletonAgent;
-    private volatile AguiRequestProcessor aguiRequestProcessor;
 
     public Agent buildAgent() {
+        return buildRuntimeSnapshot().agent();
+    }
+
+    private AgentRuntimeSnapshot buildRuntimeSnapshot() {
         Toolkit toolkit = toolkitProvider.getIfAvailable(Toolkit::new);
 
         toolkit.registerTool(new AskUserQuestionTool());
@@ -110,7 +122,8 @@ public class BrainServiceImpl implements IBrainService {
         registerKnowledgeSearchTool(toolkit);
         registerDatabaseSearchTool(toolkit);
 
-        return getAgent(toolkit);
+        String toolkitRevision = dynamicSkillToolBinder.bind(toolkit);
+        return new AgentRuntimeSnapshot(toolkitRevision, getAgent(toolkit));
     }
 
     private void registerViewOperationTool(Toolkit toolkit) {
@@ -180,7 +193,8 @@ public class BrainServiceImpl implements IBrainService {
                                 businessFunctionService::listAll,
                                 businessFunctionService::getDetailById,
                                 databaseSearchTool::getUserTableModelPermission,
-                                DeployUtils::isSingle)))
+                                DeployUtils::isSingle),
+                        dynamicSkillRepository))
                 .maxIters(50)
                 .toolExecutionConfig(ExecutionConfig.builder()
                         .timeout(Duration.of(10, ChronoUnit.MINUTES))
@@ -393,26 +407,22 @@ public class BrainServiceImpl implements IBrainService {
 
 
     public Agent getOrCreateSingletonAgent() {
-        if (singletonAgent != null) {
-            return singletonAgent;
-        }
-        synchronized (processorInitMonitor) {
-            if (singletonAgent == null) {
-                singletonAgent = buildAgent();
-            }
-            return singletonAgent;
-        }
+        return agentRuntimeManager.currentOrInitialize(this::buildRuntimeSnapshot);
     }
 
     @Override
     public void refreshSingletonAgent() {
-        if (singletonAgent == null) {
+        if (!agentRuntimeManager.isInitialized()) {
             return;
         }
-        synchronized (processorInitMonitor) {
-            if (singletonAgent != null) {
-                singletonAgent = buildAgent();
-            }
+        agentRuntimeManager.rebuild(this::buildRuntimeSnapshot);
+    }
+
+    @EventListener
+    public void onDynamicSkillToolkitChanged(DynamicSkillToolkitChangedEvent event) {
+        AgentRuntimeSnapshot current = agentRuntimeManager.current();
+        if (current != null && !current.toolkitRevision().equals(event.currentRevision())) {
+            agentRuntimeManager.rebuild(this::buildRuntimeSnapshot);
         }
     }
 

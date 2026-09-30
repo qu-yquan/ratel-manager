@@ -3,6 +3,7 @@ package org.quyq.gwsu.log.login.task;
 import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.common.cache.exceptions.CacheException;
 import org.quyq.gwsu.common.cache.utils.CacheUtils;
+import org.quyq.gwsu.common.core.constants.CoreConstants;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.quyq.gwsu.log.login.monitor.LoginTokenMonitor;
 import org.quyq.gwsu.log.login.service.ILogLoginService;
@@ -20,7 +21,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Component
-@ConditionalOnProperty(prefix = "dtt.log.login-log", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = CoreConstants.Yaml.PROJECT_CONFIG_PREFIX + ".log.login-log", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class LoginTokenExpirationTask {
 
     private static final String TASK_LOCK = "log:login:token-expiration-task";
@@ -42,8 +43,10 @@ public class LoginTokenExpirationTask {
             SecurityUtils securityUtils,
             LoginTokenMonitor tokenMonitor,
             ILogLoginService loginLogService,
-            @Value("${dtt.log.login-log.token-scan-batch-size:200}") int batchSize,
-            @Value("${dtt.log.login-log.token-scan-delay:60000}") long scanDelay) {
+            @Value("${" + CoreConstants.Yaml.PROJECT_CONFIG_PREFIX
+                    + ".log.login-log.token-scan-batch-size:200}") int batchSize,
+            @Value("${" + CoreConstants.Yaml.PROJECT_CONFIG_PREFIX
+                    + ".log.login-log.token-scan-delay:60000}") long scanDelay) {
         this.cacheUtils = cacheUtils;
         this.securityUtils = securityUtils;
         this.tokenMonitor = tokenMonitor;
@@ -53,8 +56,10 @@ public class LoginTokenExpirationTask {
     }
 
     @Scheduled(
-            initialDelayString = "${dtt.log.login-log.token-scan-initial-delay:60000}",
-            fixedDelayString = "${dtt.log.login-log.token-scan-delay:60000}")
+            initialDelayString = "${" + CoreConstants.Yaml.PROJECT_CONFIG_PREFIX
+                    + ".log.login-log.token-scan-initial-delay:60000}",
+            fixedDelayString = "${" + CoreConstants.Yaml.PROJECT_CONFIG_PREFIX
+                    + ".log.login-log.token-scan-delay:60000}")
     public void scanExpiredTokens() {
         try {
             cacheUtils.executeWithLock(TASK_LOCK, 0, -1, TimeUnit.SECONDS, this::scanBatch);

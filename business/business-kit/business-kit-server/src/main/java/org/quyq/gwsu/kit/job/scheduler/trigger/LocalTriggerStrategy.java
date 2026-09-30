@@ -1,5 +1,6 @@
 package org.quyq.gwsu.kit.job.scheduler.trigger;
 
+import org.quyq.gwsu.common.core.constants.CoreConstants;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.job.openapi.executor.ExecutorBiz;
 import org.quyq.gwsu.common.job.openapi.executor.dto.IdleBeatRequest;
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Component;
  * </p>
  */
 @Component
-@ConditionalOnProperty(name = "deploy.single", havingValue = "true")
+@ConditionalOnProperty(name = CoreConstants.Yaml.DEPLOY_SINGLE, havingValue = "true")
 public class LocalTriggerStrategy implements TriggerStrategy {
 
     private final ExecutorBiz executorBiz = new ExecutorBizImpl();

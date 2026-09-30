@@ -1,1 +1,3 @@
 org.quyq.gwsu.common.ai.config.AgentscopeConfiguration
+org.quyq.gwsu.common.ai.config.DynamicSkillConfiguration
+org.quyq.gwsu.common.ai.config.McpAutoConfiguration

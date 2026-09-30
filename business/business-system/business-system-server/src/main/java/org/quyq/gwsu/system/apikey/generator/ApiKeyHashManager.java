@@ -1,5 +1,6 @@
 package org.quyq.gwsu.system.apikey.generator;
 
+import org.quyq.gwsu.common.core.constants.CoreConstants;
 import org.quyq.gwsu.system.config.properties.ApiKeyProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
@@ -32,7 +33,7 @@ public class ApiKeyHashManager {
         Assert.hasText(normalizedKey, "API_KEY 不能为空");
 
         String pepper = apiKeyProperties.getPepper();
-        Assert.hasText(pepper, "ratel.system.api-key.pepper 未配置");
+        Assert.hasText(pepper, CoreConstants.Yaml.PROJECT_CONFIG_PREFIX + ".system.api-key.pepper 未配置");
 
         try {
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);

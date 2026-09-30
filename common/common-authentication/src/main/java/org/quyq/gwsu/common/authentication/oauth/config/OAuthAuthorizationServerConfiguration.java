@@ -10,7 +10,6 @@ import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthFrontendEndpointR
 import org.quyq.gwsu.common.authentication.oauth.frontend.ManagerOAuthAuthorizationViewProvider;
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthAuthorizationViewProvider;
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthAuthorizationViewProviderManager;
-import org.quyq.gwsu.common.authentication.oauth.path.AuthenticationEndpointPathResolver;
 import org.quyq.gwsu.common.authentication.oauth.response.OAuth2ResponseWriter;
 import org.quyq.gwsu.common.authentication.oauth.response.OAuth2UnifiedErrorResponseHandler;
 import org.quyq.gwsu.common.authentication.oauth.response.OAuth2UnifiedSuccessResponseHandler;
@@ -27,7 +26,9 @@ import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuthSubjectWriter;
 import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuth2UserCodeGenerator;
 import org.quyq.gwsu.common.authentication.oauth.token.OAuthLoginLogRecorder;
 import org.quyq.gwsu.common.cache.utils.CacheUtils;
+import org.quyq.gwsu.common.core.web.ModuleEndpointPathResolver;
 import org.quyq.gwsu.common.security.api.oauth.OAuthClientApi;
+import org.quyq.gwsu.common.security.constants.SecurityConstants;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.quyq.gwsu.common.log.service.LoginLogHandlerService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -52,12 +53,6 @@ import java.util.List;
 @AutoConfiguration(after = AuthenticationConfiguration.class)
 @ConditionalOnClass(RegisteredClientRepository.class)
 public class OAuthAuthorizationServerConfiguration {
-
-    @Bean
-    @ConditionalOnMissingBean
-    public AuthenticationEndpointPathResolver authenticationEndpointPathResolver() {
-        return new AuthenticationEndpointPathResolver();
-    }
 
     @Bean
     public OAuthFrontendEndpointResolver oauthFrontendEndpointResolver() {
@@ -112,16 +107,21 @@ public class OAuthAuthorizationServerConfiguration {
     }
 
     @Bean
-    public AuthorizationServerSettings authorizationServerSettings(AuthenticationEndpointPathResolver pathResolver) {
+    public AuthorizationServerSettings authorizationServerSettings(ModuleEndpointPathResolver pathResolver) {
         return AuthorizationServerSettings.builder()
-                .authorizationEndpoint(pathResolver.resolve("/auth/oauth2/authorize"))
-                .deviceAuthorizationEndpoint(pathResolver.resolve("/auth/oauth2/device_authorization"))
-                .deviceVerificationEndpoint(pathResolver.resolve("/auth/oauth2/device_verification"))
-                .tokenEndpoint(pathResolver.resolve("/auth/oauth2/token"))
-                .tokenRevocationEndpoint(pathResolver.resolve("/auth/oauth2/revoke"))
-                .tokenIntrospectionEndpoint(pathResolver.resolve("/auth/oauth2/introspect"))
-                .jwkSetEndpoint(pathResolver.resolve("/auth/oauth2/jwks"))
+                .authorizationEndpoint(resolvePath(pathResolver, "/auth/oauth2/authorize"))
+                .deviceAuthorizationEndpoint(resolvePath(pathResolver, "/auth/oauth2/device_authorization"))
+                .deviceVerificationEndpoint(resolvePath(pathResolver, "/auth/oauth2/device_verification"))
+                .tokenEndpoint(resolvePath(pathResolver, "/auth/oauth2/token"))
+                .tokenRevocationEndpoint(resolvePath(pathResolver, "/auth/oauth2/revoke"))
+                .tokenIntrospectionEndpoint(resolvePath(pathResolver, "/auth/oauth2/introspect"))
+                .jwkSetEndpoint(resolvePath(pathResolver, "/auth/oauth2/jwks"))
                 .build();
+    }
+
+    private String resolvePath(ModuleEndpointPathResolver pathResolver, String path) {
+        return pathResolver.resolve(
+                SecurityConstants.Authentication.AUTH_SERVER_PREFIX, path);
     }
 
     @Bean

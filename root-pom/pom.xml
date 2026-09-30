@@ -46,6 +46,7 @@
         <agentscope.version>2.0.3</agentscope.version>
         <spring-ai.version>2.0.0-M1</spring-ai.version>
         <spring-ai-alibaba.version>2.0.0-M1.1</spring-ai-alibaba.version>
+        <mcp-java-sdk.version>0.16.0</mcp-java-sdk.version>
         <tika.version>3.3.1</tika.version>
         <minio.version>8.6.0</minio.version>
         <okhttp.version>5.1.0</okhttp.version>
@@ -176,6 +177,12 @@
                 <version>${spring-ai-alibaba.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>io.modelcontextprotocol.sdk</groupId>
+                <artifactId>mcp-spring-webmvc</artifactId>
+                <version>${mcp-java-sdk.version}</version>
             </dependency>
 
             <dependency>

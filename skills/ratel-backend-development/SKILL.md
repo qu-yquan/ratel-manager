@@ -34,6 +34,7 @@ description: Ratel后端项目开发规范与指南，包含目录结构、命�
 | [03-07-common-authentication.md](reference/03-07-common-authentication.md) | 认证体系 | 登录处理器、拦截器、数据资源范围 |
 | [03-08-common-log.md](reference/03-08-common-log.md) | 操作日志 | 日志记录、忽略日志 |
 | [03-09-common-job.md](reference/03-09-common-job.md) | 任务调度（common-job） | @XxlJob Handler、XxlJobHelper、分片广播、注册冲突检测 |
+| [03-10-common-ai.md](reference/03-10-common-ai.md) | AI 能力（common-ai） | 动态 Skill、独立工具、MCP Tool Endpoint |
 
 ### 速查与专题
 

@@ -1,6 +1,5 @@
 package org.quyq.gwsu.common.authentication.oauth.config;
 
-import org.quyq.gwsu.common.authentication.oauth.path.AuthenticationEndpointPathResolver;
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthAuthorizationViewProviderManager;
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthFrontendEndpointResolver;
 import org.quyq.gwsu.common.authentication.oauth.converter.OAuth2DefaultScopeAuthenticationConverter;
@@ -14,6 +13,8 @@ import org.quyq.gwsu.common.authentication.oauth.security.OAuthLoginEntryPoint;
 import org.quyq.gwsu.common.authentication.oauth.security.OAuthUserSessionSnapshotResolver;
 import org.quyq.gwsu.common.authentication.oauth.security.CustomSecurityContextAuthenticationFilter;
 import org.quyq.gwsu.common.authentication.oauth.token.CustomOAuth2AccessTokenResponseSuccessHandler;
+import org.quyq.gwsu.common.core.web.ModuleEndpointPathResolver;
+import org.quyq.gwsu.common.security.constants.SecurityConstants;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -49,7 +50,7 @@ public class OAuthSecurityConfiguration {
             HttpSecurity http,
             SecurityUtils securityUtils,
             RegisteredClientRepository registeredClientRepository,
-            AuthenticationEndpointPathResolver pathResolver,
+            ModuleEndpointPathResolver pathResolver,
             OAuthFrontendEndpointResolver frontendEndpointResolver,
             OAuthAuthorizationViewProviderManager viewProviderManager,
             OAuthUserSessionSnapshotResolver userSessionSnapshotResolver,
@@ -58,15 +59,17 @@ public class OAuthSecurityConfiguration {
             OAuth2UnifiedErrorResponseHandler errorResponseHandler,
             OAuth2ResponseWriter responseWriter,
             ObjectMapper objectMapper) throws Exception {
-        String consentContextPath = pathResolver.resolve("/auth/oauth2/consent-context");
-        String deviceVerificationPath = pathResolver.resolve("/auth/oauth2/device_verification");
-        String jwkSetPath = pathResolver.resolve("/auth/oauth2/jwks");
+        String consentContextPath = resolvePath(pathResolver, "/auth/oauth2/consent-context");
+        String deviceVerificationPath = resolvePath(pathResolver, "/auth/oauth2/device_verification");
+        String jwkSetPath = resolvePath(pathResolver, "/auth/oauth2/jwks");
         OAuthDeviceVerificationEntryRequestMatcher deviceVerificationEntryMatcher =
                 new OAuthDeviceVerificationEntryRequestMatcher(deviceVerificationPath);
         OAuth2DeviceVerificationResultHandler deviceVerificationResultHandler =
                 new OAuth2DeviceVerificationResultHandler(
                         viewProviderManager, frontendEndpointResolver, deviceVerificationPath);
-        http.securityMatcher(pathResolver.resolve("/auth/oauth2/**"), pathResolver.resolve("/.well-known/**"))
+        http.securityMatcher(
+                        resolvePath(pathResolver, "/auth/oauth2/**"),
+                        resolvePath(pathResolver, "/.well-known/**"))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(consentContextPath).permitAll()
                         .requestMatchers(deviceVerificationEntryMatcher).permitAll()
@@ -86,7 +89,7 @@ public class OAuthSecurityConfiguration {
                                         new OAuth2AuthorizationCodeRequestAuthenticationConverter(),
                                         registeredClientRepository))
                                 // 使用本服务相对路径，避免创建安全过滤链时远程读取 security 配置。
-                                .consentPage(pathResolver.resolve("/auth/oauth2/loginConsent")))
+                                .consentPage(resolvePath(pathResolver, "/auth/oauth2/loginConsent")))
                         .tokenEndpoint(token -> token
                                 .accessTokenRequestConverter(new OAuth2DefaultScopeAuthenticationConverter(
                                         new OAuth2ClientCredentialsAuthenticationConverter(),
@@ -101,7 +104,7 @@ public class OAuthSecurityConfiguration {
                                 .errorResponseHandler(errorResponseHandler))
                         .deviceVerificationEndpoint(device -> device
                                 // 实际进入页面时再由处理器解析前端地址，实现跨服务配置懒加载。
-                                .consentPage(pathResolver.resolve("/auth/oauth2/loginDeviceConsent"))
+                                .consentPage(resolvePath(pathResolver, "/auth/oauth2/loginDeviceConsent"))
                                 .deviceVerificationResponseHandler(deviceVerificationResultHandler)
                                 .errorResponseHandler(deviceVerificationResultHandler))
                         .tokenIntrospectionEndpoint(introspection -> introspection
@@ -111,6 +114,11 @@ public class OAuthSecurityConfiguration {
                                 .revocationResponseHandler(successResponseHandler)
                                 .errorResponseHandler(errorResponseHandler)));
         return http.build();
+    }
+
+    private String resolvePath(ModuleEndpointPathResolver pathResolver, String path) {
+        return pathResolver.resolve(
+                SecurityConstants.Authentication.AUTH_SERVER_PREFIX, path);
     }
 
 }

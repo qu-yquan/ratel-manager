@@ -13,7 +13,6 @@ import org.quyq.gwsu.common.authentication.login.LoginManager;
 import org.quyq.gwsu.common.authentication.login.domain.ThreePlatformLoginDTO;
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthAuthorizationViewProviderManager;
 import org.quyq.gwsu.common.authentication.oauth.frontend.OAuthFrontendEndpointResolver;
-import org.quyq.gwsu.common.authentication.oauth.path.AuthenticationEndpointPathResolver;
 import org.quyq.gwsu.common.api.utils.FeignUtils;
 import org.quyq.gwsu.common.cache.utils.IDGenerationUtils;
 import org.quyq.gwsu.common.core.constants.CoreConstants;
@@ -28,6 +27,7 @@ import org.quyq.gwsu.common.core.exception.handler.GlobalExceptionFunctionHandle
 import org.quyq.gwsu.common.core.utils.AssertUtils;
 import org.quyq.gwsu.common.core.utils.DeployUtils;
 import org.quyq.gwsu.common.core.utils.ServletUtils;
+import org.quyq.gwsu.common.core.web.ModuleEndpointPathResolver;
 import org.quyq.gwsu.common.security.api.oauth.OAuthClientApi;
 import org.quyq.gwsu.common.security.api.oauth.vo.OAuthConsentContextVO;
 import org.quyq.gwsu.common.security.captcha.domain.CaptchaCheckRequest;
@@ -91,7 +91,7 @@ public class LoginWebConfiguration {
     private CaptchaServiceFacade captchaServiceFacade;
 
     @Resource
-    private AuthenticationEndpointPathResolver endpointPathResolver;
+    private ModuleEndpointPathResolver endpointPathResolver;
 
     @Resource
     private OAuthFrontendEndpointResolver oauthFrontendEndpointResolver;
@@ -425,7 +425,8 @@ public class LoginWebConfiguration {
 
 
     private String buildPath(String path) {
-        return endpointPathResolver.resolve(path);
+        return endpointPathResolver.resolve(
+                SecurityConstants.Authentication.AUTH_SERVER_PREFIX, path);
     }
 
 }

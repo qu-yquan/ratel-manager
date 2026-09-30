@@ -2,6 +2,7 @@ package org.quyq.gwsu.kit.job.scheduler.trigger;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import org.quyq.gwsu.common.core.constants.CoreConstants;
 import org.quyq.gwsu.common.core.domain.R;
 import org.springframework.http.MediaType;
 import org.quyq.gwsu.common.job.openapi.executor.dto.IdleBeatRequest;
@@ -25,7 +26,7 @@ import java.time.Duration;
  * </p>
  */
 @Component
-@ConditionalOnProperty(name = "deploy.single", havingValue = "false", matchIfMissing = true)
+@ConditionalOnProperty(name = CoreConstants.Yaml.DEPLOY_SINGLE, havingValue = "false", matchIfMissing = true)
 public class RemoteTriggerStrategy implements TriggerStrategy {
 
     private static final Logger logger = LoggerFactory.getLogger(RemoteTriggerStrategy.class);
