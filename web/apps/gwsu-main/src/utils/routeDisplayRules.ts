@@ -1,4 +1,5 @@
-const DEFAULT_STANDALONE_ROUTE_PATTERN = '^/sub-system/login(?:/.*)?$';
+const DEFAULT_STANDALONE_ROUTE_PATTERN =
+  '^/sub-system/(?:login(?:[_/].*)?|oauth2/login[^/]*(?:/.*)?)$';
 
 /**
  * 创建独立布局路由匹配器。

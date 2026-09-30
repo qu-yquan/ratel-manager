@@ -4,6 +4,7 @@ import com.microsoft.playwright.*;
 import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
 import org.quyq.gwsu.common.ai.agui.tool.AskUserQuestionTool;
+import org.quyq.gwsu.common.core.exception.BusinessException;
 import org.quyq.gwsu.common.security.constants.SecurityConstants;
 import org.quyq.gwsu.headless.api.dto.HeadlessDTO;
 import org.quyq.gwsu.headless.core.HeadlessAgentListener;
@@ -292,14 +293,14 @@ public class HeadlessBrowserSession implements AutoCloseable {
                     null, new Page.WaitForFunctionOptions().setTimeout(30_000));
         } catch (PlaywrightException e) {
             log.error("无头浏览器 certification 登录超时", e);
-            throw new RuntimeException("无头浏览器登录超时", e);
+            throw new BusinessException(e);
         }
 
         Object statusObj = page.evaluate("document.body.getAttribute('data-headless-login-status')");
         String status = statusObj != null ? statusObj.toString() : "";
         if (!"success".equals(status)) {
             log.error("无头浏览器 certification 登录失败: status={}", status);
-            throw new RuntimeException("无头浏览器登录失败: " + status);
+            throw new BusinessException( status);
         }
         log.trace("certification 登录成功");
     }
