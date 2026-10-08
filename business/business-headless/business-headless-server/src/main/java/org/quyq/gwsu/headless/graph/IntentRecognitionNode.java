@@ -1,8 +1,6 @@
 package org.quyq.gwsu.headless.graph;
 
 
-import com.alibaba.cloud.ai.graph.OverAllState;
-import com.alibaba.cloud.ai.graph.action.NodeAction;
 import com.google.gson.Gson;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.RuntimeContext;
@@ -12,6 +10,7 @@ import io.agentscope.core.message.ToolUseBlock;
 import io.agentscope.core.state.AgentState;
 import io.agentscope.core.state.AgentStateStore;
 import lombok.RequiredArgsConstructor;
+import org.bsc.langgraph4j.action.NodeAction;
 import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
 import org.quyq.gwsu.common.ai.constants.AIConstants;
 import org.quyq.gwsu.common.ai.loop.AgentApprovalResolver;
@@ -26,7 +25,6 @@ import org.quyq.gwsu.headless.core.session.HeadlessAccessSession;
 import org.quyq.gwsu.headless.domain.RouterInfo;
 import org.quyq.gwsu.headless.domain.SubjectInfo;
 import org.quyq.gwsu.headless.enums.GraphRouteType;
-import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
@@ -39,7 +37,7 @@ import java.util.*;
  * @description 意图识别节点，有意图模糊问题直接询问用户
  */
 @RequiredArgsConstructor
-public class IntentRecognitionNode implements NodeAction {
+public class IntentRecognitionNode implements NodeAction<HeadlessGraphState> {
 
     private final AgentStateStore agentStateStore;
 
@@ -53,10 +51,10 @@ public class IntentRecognitionNode implements NodeAction {
 
 
     @Override
-    public Map<String, Object> apply(OverAllState state) {
-        String threadId = (String) state.value(HeadlessConstants.Headless.GRAPH_PARAM_THREAD_ID).orElse("");
-        String query = state.value(HeadlessConstants.Headless.GRAPH_PARAM_QUERY, "");
-        SubjectInfo userId = state.value(HeadlessConstants.Headless.GRAPH_PARAM_USER_ID, SubjectInfo.class).orElseThrow();
+    public Map<String, Object> apply(HeadlessGraphState state) {
+        String threadId = state.<String>value(HeadlessConstants.Headless.GRAPH_PARAM_THREAD_ID).orElse("");
+        String query = state.<String>value(HeadlessConstants.Headless.GRAPH_PARAM_QUERY).orElse("");
+        SubjectInfo userId = state.<SubjectInfo>value(HeadlessConstants.Headless.GRAPH_PARAM_USER_ID).orElseThrow();
 
         HeadlessAccessSession accessSession = headlessBrowserManager.getAccessSession(userId);
         if (StringUtils.hasText(threadId)) {
@@ -181,7 +179,7 @@ public class IntentRecognitionNode implements NodeAction {
             nodeHistory.add(assistantMsg);
             agentStateStore.save(userId.userId(), threadId, HEADLESS_RECOGNITION_NODE_KEY, nodeHistory);
 
-            Flux<ChatResponse> output = Flux.just(getContent(threadId, assistantMsg));
+            Flux<AguiEvent> output = Flux.just(getContent(threadId, assistantMsg));
 
             //返回AI回复
             return Map.of(HeadlessConstants.Headless.GRAPH_PARAM_THREAD_ID, threadId,
@@ -255,13 +253,13 @@ public class IntentRecognitionNode implements NodeAction {
     }
 
 
-    private ChatResponse getContent(String threadId, Msg msg) {
-        return HeadlessAguiEventBridge.toChatResponse(new AguiEvent.TextMessageContent(
+    private AguiEvent getContent(String threadId, Msg msg) {
+        return new AguiEvent.TextMessageContent(
                 threadId,
                 "",
                 UUID.randomUUID().toString(),
-                AgentScopeMessageUtils.toAssistantMessage(msg).getText()
-        ));
+                AgentScopeMessageUtils.text(msg)
+        );
     }
 
 

@@ -1,5 +1,6 @@
 package org.quyq.gwsu.security.brain.service.impl;
 
+import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.common.ai.skill.dynamic.registry.DynamicSkillToolkitChangedEvent;
 import org.quyq.gwsu.common.ai.skill.dynamic.repository.RedisDynamicAgentSkillRepository;
 import org.quyq.gwsu.common.ai.skill.dynamic.runtime.AgentRuntimeManager;
@@ -65,6 +66,7 @@ import java.util.Map;
  * @date 2026/4/22
  * @description
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BrainServiceImpl implements IBrainService {
@@ -109,15 +111,11 @@ public class BrainServiceImpl implements IBrainService {
 
     private static final String PERMISSION_SOURCE = "central-brain";
 
-    public Agent buildAgent() {
-        return buildRuntimeSnapshot().agent();
-    }
 
     private AgentRuntimeSnapshot buildRuntimeSnapshot() {
         Toolkit toolkit = toolkitProvider.getIfAvailable(Toolkit::new);
 
         toolkit.registerTool(new AskUserQuestionTool());
-
         registerViewOperationTool(toolkit);
         registerKnowledgeSearchTool(toolkit);
         registerDatabaseSearchTool(toolkit);
@@ -397,11 +395,11 @@ public class BrainServiceImpl implements IBrainService {
                 - 发现与当前任务直接相关的异常或风险时，可简要提示并询问是否继续协助；任何交互都不得暴露内部实现细节。
 
                 # 当前界面信息
-                - 界面路由地址：{currentPath}
-                - {headlessContent}
+                - 界面路由地址：{{currentPath}}
+                - {{headlessContent}}
 
                 # 用户已提供的文件信息
-                {fileInfos}
+                {{fileInfos}}
                 """;
     }
 

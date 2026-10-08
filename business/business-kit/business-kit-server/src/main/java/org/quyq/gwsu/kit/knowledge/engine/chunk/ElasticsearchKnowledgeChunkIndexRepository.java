@@ -307,7 +307,6 @@ public class ElasticsearchKnowledgeChunkIndexRepository implements KnowledgeChun
             case "dashscope" -> config.getDashscope() == null ? null : config.getDashscope().getDimensions();
             case "openai" -> config.getOpenai() == null ? null : config.getOpenai().getDimensions();
             case "ollama" -> config.getOllama() == null ? null : config.getOllama().getDimensions();
-            case "zhipuai" -> config.getZhipuai() == null ? null : config.getZhipuai().getDimensions();
             default -> null;
         };
         if (dimensions == null || dimensions <= 0) {

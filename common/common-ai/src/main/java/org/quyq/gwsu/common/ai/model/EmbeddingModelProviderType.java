@@ -1,19 +1,11 @@
 package org.quyq.gwsu.common.ai.model;
 
-import com.alibaba.cloud.ai.dashscope.api.DashScopeApi;
-import com.alibaba.cloud.ai.dashscope.embedding.text.DashScopeEmbeddingModel;
-import com.alibaba.cloud.ai.dashscope.embedding.text.DashScopeEmbeddingOptions;
+import dev.langchain4j.community.model.dashscope.QwenEmbeddingModel;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
+import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import org.quyq.gwsu.common.ai.AgentException;
 import org.quyq.gwsu.common.ai.config.properties.ModelEmbeddingConfigDTO;
-import org.springframework.ai.document.MetadataMode;
-import org.springframework.ai.embedding.DefaultEmbeddingOptions;
-import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.ai.ollama.OllamaEmbeddingModel;
-import org.springframework.ai.ollama.api.OllamaApi;
-import org.springframework.ai.ollama.api.OllamaEmbeddingOptions;
-import org.springframework.ai.openai.OpenAiEmbeddingModel;
-import org.springframework.ai.openai.OpenAiEmbeddingOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.util.StringUtils;
 
 import java.util.Locale;
@@ -24,27 +16,23 @@ import java.util.Objects;
  */
 public enum EmbeddingModelProviderType {
     DASHSCOPE("dashscope") {
-        private static final String DOCUMENT_TEXT_TYPE = "document";
-
         @Override
         protected EmbeddingModel createModel(ModelEmbeddingConfigDTO config) {
             ModelEmbeddingConfigDTO.DashscopeEmbeddingConfigDTO c = config.getDashscope();
             if (Objects.isNull(c) || !StringUtils.hasText(c.getApiKey())) {
                 throw new AgentException("DashScope embedding API Key must be configured");
             }
-            DashScopeApi.Builder apiBuilder = DashScopeApi.builder().apiKey(c.getApiKey());
+            QwenEmbeddingModel.QwenEmbeddingModelBuilder builder = QwenEmbeddingModel.builder()
+                    .apiKey(c.getApiKey())
+                    .modelName(c.getModelName());
             if (StringUtils.hasText(c.getBaseUrl())) {
-                apiBuilder.baseUrl(c.getBaseUrl());
+                builder.baseUrl(c.getBaseUrl());
             }
-            DashScopeEmbeddingOptions.Builder optionsBuilder = DashScopeEmbeddingOptions.builder()
-                    .model(c.getModelName())
-                    .textType(DOCUMENT_TEXT_TYPE);
-            Integer dimensions = positiveDimensions(c.getModelName(),c.getDimensions());
+            Integer dimensions = positiveDimensions(c.getModelName(), c.getDimensions());
             if (dimensions != null) {
-                optionsBuilder.dimensions(dimensions);
+                builder.dimension(dimensions);
             }
-            DashScopeEmbeddingOptions options = optionsBuilder.build();
-            return new DashScopeEmbeddingModel(apiBuilder.build(), MetadataMode.EMBED, options);
+            return builder.build();
         }
     },
     OPENAI("openai") {
@@ -54,18 +42,17 @@ public enum EmbeddingModelProviderType {
             if (Objects.isNull(c) || !StringUtils.hasText(c.getApiKey())) {
                 throw new AgentException("OpenAI embedding API Key must be configured");
             }
-            OpenAiApi.Builder apiBuilder = OpenAiApi.builder().apiKey(c.getApiKey());
+            OpenAiEmbeddingModel.OpenAiEmbeddingModelBuilder builder = OpenAiEmbeddingModel.builder()
+                    .apiKey(c.getApiKey())
+                    .modelName(c.getModelName());
             if (StringUtils.hasText(c.getBaseUrl())) {
-                apiBuilder.baseUrl(c.getBaseUrl());
+                builder.baseUrl(c.getBaseUrl());
             }
-            OpenAiEmbeddingOptions.Builder optionsBuilder = OpenAiEmbeddingOptions.builder()
-                    .model(c.getModelName());
-            Integer dimensions = positiveDimensions(c.getModelName() ,c.getDimensions());
+            Integer dimensions = positiveDimensions(c.getModelName(), c.getDimensions());
             if (dimensions != null) {
-                optionsBuilder.dimensions(dimensions);
+                builder.dimensions(dimensions);
             }
-            OpenAiEmbeddingOptions options = optionsBuilder.build();
-            return new OpenAiEmbeddingModel(apiBuilder.build(), MetadataMode.EMBED, options);
+            return builder.build();
         }
     },
     OLLAMA("ollama") {
@@ -75,32 +62,16 @@ public enum EmbeddingModelProviderType {
             if (Objects.isNull(c) || !StringUtils.hasText(c.getModelName())) {
                 throw new AgentException("Ollama embedding model name must be configured");
             }
-            OllamaApi.Builder apiBuilder = OllamaApi.builder();
+            OllamaEmbeddingModel.OllamaEmbeddingModelBuilder builder = OllamaEmbeddingModel.builder()
+                    .modelName(c.getModelName());
             if (StringUtils.hasText(c.getBaseUrl())) {
-                apiBuilder.baseUrl(c.getBaseUrl());
+                builder.baseUrl(c.getBaseUrl());
             }
-            OllamaEmbeddingOptions options = OllamaEmbeddingOptions.builder()
-                    .model(c.getModelName())
-                    .numBatch(c.getBatchSize())
-                    .build();
-            return OllamaEmbeddingModel.builder()
-                    .ollamaApi(apiBuilder.build())
-                    .defaultOptions(options)
-                    .build();
-        }
-    },
-    ZHIPUAI("zhipuai") {
-        @Override
-        protected EmbeddingModel createModel(ModelEmbeddingConfigDTO config) {
-            ModelEmbeddingConfigDTO.ZhipuaiEmbeddingConfigDTO c = config.getZhipuai();
-            if (Objects.isNull(c) || !StringUtils.hasText(c.getApiKey())) {
-                throw new AgentException("ZhipuAI embedding API Key must be configured");
+            Integer dimensions = positiveDimensions(c.getModelName(), c.getDimensions());
+            if (dimensions != null) {
+                builder.dimensions(dimensions);
             }
-            Integer dimensions = positiveDimensions( c.getModelName(),c.getDimensions());
-            DefaultEmbeddingOptions options = new DefaultEmbeddingOptions();
-            options.setModel(c.getModelName());
-            options.setDimensions(dimensions);
-            return new GwsuZhipuAiEmbeddingModel(c.getApiKey(), c.getBaseUrl(), MetadataMode.EMBED, options);
+            return builder.build();
         }
     };
 
@@ -125,8 +96,8 @@ public enum EmbeddingModelProviderType {
         throw new IllegalStateException("Unsupported embedding config provider: " + provider);
     }
 
-    private static Integer positiveDimensions(String modelName ,Integer dimensions) {
-        if("bge-m3".equals(modelName)){
+    private static Integer positiveDimensions(String modelName, Integer dimensions) {
+        if ("bge-m3".equals(modelName)) {
             return null;
         }
         return dimensions != null && dimensions > 0 ? dimensions : null;

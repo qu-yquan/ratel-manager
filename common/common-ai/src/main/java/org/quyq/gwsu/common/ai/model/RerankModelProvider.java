@@ -1,6 +1,6 @@
 package org.quyq.gwsu.common.ai.model;
 
-import com.alibaba.cloud.ai.model.RerankModel;
+import dev.langchain4j.model.scoring.ScoringModel;
 import org.quyq.gwsu.common.ai.config.properties.ModelRerankConfigDTO;
 import org.quyq.gwsu.common.security.utils.ConfigInfoUtils;
 import org.springframework.util.StringUtils;
@@ -15,11 +15,11 @@ public class RerankModelProvider {
 
     public static final String MODEL_RERANK_CONFIG = "model_rerank_config";
 
-    private static ModelRerankConfigDTO CONFIG;
+    private static volatile ModelRerankConfigDTO CONFIG;
 
-    private static RerankModel MODEL;
+    private static volatile ScoringModel MODEL;
 
-    public static Optional<RerankModel> generateModel() {
+    public static Optional<ConfiguredRerankModel> generateModel() {
         ModelRerankConfigDTO newConfig = ConfigInfoUtils.getByObject(MODEL_RERANK_CONFIG, ModelRerankConfigDTO.class);
         if (!isEnabled(newConfig) || !isConfigReady(newConfig)) {
             CONFIG = newConfig;
@@ -29,7 +29,8 @@ public class RerankModelProvider {
         if (configChange(newConfig)) {
             createModel(newConfig);
         }
-        return Optional.ofNullable(MODEL);
+        ScoringModel model = MODEL;
+        return model == null ? Optional.empty() : Optional.of(new ConfiguredRerankModel(model, resolveTopN(CONFIG)));
     }
 
     private static void createModel(ModelRerankConfigDTO config) {
@@ -53,11 +54,37 @@ public class RerankModelProvider {
     }
 
     private static boolean isConfigReady(ModelRerankConfigDTO config) {
+        if (config == null || !StringUtils.hasText(config.getProvider())) {
+            return false;
+        }
+        return switch (config.getProvider().trim().toLowerCase()) {
+            case "dashscope" -> ready(config.getDashscope(), true, false);
+            case "jina" -> ready(config.getJina(), true, false);
+            case "xinference" -> ready(config.getXinference(), false, true);
+            default -> false;
+        };
+    }
+
+    private static boolean ready(ModelRerankConfigDTO.BaseRemoteRerankConfigDTO config,
+                                 boolean apiKeyRequired,
+                                 boolean baseUrlRequired) {
         return config != null
-                && StringUtils.hasText(config.getProvider())
-                && "dashscope".equalsIgnoreCase(config.getProvider())
-                && config.getDashscope() != null
-                && StringUtils.hasText(config.getDashscope().getApiKey())
-                && StringUtils.hasText(config.getDashscope().getModelName());
+                && StringUtils.hasText(config.getModelName())
+                && (!apiKeyRequired || StringUtils.hasText(config.getApiKey()))
+                && (!baseUrlRequired || StringUtils.hasText(config.getBaseUrl()));
+    }
+
+    private static int resolveTopN(ModelRerankConfigDTO config) {
+        if (config == null) {
+            return 10;
+        }
+        Integer topN = config.getTopN();
+        if ((topN == null || topN <= 0) && config.getDashscope() != null) {
+            topN = config.getDashscope().getTopN();
+        }
+        return topN == null || topN <= 0 ? 10 : Math.min(topN, 100);
+    }
+
+    public record ConfiguredRerankModel(ScoringModel model, int topN) {
     }
 }

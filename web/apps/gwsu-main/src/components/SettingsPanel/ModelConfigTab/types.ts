@@ -2,10 +2,10 @@
 export type ModelProvider = 'dashscope' | 'openai' | 'gemini' | 'anthropic';
 
 /** 向量化模型提供商标识 */
-export type EmbeddingProvider = 'dashscope' | 'openai' | 'ollama' | 'zhipuai';
+export type EmbeddingProvider = 'dashscope' | 'openai' | 'ollama';
 
 /** 重排模型提供商标识 */
-export type RerankProvider = 'dashscope';
+export type RerankProvider = 'dashscope' | 'jina' | 'xinference';
 
 /** DashScope LLM 提供商配置 */
 export interface DashscopeConfig {
@@ -104,21 +104,25 @@ export interface ModelEmbeddingConfig {
   dashscope: DashscopeEmbeddingConfig;
   openai: EmbeddingProviderConfig;
   ollama: OllamaEmbeddingConfig;
-  zhipuai: EmbeddingProviderConfig;
 }
 
-export interface DashscopeRerankConfig {
+export interface RerankProviderConfig {
   apiKey: string;
   modelName: string;
   baseUrl: string;
-  topN?: number;
-  returnDocuments: boolean;
+}
+
+export interface DashscopeRerankConfig extends RerankProviderConfig {
+  instruct?: string;
 }
 
 export interface ModelRerankConfig {
   enabled: boolean;
   provider: RerankProvider;
+  topN: number;
   dashscope: DashscopeRerankConfig;
+  jina: RerankProviderConfig;
+  xinference: RerankProviderConfig;
 }
 
 export type ModelTabKey = 'llm' | 'embedding' | 'rerank';
@@ -181,11 +185,12 @@ export const EMBEDDING_PROVIDER_LIST: ProviderInfo<EmbeddingProvider>[] = [
   { key: 'dashscope', label: 'DashScope', description: '通义文本向量' },
   { key: 'openai', label: 'OpenAI', description: 'OpenAI Embeddings' },
   { key: 'ollama', label: 'Ollama', description: '本地向量模型' },
-  { key: 'zhipuai', label: '智谱 AI', description: 'Embedding 系列' },
 ];
 
 export const RERANK_PROVIDER_LIST: ProviderInfo<RerankProvider>[] = [
   { key: 'dashscope', label: 'DashScope', description: '通义重排模型' },
+  { key: 'jina', label: 'Jina', description: 'Jina AI 重排模型' },
+  { key: 'xinference', label: 'Xinference', description: '自托管重排模型' },
 ];
 
 export function createDefaultModelLlmConfig(): ModelLlmConfig {
@@ -224,13 +229,6 @@ export function createDefaultModelEmbeddingConfig(): ModelEmbeddingConfig {
       baseUrl: 'http://localhost:11434',
       batchSize: 16,
     },
-    zhipuai: {
-      apiKey: '',
-      modelName: 'embedding-3',
-      baseUrl: '',
-      dimensions: 2048,
-      batchSize: 16,
-    },
   };
 }
 
@@ -238,12 +236,22 @@ export function createDefaultModelRerankConfig(): ModelRerankConfig {
   return {
     enabled: true,
     provider: 'dashscope',
+    topN: 10,
     dashscope: {
       apiKey: '',
-      modelName: 'gte-rerank-v2',
+      modelName: 'qwen3.7-text-rerank',
       baseUrl: '',
-      topN: 10,
-      returnDocuments: true,
+      instruct: '',
+    },
+    jina: {
+      apiKey: '',
+      modelName: 'jina-reranker-v2-base-multilingual',
+      baseUrl: '',
+    },
+    xinference: {
+      apiKey: '',
+      modelName: '',
+      baseUrl: 'http://localhost:9997',
     },
   };
 }

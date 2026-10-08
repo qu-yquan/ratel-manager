@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { App, Button, Card, Form, InputNumber, Select, Spin, Switch, Tooltip } from 'antd';
+import {
+  App,
+  Button,
+  Card,
+  Form,
+  InputNumber,
+  Select,
+  Spin,
+  Switch,
+  Tooltip,
+} from 'antd';
 import {
   ApiOutlined,
   BranchesOutlined,
@@ -42,10 +52,18 @@ const ModelConfigTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<ModelTabKey>('llm');
-  const [llmConfig, setLlmConfig] = useState<ModelLlmConfig>(createDefaultModelLlmConfig());
-  const [embeddingConfig, setEmbeddingConfig] = useState<ModelEmbeddingConfig>(createDefaultModelEmbeddingConfig());
-  const [rerankConfig, setRerankConfig] = useState<ModelRerankConfig>(createDefaultModelRerankConfig());
-  const [configIds, setConfigIds] = useState<Record<ModelTabKey, string | undefined>>({
+  const [llmConfig, setLlmConfig] = useState<ModelLlmConfig>(
+    createDefaultModelLlmConfig(),
+  );
+  const [embeddingConfig, setEmbeddingConfig] = useState<ModelEmbeddingConfig>(
+    createDefaultModelEmbeddingConfig(),
+  );
+  const [rerankConfig, setRerankConfig] = useState<ModelRerankConfig>(
+    createDefaultModelRerankConfig(),
+  );
+  const [configIds, setConfigIds] = useState<
+    Record<ModelTabKey, string | undefined>
+  >({
     llm: undefined,
     embedding: undefined,
     rerank: undefined,
@@ -63,11 +81,14 @@ const ModelConfigTab: React.FC = () => {
       const llmInfo = configMap[MODEL_LLM_CONFIG_KEY] as ConfigInfo | undefined;
       if (llmInfo?.configValue) {
         try {
-          const parsed = JSON.parse(llmInfo.configValue) as Partial<ModelLlmConfig>;
+          const parsed = JSON.parse(
+            llmInfo.configValue,
+          ) as Partial<ModelLlmConfig>;
           const defaults = createDefaultModelLlmConfig();
           setLlmConfig({
             provider: parsed.provider || defaults.provider,
-            supportMultimodal: parsed.supportMultimodal ?? defaults.supportMultimodal,
+            supportMultimodal:
+              parsed.supportMultimodal ?? defaults.supportMultimodal,
             multimodalOptions: {
               ...defaults.multimodalOptions,
               ...parsed.multimodalOptions,
@@ -79,7 +100,8 @@ const ModelConfigTab: React.FC = () => {
             generateOptions: {
               ...defaults.generateOptions,
               ...parsed.generateOptions,
-              additionalBodyParams: parsed.generateOptions?.additionalBodyParams ?? {},
+              additionalBodyParams:
+                parsed.generateOptions?.additionalBodyParams ?? {},
             },
           });
           setConfigIds((prev) => ({ ...prev, llm: llmInfo.id }));
@@ -93,10 +115,14 @@ const ModelConfigTab: React.FC = () => {
         setConfigIds((prev) => ({ ...prev, llm: undefined }));
       }
 
-      const embeddingInfo = configMap[MODEL_EMBEDDING_CONFIG_KEY] as ConfigInfo | undefined;
+      const embeddingInfo = configMap[MODEL_EMBEDDING_CONFIG_KEY] as
+        | ConfigInfo
+        | undefined;
       if (embeddingInfo?.configValue) {
         try {
-          const parsed = JSON.parse(embeddingInfo.configValue) as Partial<ModelEmbeddingConfig>;
+          const parsed = JSON.parse(
+            embeddingInfo.configValue,
+          ) as Partial<ModelEmbeddingConfig>;
           const defaults = createDefaultModelEmbeddingConfig();
           setEmbeddingConfig({
             enabled: parsed.enabled ?? true,
@@ -104,7 +130,6 @@ const ModelConfigTab: React.FC = () => {
             dashscope: { ...defaults.dashscope, ...parsed.dashscope },
             openai: { ...defaults.openai, ...parsed.openai },
             ollama: { ...defaults.ollama, ...parsed.ollama },
-            zhipuai: { ...defaults.zhipuai, ...parsed.zhipuai },
           });
           setConfigIds((prev) => ({ ...prev, embedding: embeddingInfo.id }));
         } catch {
@@ -117,15 +142,25 @@ const ModelConfigTab: React.FC = () => {
         setConfigIds((prev) => ({ ...prev, embedding: undefined }));
       }
 
-      const rerankInfo = configMap[MODEL_RERANK_CONFIG_KEY] as ConfigInfo | undefined;
+      const rerankInfo = configMap[MODEL_RERANK_CONFIG_KEY] as
+        | ConfigInfo
+        | undefined;
       if (rerankInfo?.configValue) {
         try {
-          const parsed = JSON.parse(rerankInfo.configValue) as Partial<ModelRerankConfig>;
+          const parsed = JSON.parse(
+            rerankInfo.configValue,
+          ) as Partial<ModelRerankConfig>;
           const defaults = createDefaultModelRerankConfig();
+          const legacyDashscope = parsed.dashscope as
+            | (Partial<ModelRerankConfig['dashscope']> & { topN?: number })
+            | undefined;
           setRerankConfig({
             enabled: parsed.enabled ?? true,
             provider: parsed.provider || defaults.provider,
+            topN: parsed.topN ?? legacyDashscope?.topN ?? defaults.topN,
             dashscope: { ...defaults.dashscope, ...parsed.dashscope },
+            jina: { ...defaults.jina, ...parsed.jina },
+            xinference: { ...defaults.xinference, ...parsed.xinference },
           });
           setConfigIds((prev) => ({ ...prev, rerank: rerankInfo.id }));
         } catch {
@@ -159,7 +194,11 @@ const ModelConfigTab: React.FC = () => {
         message.warning('请填写 API Key');
         return;
       }
-      if (llmConfig.provider === 'gemini' && !currentConfig.apiKey && !(currentConfig as GeminiConfig).project) {
+      if (
+        llmConfig.provider === 'gemini' &&
+        !currentConfig.apiKey &&
+        !(currentConfig as GeminiConfig).project
+      ) {
         message.warning('Gemini 至少需要填写 API Key 或 GCP Project');
         return;
       }
@@ -174,9 +213,13 @@ const ModelConfigTab: React.FC = () => {
           return;
         }
       }
-      const additionalBodyParams = llmConfig.generateOptions?.additionalBodyParams;
+      const additionalBodyParams =
+        llmConfig.generateOptions?.additionalBodyParams;
       if (additionalBodyParams !== undefined && additionalBodyParams !== null) {
-        if (typeof additionalBodyParams !== 'object' || Array.isArray(additionalBodyParams)) {
+        if (
+          typeof additionalBodyParams !== 'object' ||
+          Array.isArray(additionalBodyParams)
+        ) {
           message.warning('自定义请求体参数必须为 JSON 对象格式（{}）');
           return;
         }
@@ -186,7 +229,10 @@ const ModelConfigTab: React.FC = () => {
     if (activeTab === 'embedding') {
       if (embeddingConfig.enabled) {
         const currentConfig = embeddingConfig[embeddingConfig.provider];
-        if (embeddingConfig.provider !== 'ollama' && !('apiKey' in currentConfig && currentConfig.apiKey)) {
+        if (
+          embeddingConfig.provider !== 'ollama' &&
+          !('apiKey' in currentConfig && currentConfig.apiKey)
+        ) {
           message.warning('请填写 API Key');
           return;
         }
@@ -199,12 +245,21 @@ const ModelConfigTab: React.FC = () => {
 
     if (activeTab === 'rerank') {
       if (rerankConfig.enabled) {
-        if (!rerankConfig.dashscope.apiKey) {
+        const currentConfig = rerankConfig[rerankConfig.provider];
+        if (rerankConfig.provider !== 'xinference' && !currentConfig.apiKey) {
           message.warning('请填写 API Key');
           return;
         }
-        if (!rerankConfig.dashscope.modelName) {
+        if (!currentConfig.modelName) {
           message.warning('请填写模型名称');
+          return;
+        }
+        if (rerankConfig.provider === 'xinference' && !currentConfig.baseUrl) {
+          message.warning('请填写 Xinference Base URL');
+          return;
+        }
+        if (rerankConfig.topN < 1 || rerankConfig.topN > 100) {
+          message.warning('Top N 必须在 1 到 100 之间');
           return;
         }
       }
@@ -240,7 +295,8 @@ const ModelConfigTab: React.FC = () => {
     setSaving(true);
     try {
       const { successMessage, ...payload } = saveMeta;
-      const saveConfig = activeTab === 'llm' ? saveLlmModelConfig : saveOrUpdateConfig;
+      const saveConfig =
+        activeTab === 'llm' ? saveLlmModelConfig : saveOrUpdateConfig;
       const success = await saveConfig({
         ...payload,
         valueType: ConfigValueType.JSON,
@@ -275,7 +331,7 @@ const ModelConfigTab: React.FC = () => {
     <span>
       资源Url转Base64{' '}
       <Tooltip title="当模型无法直接访问资源链接时，可开启此项。系统会先读取资源内容，再随请求一起发送给模型。">
-        <QuestionCircleOutlined style={{ color: 'rgba(0, 0, 0, 0.45)', cursor: 'pointer' }} />
+        <QuestionCircleOutlined className={styles.helpIcon} />
       </Tooltip>
     </span>
   );
@@ -288,7 +344,9 @@ const ModelConfigTab: React.FC = () => {
             <button
               key={tab.key}
               type="button"
-              className={`${styles.sideTab} ${activeTab === tab.key ? styles.sideTabActive : ''}`}
+              className={`${styles.sideTab} ${
+                activeTab === tab.key ? styles.sideTabActive : ''
+              }`}
               onClick={() => setActiveTab(tab.key)}
               aria-selected={activeTab === tab.key}
             >
@@ -301,8 +359,15 @@ const ModelConfigTab: React.FC = () => {
         <div className={styles.sideTabContent}>
           {activeTab === 'llm' && (
             <>
-              <Card title="模型提供商" className={`${styles.sectionCard} ${styles.providerSection}`} size="small">
-                <ProviderSelector value={llmConfig.provider} onChange={handleProviderChange} />
+              <Card
+                title="模型提供商"
+                className={`${styles.sectionCard} ${styles.providerSection}`}
+                size="small"
+              >
+                <ProviderSelector
+                  value={llmConfig.provider}
+                  onChange={handleProviderChange}
+                />
                 <Form layout="vertical" className={styles.inlineOptions}>
                   <Form.Item label="支持多模态">
                     <Switch
@@ -325,7 +390,9 @@ const ModelConfigTab: React.FC = () => {
                     <>
                       <Form.Item label={resourceUrlToBase64Label}>
                         <Switch
-                          checked={llmConfig.multimodalOptions.resourceUrlToBase64}
+                          checked={
+                            llmConfig.multimodalOptions.resourceUrlToBase64
+                          }
                           onChange={(resourceUrlToBase64) =>
                             setLlmConfig((prev) => ({
                               ...prev,
@@ -349,7 +416,9 @@ const ModelConfigTab: React.FC = () => {
                               ...prev,
                               multimodalOptions: {
                                 ...prev.multimodalOptions,
-                                maxUploadSizeMb: value ?? DEFAULT_MULTIMODAL_OPTIONS.maxUploadSizeMb,
+                                maxUploadSizeMb:
+                                  value ??
+                                  DEFAULT_MULTIMODAL_OPTIONS.maxUploadSizeMb,
                               },
                             }))
                           }
@@ -367,7 +436,9 @@ const ModelConfigTab: React.FC = () => {
                               ...prev,
                               multimodalOptions: {
                                 ...prev.multimodalOptions,
-                                maxUploadCount: value ?? DEFAULT_MULTIMODAL_OPTIONS.maxUploadCount,
+                                maxUploadCount:
+                                  value ??
+                                  DEFAULT_MULTIMODAL_OPTIONS.maxUploadCount,
                               },
                             }))
                           }
@@ -380,14 +451,18 @@ const ModelConfigTab: React.FC = () => {
                           className={styles.fullWidthControl}
                           placeholder="不配置则允许所有格式，例如：jpg、png、pdf"
                           tokenSeparators={[',', ' ']}
-                          value={llmConfig.multimodalOptions.allowedUploadFormats}
+                          value={
+                            llmConfig.multimodalOptions.allowedUploadFormats
+                          }
                           onChange={(allowedUploadFormats) =>
                             setLlmConfig((prev) => ({
                               ...prev,
                               multimodalOptions: {
                                 ...prev.multimodalOptions,
                                 allowedUploadFormats:
-                                  allowedUploadFormats.length > 0 ? allowedUploadFormats : undefined,
+                                  allowedUploadFormats.length > 0
+                                    ? allowedUploadFormats
+                                    : undefined,
                               },
                             }))
                           }
@@ -398,7 +473,11 @@ const ModelConfigTab: React.FC = () => {
                 </Form>
               </Card>
 
-              <Card title="连接配置" className={styles.sectionCard} size="small">
+              <Card
+                title="连接配置"
+                className={styles.sectionCard}
+                size="small"
+              >
                 <ProviderConfigForm
                   provider={llmConfig.provider}
                   config={llmConfig}
@@ -406,17 +485,26 @@ const ModelConfigTab: React.FC = () => {
                 />
               </Card>
 
-              <Card title="生成参数" className={`${styles.sectionCard} ${styles.generateOptionsSection}`} size="small">
+              <Card
+                title="生成参数"
+                className={`${styles.sectionCard} ${styles.generateOptionsSection}`}
+                size="small"
+              >
                 <GenerateOptionsForm
                   value={llmConfig.generateOptions}
-                  onChange={(generateOptions) => setLlmConfig((prev) => ({ ...prev, generateOptions }))}
+                  onChange={(generateOptions) =>
+                    setLlmConfig((prev) => ({ ...prev, generateOptions }))
+                  }
                 />
               </Card>
             </>
           )}
 
           {activeTab === 'embedding' && (
-            <EmbeddingConfigForm value={embeddingConfig} onChange={setEmbeddingConfig} />
+            <EmbeddingConfigForm
+              value={embeddingConfig}
+              onChange={setEmbeddingConfig}
+            />
           )}
 
           {activeTab === 'rerank' && (
@@ -427,7 +515,13 @@ const ModelConfigTab: React.FC = () => {
             <Button icon={<ReloadOutlined />} onClick={fetchConfig}>
               重置
             </Button>
-            <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave} data-ai-approval>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              loading={saving}
+              onClick={handleSave}
+              data-ai-approval
+            >
               保存
             </Button>
           </div>

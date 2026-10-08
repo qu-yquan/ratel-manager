@@ -1,8 +1,8 @@
 package org.quyq.gwsu.common.ai.model;
 
+import dev.langchain4j.model.embedding.EmbeddingModel;
 import org.quyq.gwsu.common.ai.config.properties.ModelEmbeddingConfigDTO;
 import org.quyq.gwsu.common.security.utils.ConfigInfoUtils;
-import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.util.StringUtils;
 
 import java.util.Objects;
@@ -15,9 +15,9 @@ public class EmbeddingModelProvider {
 
     public static final String MODEL_EMBEDDING_CONFIG = "model_embedding_config";
 
-    private static ModelEmbeddingConfigDTO CONFIG;
+    private static volatile ModelEmbeddingConfigDTO CONFIG;
 
-    private static EmbeddingModel MODEL;
+    private static volatile EmbeddingModel MODEL;
 
     public static Optional<EmbeddingModel> generateModel() {
         ModelEmbeddingConfigDTO newConfig = ConfigInfoUtils.getByObject(MODEL_EMBEDDING_CONFIG, ModelEmbeddingConfigDTO.class);
@@ -65,9 +65,6 @@ public class EmbeddingModelProvider {
                     && StringUtils.hasText(config.getOpenai().getModelName());
             case "ollama" -> config.getOllama() != null
                     && StringUtils.hasText(config.getOllama().getModelName());
-            case "zhipuai" -> config.getZhipuai() != null
-                    && StringUtils.hasText(config.getZhipuai().getApiKey())
-                    && StringUtils.hasText(config.getZhipuai().getModelName());
             default -> false;
         };
     }

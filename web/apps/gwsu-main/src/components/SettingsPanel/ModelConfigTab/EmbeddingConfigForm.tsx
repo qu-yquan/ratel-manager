@@ -14,41 +14,62 @@ interface EmbeddingConfigFormProps {
   onChange: (value: ModelEmbeddingConfig) => void;
 }
 
-const EmbeddingConfigForm: React.FC<EmbeddingConfigFormProps> = ({ value, onChange }) => {
+const EmbeddingConfigForm: React.FC<EmbeddingConfigFormProps> = ({
+  value,
+  onChange,
+}) => {
   const handleProviderChange = (provider: EmbeddingProvider) => {
     onChange({ ...value, provider });
   };
 
   const handleConfigChange = (
     provider: EmbeddingProvider,
-    providerConfig: DashscopeEmbeddingConfig | EmbeddingProviderConfig | OllamaEmbeddingConfig,
+    providerConfig:
+      | DashscopeEmbeddingConfig
+      | EmbeddingProviderConfig
+      | OllamaEmbeddingConfig,
   ) => {
     onChange({ ...value, [provider]: providerConfig });
   };
 
   const renderRemoteForm = (
-    provider: 'dashscope' | 'openai' | 'zhipuai',
+    provider: 'dashscope' | 'openai',
     config: DashscopeEmbeddingConfig | EmbeddingProviderConfig,
   ) => (
     <>
       <Form.Item label="API Key" required>
         <Input.Password
           value={config.apiKey}
-          onChange={(event) => handleConfigChange(provider, { ...config, apiKey: event.target.value })}
+          onChange={(event) =>
+            handleConfigChange(provider, {
+              ...config,
+              apiKey: event.target.value,
+            })
+          }
           placeholder="请输入 API Key"
         />
       </Form.Item>
       <Form.Item label="模型名称" required>
         <Input
           value={config.modelName}
-          onChange={(event) => handleConfigChange(provider, { ...config, modelName: event.target.value })}
+          onChange={(event) =>
+            handleConfigChange(provider, {
+              ...config,
+              modelName: event.target.value,
+            })
+          }
           placeholder="请输入向量化模型名称"
         />
       </Form.Item>
       <Form.Item label="Base URL">
         <Input
           value={config.baseUrl}
-          onChange={(event) => handleConfigChange(provider, { ...config, baseUrl: event.target.value })}
+          onChange={(event) =>
+            handleConfigChange(provider, {
+              ...config,
+              baseUrl: event.target.value,
+            })
+          }
           placeholder="可选，留空使用默认地址"
         />
       </Form.Item>
@@ -56,7 +77,12 @@ const EmbeddingConfigForm: React.FC<EmbeddingConfigFormProps> = ({ value, onChan
         <InputNumber
           min={1}
           value={config.dimensions}
-          onChange={(dimensions) => handleConfigChange(provider, { ...config, dimensions: dimensions ?? undefined })}
+          onChange={(dimensions) =>
+            handleConfigChange(provider, {
+              ...config,
+              dimensions: dimensions ?? undefined,
+            })
+          }
           placeholder="留空使用模型默认维度"
           className={styles.fullWidthControl}
         />
@@ -66,7 +92,12 @@ const EmbeddingConfigForm: React.FC<EmbeddingConfigFormProps> = ({ value, onChan
           min={1}
           max={2048}
           value={config.batchSize}
-          onChange={(batchSize) => handleConfigChange(provider, { ...config, batchSize: batchSize ?? undefined })}
+          onChange={(batchSize) =>
+            handleConfigChange(provider, {
+              ...config,
+              batchSize: batchSize ?? undefined,
+            })
+          }
           className={styles.fullWidthControl}
         />
       </Form.Item>
@@ -78,14 +109,24 @@ const EmbeddingConfigForm: React.FC<EmbeddingConfigFormProps> = ({ value, onChan
       <Form.Item label="模型名称" required>
         <Input
           value={config.modelName}
-          onChange={(event) => handleConfigChange('ollama', { ...config, modelName: event.target.value })}
+          onChange={(event) =>
+            handleConfigChange('ollama', {
+              ...config,
+              modelName: event.target.value,
+            })
+          }
           placeholder="例如 nomic-embed-text"
         />
       </Form.Item>
       <Form.Item label="Base URL" required>
         <Input
           value={config.baseUrl}
-          onChange={(event) => handleConfigChange('ollama', { ...config, baseUrl: event.target.value })}
+          onChange={(event) =>
+            handleConfigChange('ollama', {
+              ...config,
+              baseUrl: event.target.value,
+            })
+          }
           placeholder="http://localhost:11434"
         />
       </Form.Item>
@@ -93,7 +134,12 @@ const EmbeddingConfigForm: React.FC<EmbeddingConfigFormProps> = ({ value, onChan
         <InputNumber
           min={1}
           value={config.dimensions}
-          onChange={(dimensions) => handleConfigChange('ollama', { ...config, dimensions: dimensions ?? undefined })}
+          onChange={(dimensions) =>
+            handleConfigChange('ollama', {
+              ...config,
+              dimensions: dimensions ?? undefined,
+            })
+          }
           placeholder="留空使用模型默认维度"
           className={styles.fullWidthControl}
         />
@@ -103,7 +149,12 @@ const EmbeddingConfigForm: React.FC<EmbeddingConfigFormProps> = ({ value, onChan
           min={1}
           max={2048}
           value={config.batchSize}
-          onChange={(batchSize) => handleConfigChange('ollama', { ...config, batchSize: batchSize ?? undefined })}
+          onChange={(batchSize) =>
+            handleConfigChange('ollama', {
+              ...config,
+              batchSize: batchSize ?? undefined,
+            })
+          }
           className={styles.fullWidthControl}
         />
       </Form.Item>
@@ -112,10 +163,17 @@ const EmbeddingConfigForm: React.FC<EmbeddingConfigFormProps> = ({ value, onChan
 
   return (
     <>
-      <Card title="模型提供商" className={`${styles.sectionCard} ${styles.providerSection}`} size="small">
+      <Card
+        title="模型提供商"
+        className={`${styles.sectionCard} ${styles.providerSection}`}
+        size="small"
+      >
         <Form layout="vertical">
           <Form.Item label="启用">
-            <Switch checked={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
+            <Switch
+              checked={value.enabled}
+              onChange={(enabled) => onChange({ ...value, enabled })}
+            />
           </Form.Item>
           <Form.Item label="提供商">
             <Select
@@ -133,10 +191,11 @@ const EmbeddingConfigForm: React.FC<EmbeddingConfigFormProps> = ({ value, onChan
       </Card>
       <Card title="连接配置" className={styles.sectionCard} size="small">
         <Form layout="vertical">
-          {value.provider === 'dashscope' && renderRemoteForm('dashscope', value.dashscope)}
-          {value.provider === 'openai' && renderRemoteForm('openai', value.openai)}
+          {value.provider === 'dashscope' &&
+            renderRemoteForm('dashscope', value.dashscope)}
+          {value.provider === 'openai' &&
+            renderRemoteForm('openai', value.openai)}
           {value.provider === 'ollama' && renderOllamaForm(value.ollama)}
-          {value.provider === 'zhipuai' && renderRemoteForm('zhipuai', value.zhipuai)}
         </Form>
       </Card>
     </>

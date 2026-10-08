@@ -1,7 +1,10 @@
 package org.quyq.gwsu.security.connect.entrance.dingtalk.domain;
 
-import com.alibaba.fastjson2.JSONObject;
+import com.google.gson.Gson;
 import lombok.Getter;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * @author Quyq
@@ -403,7 +406,9 @@ public class DingTalkMessage {
 
 
     public abstract static class BaseBuilder {
-        protected JSONObject content = new JSONObject();
+        private static final Gson GSON = new Gson();
+
+        protected final Map<String, Object> content = new LinkedHashMap<>();
         private MessageType type;
 
         private BaseBuilder(MessageType type) {
@@ -411,7 +416,7 @@ public class DingTalkMessage {
         }
 
         public DingTalkMessage build() {
-            return new DingTalkMessage(type, content.toJSONString());
+            return new DingTalkMessage(type, GSON.toJson(content));
 
         }
 

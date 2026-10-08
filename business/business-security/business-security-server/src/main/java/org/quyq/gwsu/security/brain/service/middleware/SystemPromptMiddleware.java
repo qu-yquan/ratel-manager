@@ -1,11 +1,12 @@
 package org.quyq.gwsu.security.brain.service.middleware;
 
 
+import dev.langchain4j.model.input.PromptTemplate;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;
+import io.agentscope.core.middleware.MiddlewareBase;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.state.AgentState;
-import io.agentscope.core.middleware.MiddlewareBase;
 import lombok.RequiredArgsConstructor;
 import org.quyq.gwsu.common.ai.agui.model.AIRunnerInstanceWrapper;
 import org.quyq.gwsu.common.ai.agui.model.AguiMessage;
@@ -18,7 +19,6 @@ import org.quyq.gwsu.common.security.enums.VisitorType;
 import org.quyq.gwsu.common.security.utils.SecurityUtils;
 import org.quyq.gwsu.common.security.utils.SessionUtils;
 import org.quyq.gwsu.security.brain.service.prompt.UploadedFilePromptBuilder;
-import org.springframework.ai.template.st.StTemplateRenderer;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.ObjectMapper;
@@ -38,7 +38,6 @@ import java.util.Optional;
  */
 @RequiredArgsConstructor
 public class SystemPromptMiddleware implements MiddlewareBase {
-    private final StTemplateRenderer templateRenderer = StTemplateRenderer.builder().build();
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
     private final SecurityUtils securityUtils;
     private final SessionUtils sessionUtils;
@@ -54,11 +53,14 @@ public class SystemPromptMiddleware implements MiddlewareBase {
                 Optional.ofNullable(runtimeContext.get(AIConstants.Param.FORWARDED_PROPS_KEY, Map.class))
                         .orElse(Collections.emptyMap())
         );
-        forwardedProps.put("headlessContent" , buildHeadlessContent(runtimeContext, (String) forwardedProps.get(AIConstants.Param.FORWARDED_PROPS_OPERATION_MODE_KEY)));
+        forwardedProps.compute(AIConstants.Param.FORWARDED_PROPS_CURRENT_PATH_KEY,
+                (key, value) -> Optional.ofNullable(value).orElse(""));
+        forwardedProps.put("headlessContent", buildHeadlessContent(runtimeContext,
+                (String) forwardedProps.get(AIConstants.Param.FORWARDED_PROPS_OPERATION_MODE_KEY)));
         forwardedProps.put("fileInfos", buildUploadedFilePrompt(agent, runtimeContext));
         String renderedPrompt = systemPrompt;
         if (StringUtils.hasText(systemPrompt) && !forwardedProps.isEmpty()) {
-            renderedPrompt = templateRenderer.apply(systemPrompt, forwardedProps);
+            renderedPrompt = PromptTemplate.from(systemPrompt).apply(forwardedProps).text();
         }
         String subjectSystemPrompt = buildSubjectSystemPrompt();
         if (StringUtils.hasText(subjectSystemPrompt)) {

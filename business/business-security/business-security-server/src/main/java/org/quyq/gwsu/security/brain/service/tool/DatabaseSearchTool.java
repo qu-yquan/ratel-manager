@@ -1,7 +1,6 @@
 package org.quyq.gwsu.security.brain.service.tool;
 
 import cn.hutool.core.collection.CollUtil;
-import com.alibaba.cloud.ai.graph.agent.AgentTool;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import lombok.RequiredArgsConstructor;

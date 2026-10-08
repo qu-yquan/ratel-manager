@@ -15,7 +15,6 @@ import org.quyq.gwsu.headless.api.enums.HeadlessAgentStatus;
 import org.quyq.gwsu.headless.core.HeadlessAgentListener;
 import org.quyq.gwsu.headless.core.session.HeadlessPageWrapper;
 import org.quyq.gwsu.kit.api.file.vo.KitFileInfoVO;
-import org.springframework.ai.chat.model.ChatResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
@@ -29,7 +28,7 @@ public class HeadlessMessageHandler implements HeadlessAgentListener {
 
     private static final String OUTPUT_PANEL_SELECTOR = "#ai-output-panel";
 
-    private final Sinks.Many<ChatResponse> sink = Sinks.many().multicast().onBackpressureBuffer();
+    private final Sinks.Many<AguiEvent> sink = Sinks.many().unicast().onBackpressureBuffer();
 
     private final Gson gson = new Gson();
 
@@ -155,7 +154,7 @@ public class HeadlessMessageHandler implements HeadlessAgentListener {
         emitFailure(error);
     }
 
-    public Flux<ChatResponse> asFlux() {
+    public Flux<AguiEvent> asFlux() {
         return sink.asFlux();
     }
 
@@ -170,7 +169,7 @@ public class HeadlessMessageHandler implements HeadlessAgentListener {
 
     private void emitFailure(Throwable error) {
         emitStatusIfNeeded(HeadlessAgentStatus.ERROR);
-        emit(HeadlessAguiEventBridge.rawEvent(currentThreadId, currentRunId, error.getMessage()));
+        emit(HeadlessAguiEvents.raw(currentThreadId, currentRunId, error.getMessage()));
         sink.tryEmitComplete();
     }
 
@@ -199,7 +198,7 @@ public class HeadlessMessageHandler implements HeadlessAgentListener {
             return;
         }
         status = newStatus;
-        emit(HeadlessAguiEventBridge.statusEvent(currentThreadId, currentRunId, newStatus));
+        emit(HeadlessAguiEvents.status(currentThreadId, currentRunId, newStatus));
     }
 
     private HeadlessAgentStatus resolveStatus(AguiEvent event) {
@@ -240,6 +239,6 @@ public class HeadlessMessageHandler implements HeadlessAgentListener {
     }
 
     private void emit(AguiEvent event) {
-        sink.tryEmitNext(HeadlessAguiEventBridge.toChatResponse(event));
+        sink.tryEmitNext(event);
     }
 }

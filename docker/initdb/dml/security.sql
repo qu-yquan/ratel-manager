@@ -72,13 +72,13 @@ VALUES ('2060910412299448320', 'model_llm_config', '助手配置',
 INSERT INTO security_config (id, config_key, config_name, config_value, value_type, config_type, description, tenant_id,
                              create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time)
 VALUES ('2077671528211812352', 'model_embedding_config', '向量化模型配置',
-        '{"enabled":false,"provider":"dashscope","dashscope":{"apiKey":"","modelName":"text-embedding-v4","baseUrl":"","dimensions":1024,"batchSize":16},"openai":{"apiKey":"","modelName":"text-embedding-3-small","baseUrl":"","dimensions":1536,"batchSize":16},"ollama":{"modelName":"nomic-embed-text","baseUrl":"http://localhost:11434","batchSize":16},"zhipuai":{"apiKey":"","modelName":"embedding-3","baseUrl":"","dimensions":2048,"batchSize":16}}',
+        '{"enabled":false,"provider":"dashscope","dashscope":{"apiKey":"","modelName":"text-embedding-v4","baseUrl":"","dimensions":1024,"batchSize":16},"openai":{"apiKey":"","modelName":"text-embedding-3-small","baseUrl":"","dimensions":1536,"batchSize":16},"ollama":{"modelName":"nomic-embed-text","baseUrl":"http://localhost:11434","batchSize":16}}',
         4, 1, '向量化模型提供商及连接参数配置', NULL, 'admin', '2026-07-16 16:27:48.253733', 'admin',
         '2026-07-16 16:28:46.129448', 0, NULL, NULL);
 INSERT INTO security_config (id, config_key, config_name, config_value, value_type, config_type, description, tenant_id,
                              create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time)
 VALUES ('2077671887638499328', 'model_rerank_config', '重排模型配置',
-        '{"enabled":false,"provider":"dashscope","dashscope":{"apiKey":"","modelName":"gte-rerank-v2","baseUrl":"","topN":10,"returnDocuments":true}}',
+        '{"enabled":false,"provider":"dashscope","topN":10,"dashscope":{"apiKey":"","modelName":"qwen3.7-text-rerank","baseUrl":"","instruct":""},"jina":{"apiKey":"","modelName":"jina-reranker-v2-base-multilingual","baseUrl":""},"xinference":{"apiKey":"","modelName":"","baseUrl":"http://localhost:9997"}}',
         4, 1, '重排模型提供商及连接参数配置', NULL, 'admin', '2026-07-16 16:29:13.947374', 'admin',
         '2026-07-16 16:29:13.947374', 0, NULL, NULL);
 INSERT INTO security_config (id, config_key, config_name, config_value, value_type, config_type, description, tenant_id,

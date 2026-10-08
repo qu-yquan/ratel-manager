@@ -17,7 +17,7 @@ public class ModelEmbeddingConfigDTO {
     /**
      * 当前激活的向量化模型提供商。
      *
-     * <p>支持值：dashscope、openai、ollama、zhipuai
+     * <p>支持值：dashscope、openai、ollama
      */
     private String provider;
 
@@ -26,8 +26,6 @@ public class ModelEmbeddingConfigDTO {
     private OpenaiEmbeddingConfigDTO openai = new OpenaiEmbeddingConfigDTO();
 
     private OllamaEmbeddingConfigDTO ollama = new OllamaEmbeddingConfigDTO();
-
-    private ZhipuaiEmbeddingConfigDTO zhipuai = new ZhipuaiEmbeddingConfigDTO();
 
     @Data
     public static class BaseRemoteEmbeddingConfigDTO {
@@ -51,11 +49,6 @@ public class ModelEmbeddingConfigDTO {
     @Data
     @EqualsAndHashCode(callSuper = true)
     public static class OpenaiEmbeddingConfigDTO extends BaseRemoteEmbeddingConfigDTO {
-    }
-
-    @Data
-    @EqualsAndHashCode(callSuper = true)
-    public static class ZhipuaiEmbeddingConfigDTO extends BaseRemoteEmbeddingConfigDTO {
     }
 
     @Data

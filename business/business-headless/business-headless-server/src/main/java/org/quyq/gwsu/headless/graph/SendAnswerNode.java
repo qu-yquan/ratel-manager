@@ -1,13 +1,14 @@
 package org.quyq.gwsu.headless.graph;
 
 
-import com.alibaba.cloud.ai.graph.OverAllState;
-import com.alibaba.cloud.ai.graph.action.NodeAction;
 import io.agentscope.core.state.AgentStateStore;
 import lombok.RequiredArgsConstructor;
+import org.bsc.langgraph4j.action.NodeAction;
+import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
 import org.quyq.gwsu.common.core.utils.AssertUtils;
 import org.quyq.gwsu.common.core.utils.ThreadPoolUtil;
 import org.quyq.gwsu.headless.api.dto.HeadlessDTO;
+import org.quyq.gwsu.headless.api.enums.HeadlessAgentStatus;
 import org.quyq.gwsu.headless.constants.HeadlessConstants;
 import org.quyq.gwsu.headless.core.HeadlessBrowserManager;
 import org.quyq.gwsu.headless.domain.RouterInfo;
@@ -24,7 +25,7 @@ import java.util.concurrent.ExecutorService;
  * @description 发送用户问题回复节点
  */
 @RequiredArgsConstructor
-public class SendAnswerNode implements NodeAction {
+public class SendAnswerNode implements NodeAction<HeadlessGraphState> {
 
     private final AgentStateStore agentStateStore;
 
@@ -33,8 +34,8 @@ public class SendAnswerNode implements NodeAction {
     private final ExecutorService executorService = ThreadPoolUtil.newVirtualThreadPerTaskExecutor();
 
     @Override
-    public Map<String, Object> apply(OverAllState state) {
-        RouterInfo routerInfo = state.value(HeadlessConstants.Headless.GRAPH_PARAM_ROUTE_INFO, RouterInfo.class).orElse(null);
+    public Map<String, Object> apply(HeadlessGraphState state) {
+        RouterInfo routerInfo = state.<RouterInfo>value(HeadlessConstants.Headless.GRAPH_PARAM_ROUTE_INFO).orElse(null);
         AssertUtils.notNull(routerInfo, HeadlessErrorCode.E01001);
 
         Map<String, String> answerInfo = routerInfo.getAnswerInfo();
@@ -42,9 +43,9 @@ public class SendAnswerNode implements NodeAction {
         String toolCallId = routerInfo.getToolCallId();
         AssertUtils.hasText(toolCallId, HeadlessErrorCode.E01004);
 
-        SubjectInfo userId = state.value(HeadlessConstants.Headless.GRAPH_PARAM_USER_ID, SubjectInfo.class).orElseThrow();
-        HeadlessDTO request = state.value(HeadlessConstants.Headless.GRAPH_PARAM_REQUEST, HeadlessDTO.class).orElseThrow();
-        String threadId = state.value(HeadlessConstants.Headless.GRAPH_PARAM_THREAD_ID, String.class).orElse("");
+        SubjectInfo userId = state.<SubjectInfo>value(HeadlessConstants.Headless.GRAPH_PARAM_USER_ID).orElseThrow();
+        HeadlessDTO request = state.<HeadlessDTO>value(HeadlessConstants.Headless.GRAPH_PARAM_REQUEST).orElseThrow();
+        String threadId = state.<String>value(HeadlessConstants.Headless.GRAPH_PARAM_THREAD_ID).orElse("");
 
         HeadlessMessageHandler handler = new HeadlessMessageHandler(
                 userId.userId(),
@@ -70,9 +71,9 @@ public class SendAnswerNode implements NodeAction {
 
         });
 
-        return Map.of(HeadlessConstants.Headless.GRAPH_PARAM_OUTPUT, handler.asFlux()
-                .startWith(Flux.just(HeadlessAguiEventBridge.toChatResponse(
-                        HeadlessAguiEventBridge.statusEvent(threadId, "", org.quyq.gwsu.headless.api.enums.HeadlessAgentStatus.INITING)
-                ))));
+        Flux<AguiEvent> output = handler.asFlux()
+                .startWith(HeadlessAguiEvents.status(
+                        threadId, "", HeadlessAgentStatus.INITING));
+        return Map.of(HeadlessConstants.Headless.GRAPH_PARAM_OUTPUT, output);
     }
 }
