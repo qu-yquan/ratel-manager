@@ -1,5 +1,6 @@
 package org.quyq.gwsu.security.brain.service.tool;
 
+import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.quyq.gwsu.kit.api.knowledge.dto.KnowledgeChunkAdjacentDTO;
 import org.quyq.gwsu.kit.api.knowledge.dto.KnowledgeSearchDTO;
 import org.quyq.gwsu.kit.api.knowledge.enums.KnowledgeChunkDirection;
 import org.quyq.gwsu.kit.api.knowledge.vo.KnowledgeSearchResultVO;
+import org.quyq.gwsu.security.brain.service.citation.KnowledgeCitationContext;
 import org.quyq.gwsu.security.brain.service.skill.KnowledgeSearchSkillRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -38,7 +40,8 @@ public class KnowledgeSearchTool {
             """)
     public Mono<String> searchKnowledge(
             @ToolParam(name = "query", description = "检索词，必须使用知识库底层语言进行检索") String query,
-            @ToolParam(name = "topK", description = "返回条数，选填，默认 8") Integer topK) {
+            @ToolParam(name = "topK", description = "返回条数，选填，默认 8") Integer topK,
+            RuntimeContext runtimeContext) {
         return Mono.fromSupplier(() -> {
             if (!StringUtils.hasText(query)) {
                 return "错误：query 不能为空。";
@@ -50,7 +53,7 @@ public class KnowledgeSearchTool {
             if (CollectionUtils.isEmpty(results)) {
                 return "未检索到匹配片段。";
             }
-            return renderResults("知识片段检索结果", results);
+            return renderResults("知识片段检索结果", results, runtimeContext);
         }).onErrorResume(ex -> Mono.just("知识库检索服务暂时不可用，请稍后重试。原因：" + ex.getMessage()));
     }
 
@@ -62,7 +65,8 @@ public class KnowledgeSearchTool {
             """)
     public Mono<String> findAdjacentKnowledgeChunk(
             @ToolParam(name = "pageBlockId", description = "当前要扩展的 block ID；继续扩展时请传当前边缘 block 的最新 pageBlockId") String pageBlockId,
-            @ToolParam(name = "direction", description = "扩展方向，只能是 PREVIOUS 或 NEXT") KnowledgeChunkDirection direction) {
+            @ToolParam(name = "direction", description = "扩展方向，只能是 PREVIOUS 或 NEXT") KnowledgeChunkDirection direction,
+            RuntimeContext runtimeContext) {
         return Mono.fromSupplier(() -> {
             if (!StringUtils.hasText(pageBlockId)) {
                 return "错误：pageBlockId 不能为空。";
@@ -78,18 +82,22 @@ public class KnowledgeSearchTool {
             if (CollectionUtils.isEmpty(results)) {
                 return "未检索到相邻片段。";
             }
-            return renderResults("相邻知识片段检索结果", results);
+            return renderResults("相邻知识片段检索结果", results, runtimeContext);
         }).onErrorResume(ex -> Mono.just("知识上下文补全失败，当前无法确认答案完整性。原因：" + ex.getMessage()));
     }
 
-    private String renderResults(String title, List<KnowledgeSearchResultVO> results) {
+    private String renderResults(String title, List<KnowledgeSearchResultVO> results, RuntimeContext runtimeContext) {
         StringBuilder sb = new StringBuilder(title).append("：\n");
+        KnowledgeCitationContext citationContext = KnowledgeCitationContext.getOrCreate(runtimeContext);
         for (int i = 0; i < results.size(); i++) {
             KnowledgeSearchResultVO result = results.get(i);
+            String citationKey = citationContext.register(result);
             sb.append("\n#").append(i + 1).append("\n")
+                    .append("- citationKey: ").append(citationKey).append("\n")
                     .append("- pageBlockId: ").append(nullToDash(result.getPageBlockId())).append("\n")
                     .append("- chunkId: ").append(nullToDash(result.getChunkId())).append("\n")
                     .append("- sourceDocumentId: ").append(nullToDash(result.getSourceDocumentId())).append("\n")
+                    .append("- sourceFileName: ").append(nullToDash(result.getSourceFileName())).append("\n")
                     .append("- title: ").append(nullToDash(result.getTitle())).append("\n")
                     .append("- headingPath: ").append(nullToDash(result.getHeadingPath())).append("\n")
                     .append("- score: ").append(result.getScore() == null ? "-" : result.getScore()).append("\n")

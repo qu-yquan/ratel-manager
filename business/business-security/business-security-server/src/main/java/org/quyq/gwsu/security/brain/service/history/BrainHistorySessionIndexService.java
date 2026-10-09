@@ -3,6 +3,7 @@ package org.quyq.gwsu.security.brain.service.history;
 import cn.hutool.core.text.CharSequenceUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.quyq.gwsu.security.brain.vo.BrainHistoryMessageMetadataVO;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import tools.jackson.databind.ObjectMapper;
@@ -11,6 +12,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,6 +38,13 @@ public class BrainHistorySessionIndexService {
     private final BrainHistorySessionIndexRepository sessionIndexRepository;
 
     public void refreshSessionIndex(String sessionId, String userId) {
+        refreshSessionIndex(sessionId, userId, Map.of());
+    }
+
+    public void refreshSessionIndex(
+            String sessionId,
+            String userId,
+            Map<String, BrainHistoryMessageMetadataVO> messageMetadata) {
         if (!StringUtils.hasText(sessionId) || !StringUtils.hasText(userId)) {
             return;
         }
@@ -52,6 +61,15 @@ public class BrainHistorySessionIndexService {
         entry.setMessageCount(messages.size());
         entry.setUpdatedAt(resolveUpdatedAt(sessionLog));
         entry.setLogPath(sessionLog.path());
+        Map<String, BrainHistoryMessageMetadataVO> mergedMetadata = new LinkedHashMap<>();
+        BrainHistorySessionIndexEntry existing = sessionIndexRepository.get(userId, sessionId);
+        if (existing != null && existing.getMessageMetadata() != null) {
+            mergedMetadata.putAll(existing.getMessageMetadata());
+        }
+        if (messageMetadata != null) {
+            mergedMetadata.putAll(messageMetadata);
+        }
+        entry.setMessageMetadata(Map.copyOf(mergedMetadata));
         sessionIndexRepository.save(userId, entry);
     }
 

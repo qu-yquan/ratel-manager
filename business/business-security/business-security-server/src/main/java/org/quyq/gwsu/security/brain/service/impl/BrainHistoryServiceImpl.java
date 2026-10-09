@@ -14,6 +14,7 @@ import org.quyq.gwsu.security.brain.service.history.BrainHistoryBaseStoreReposit
 import org.quyq.gwsu.security.brain.service.history.BrainHistorySessionIndexEntry;
 import org.quyq.gwsu.security.brain.service.history.BrainHistorySessionIndexRepository;
 import org.quyq.gwsu.security.brain.service.history.BrainHistorySessionIndexService;
+import org.quyq.gwsu.security.brain.vo.BrainHistoryMessageVO;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import tools.jackson.databind.ObjectMapper;
@@ -66,7 +67,7 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
     }
 
     @Override
-    public List<AguiMessage> getSessionMessages(String sessionId, String userId) {
+    public List<BrainHistoryMessageVO> getSessionMessages(String sessionId, String userId) {
         BrainHistorySessionIndexEntry entry = sessionIndexRepository.get(userId, sessionId);
         if (entry == null) {
             return List.of();
@@ -88,7 +89,11 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
                 restoredMessages.add(toAguiMessage(message));
             }
         }
-        return restoredMessages;
+        return restoredMessages.stream()
+                .map(message -> new BrainHistoryMessageVO(
+                        message,
+                        entry.getMessageMetadata() == null ? null : entry.getMessageMetadata().get(message.id())))
+                .toList();
     }
 
     @Override

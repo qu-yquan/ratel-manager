@@ -31,6 +31,15 @@ public class KnowledgeSearchResultVO {
     @Schema(description = "源文档ID")
     private String sourceDocumentId;
 
+    @Schema(description = "源文件ID")
+    private String sourceFileId;
+
+    @Schema(description = "源文件名")
+    private String sourceFileName;
+
+    @Schema(description = "源文件格式")
+    private String sourceFileFormat;
+
     @Schema(description = "标题")
     private String title;
 

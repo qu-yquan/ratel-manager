@@ -7,6 +7,7 @@ import {
 } from '@copilotkit/react-core/v2';
 import type { AssistantMessage, Message } from '@ag-ui/core';
 import { ExecutionSummary } from './ExecutionSummary';
+import { KnowledgeReferenceList } from './KnowledgeReferenceList';
 import type { ViewConfig } from './types';
 import { RAW_ERROR_MESSAGE_NAME } from '@/providers/CopilotKitProvider';
 import styles from './copilot-override.module.less';
@@ -29,7 +30,10 @@ export function createCustomRenderMessage(
 
     if (!isRawError) {
       return (
-        <CopilotChatAssistantMessage {...props} toolCallsView={() => null} />
+        <>
+          <CopilotChatAssistantMessage {...props} toolCallsView={() => null} />
+          <KnowledgeReferenceList messageId={message.id} />
+        </>
       );
     }
 

@@ -1,9 +1,9 @@
 package org.quyq.gwsu.security.brain.service;
 
-import org.quyq.gwsu.common.ai.agui.model.AguiMessage;
 import org.quyq.gwsu.security.api.brain.dto.BrainHistoryQueryDTO;
 import org.quyq.gwsu.security.api.brain.vo.BrainHistorySessionSliceVo;
 import org.quyq.gwsu.security.api.brain.vo.BrainHistorySessionVo;
+import org.quyq.gwsu.security.brain.vo.BrainHistoryMessageVO;
 
 import java.util.List;
 
@@ -30,7 +30,7 @@ public interface IBrainHistoryService {
      * @param userId    用户ID
      * @return 消息列表
      */
-    List<AguiMessage> getSessionMessages(String sessionId, String userId);
+    List<BrainHistoryMessageVO> getSessionMessages(String sessionId, String userId);
 
 
     /**

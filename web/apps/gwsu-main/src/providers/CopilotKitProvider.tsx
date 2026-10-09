@@ -11,9 +11,20 @@ import type { WebToolExecutePayload } from '@/services/web-tool';
 import { dispatchHumanApproval } from '@/services/human-approval';
 import type { HumanApprovalPayload } from '@/services/human-approval';
 import { dispatchAskUserQuestion } from '@/services/ask-user-question';
-import type { QuestionParam, QuestionOption } from '@/services/ask-user-question';
-import { dispatchAgentOutput, dispatchAgentOutputEnd } from '@/services/agent-output';
-import type { AgentOutputPayload, AgentOutputEndPayload } from '@/services/agent-output';
+import type {
+  QuestionParam,
+  QuestionOption,
+} from '@/services/ask-user-question';
+import {
+  dispatchAgentOutput,
+  dispatchAgentOutputEnd,
+} from '@/services/agent-output';
+import type {
+  AgentOutputPayload,
+  AgentOutputEndPayload,
+} from '@/services/agent-output';
+import { dispatchKnowledgeReferences } from '@/services/knowledge-reference';
+import type { KnowledgeReferencesPayload } from '@/services/knowledge-reference';
 import { WebToolConfirmModal } from '@/services/web-tool/components/WebToolConfirmModal';
 import { ToolCallItem } from '@/components/AIChat/ToolCallItem';
 import { useViewConfigStore } from '@/stores/viewConfig';
@@ -46,13 +57,23 @@ export const RAW_ERROR_MESSAGE_NAME = '__raw_error__';
  */
 function ToolCallRendererRegistration() {
   const showToolCalls = useViewConfigStore((s) => s.showToolCalls);
-  useRenderTool({
-    name: '*',
-    render: ({ name, args, status, result }) => {
-      if (!showToolCalls) return <></>;
-      return <ToolCallItem name={name} args={args} status={status} result={result} />;
+  useRenderTool(
+    {
+      name: '*',
+      render: ({ name, args, status, result }) => {
+        if (!showToolCalls) return <></>;
+        return (
+          <ToolCallItem
+            name={name}
+            args={args}
+            status={status}
+            result={result}
+          />
+        );
+      },
     },
-  }, [showToolCalls]);
+    [showToolCalls],
+  );
   return null;
 }
 
@@ -62,7 +83,9 @@ function ToolCallRendererRegistration() {
  */
 function WebToolEventListener() {
   const { agent } = useAgent({ agentId: 'brain' });
-  const subscriptionRef = useRef<ReturnType<typeof agent.subscribe> | null>(null);
+  const subscriptionRef = useRef<ReturnType<typeof agent.subscribe> | null>(
+    null,
+  );
   const { notification } = App.useApp();
 
   /**
@@ -72,7 +95,8 @@ function WebToolEventListener() {
    */
   const normalizeOptions = (options: unknown): QuestionOption[] => {
     if (Array.isArray(options)) return options as QuestionOption[];
-    if (options && typeof options === 'object') return [options as QuestionOption];
+    if (options && typeof options === 'object')
+      return [options as QuestionOption];
     return [];
   };
 
@@ -93,7 +117,7 @@ function WebToolEventListener() {
     }
 
     const subscriber: AgentSubscriber = {
-      onCustomEvent: ({ event }):void => {
+      onCustomEvent: ({ event }): void => {
         //web工具调用
         if (event.name === 'TOOL_EXECUTE') {
           dispatchWebTool(event.value as WebToolExecutePayload);
@@ -109,6 +133,10 @@ function WebToolEventListener() {
         // AI 输出视图 - 输出结束
         else if (event.name === 'AGENT_OUTPUT_END') {
           dispatchAgentOutputEnd(event.value as AgentOutputEndPayload);
+        } else if (event.name === 'KNOWLEDGE_REFERENCES') {
+          dispatchKnowledgeReferences(
+            event.value as KnowledgeReferencesPayload,
+          );
         }
       },
       onRawEvent: ({ event }): void => {
@@ -128,12 +156,14 @@ function WebToolEventListener() {
         if (toolCallName === 'AskUserQuestion') {
           const rawQuestions = toolCallArgs?.questions;
           if (Array.isArray(rawQuestions) && rawQuestions.length > 0) {
-            const questions: QuestionParam[] = rawQuestions.map((q: Record<string, unknown>) => ({
-              question: String(q.question ?? ''),
-              header: String(q.header ?? ''),
-              options: normalizeOptions(q.options),
-              multiSelect: Boolean(q.multiSelect),
-            }));
+            const questions: QuestionParam[] = rawQuestions.map(
+              (q: Record<string, unknown>) => ({
+                question: String(q.question ?? ''),
+                header: String(q.header ?? ''),
+                options: normalizeOptions(q.options),
+                multiSelect: Boolean(q.multiSelect),
+              }),
+            );
             dispatchAskUserQuestion({
               toolCallId: event.toolCallId,
               questions,
@@ -159,11 +189,12 @@ function WebToolEventListener() {
  * CopilotKit Provider 封装
  * 使用 HttpAgent 直接连接到后端 AG-UI 接口
  */
-export function GwsuCopilotKitProvider({ children }: GwsuCopilotKitProviderProps) {
-
+export function GwsuCopilotKitProvider({
+  children,
+}: GwsuCopilotKitProviderProps) {
   // 订阅 forwardedProps store，变化时触发重渲染以更新 properties
-  const currentPath = useForwardedPropsStore((s:any) => s.currentPath);
-  const operationMode = useForwardedPropsStore((s:any) => s.operationMode);
+  const currentPath = useForwardedPropsStore((s: any) => s.currentPath);
+  const operationMode = useForwardedPropsStore((s: any) => s.operationMode);
   const extras = useForwardedPropsStore((s: any) => s.extras);
 
   // 动态获取请求头

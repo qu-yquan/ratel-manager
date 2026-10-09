@@ -55,6 +55,11 @@ import {
   onAskUserQuestion,
 } from '@/services/ask-user-question';
 import { clearAgentOutput } from '@/services/agent-output';
+import {
+  clearKnowledgeReferences,
+  notifyKnowledgeReferencesRestored,
+  restoreKnowledgeReferences,
+} from '@/services/knowledge-reference';
 import type { ModelLlmConfig } from '../SettingsPanel/ModelConfigTab/types';
 import { createDefaultModelLlmConfig } from '../SettingsPanel/ModelConfigTab/types';
 import styles from './copilot-override.module.less';
@@ -456,6 +461,7 @@ export function CopilotChatPanel({
     clearHumanApproval();
     clearAskUserQuestion();
     clearAgentOutput();
+    clearKnowledgeReferences();
     selectedAttachmentCountRef.current = 0;
     pendingAttachmentCountRef.current = 0;
     // 清除 headlessStore 中的 threadId
@@ -472,7 +478,16 @@ export function CopilotChatPanel({
       clearHumanApproval();
       clearAskUserQuestion();
       clearAgentOutput();
-      const messages = await getSessionMessages(sessionId);
+      clearKnowledgeReferences();
+      const historyMessages = await getSessionMessages(sessionId);
+      const messages = historyMessages.map((item) => item.message);
+      historyMessages.forEach((item) => {
+        restoreKnowledgeReferences(
+          item.message.id,
+          item.metadata?.knowledgeReferences,
+        );
+      });
+      notifyKnowledgeReferencesRestored();
       const formattedMessages = messages.map((msg: BrainMessage) => ({
         id: msg.id,
         role: msg.role,

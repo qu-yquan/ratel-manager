@@ -94,7 +94,7 @@ public class KnowledgeChunkEmbeddingService {
         List<float[]> embeddings = new ArrayList<>(segments.size());
         for (List<TextSegment> batch : planBatches(segments)) {
             List<Embedding> batchEmbeddings = model.embedAll(batch).content();
-            if (batchEmbeddings == null || batchEmbeddings.size() != batch.size()) {
+            if (batchEmbeddings.size() != batch.size()) {
                 throw new BusinessException(KitErrorCode.E03011);
             }
             batchEmbeddings.stream().map(Embedding::vector).forEach(embeddings::add);

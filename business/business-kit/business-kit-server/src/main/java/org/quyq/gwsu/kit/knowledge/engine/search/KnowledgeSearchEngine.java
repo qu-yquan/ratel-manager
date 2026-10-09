@@ -107,13 +107,16 @@ public class KnowledgeSearchEngine {
         results.stream().map(KnowledgeSearchResultVO::getSourceDocumentId)
                 .filter(StringUtils::hasText).forEach(ids::add);
         if (ids.isEmpty()) return List.of();
-        Set<String> visible = new HashSet<>();
+        Map<String, KitKnowledgeSourceDocument> visible = new HashMap<>();
         sourceDocumentMapper.selectBatchIds(ids).stream()
                 .filter(doc -> !Boolean.TRUE.equals(doc.getDeleted()))
                 .filter(doc -> !Boolean.FALSE.equals(doc.getEnabled()))
                 .filter(doc -> directoryService.canRead(doc, scopes))
-                .map(KitKnowledgeSourceDocument::getId).forEach(visible::add);
-        return results.stream().filter(result -> visible.contains(result.getSourceDocumentId())).toList();
+                .forEach(doc -> visible.put(doc.getId(), doc));
+        return results.stream()
+                .filter(result -> visible.containsKey(result.getSourceDocumentId()))
+                .map(result -> attachSourceFile(result, visible.get(result.getSourceDocumentId())))
+                .toList();
     }
 
     private List<KnowledgeSearchResultVO> renderSearchResults(
@@ -170,12 +173,12 @@ public class KnowledgeSearchEngine {
         Set<String> sourceIds = new HashSet<>();
         refByBlockId.values().stream().map(KitKnowledgePageSourceRef::getSourceDocumentId)
                 .filter(StringUtils::hasText).forEach(sourceIds::add);
-        Set<String> visibleSourceDocumentIds = new HashSet<>();
+        Map<String, KitKnowledgeSourceDocument> visibleSourceDocuments = new HashMap<>();
         if (!sourceIds.isEmpty()) sourceDocumentMapper.selectBatchIds(sourceIds).stream()
                 .filter(doc -> !Boolean.TRUE.equals(doc.getDeleted()) && !Boolean.FALSE.equals(doc.getEnabled()))
                 .filter(doc -> directoryService.canRead(doc, directoryScopes))
-                .map(KitKnowledgeSourceDocument::getId).forEach(visibleSourceDocumentIds::add);
-        if (!isVisibleBlock(current, refByBlockId, visibleSourceDocumentIds)) {
+                .forEach(doc -> visibleSourceDocuments.put(doc.getId(), doc));
+        if (!isVisibleBlock(current, refByBlockId, visibleSourceDocuments.keySet())) {
             return List.of();
         }
         int currentIndex = indexOfBlock(blocks, current.getId());
@@ -186,10 +189,13 @@ public class KnowledgeSearchEngine {
         int step = direction == KnowledgeChunkDirection.PREVIOUS ? -1 : 1;
         for (int i = currentIndex + step; i >= 0 && i < blocks.size(); i += step) {
             KitKnowledgePageBlock candidate = blocks.get(i);
-            if (!isVisibleBlock(candidate, refByBlockId, visibleSourceDocumentIds)) {
+            if (!isVisibleBlock(candidate, refByBlockId, visibleSourceDocuments.keySet())) {
                 continue;
             }
-            results.add(toAdjacentBlockResult(blocks, i, candidate, refByBlockId.get(candidate.getId())));
+            KitKnowledgePageSourceRef ref = refByBlockId.get(candidate.getId());
+            KnowledgeSearchResultVO result = toAdjacentBlockResult(blocks, i, candidate, ref);
+            attachSourceFile(result, ref == null ? null : visibleSourceDocuments.get(ref.getSourceDocumentId()));
+            results.add(result);
             if (results.size() >= limit) {
                 break;
             }
@@ -252,6 +258,9 @@ public class KnowledgeSearchEngine {
                 .setPageBlockId(block.getId())
                 .setBlockType(block.getBlockType())
                 .setSourceDocumentId(chunkResult.getSourceDocumentId())
+                .setSourceFileId(chunkResult.getSourceFileId())
+                .setSourceFileName(chunkResult.getSourceFileName())
+                .setSourceFileFormat(chunkResult.getSourceFileFormat())
                 .setTitle(chunkResult.getTitle())
                 .setHeadingPath(chunkResult.getHeadingPath())
                 .setContent(highlightKeyword(renderedBlockContent, keyword))
@@ -306,5 +315,16 @@ public class KnowledgeSearchEngine {
 
     private KnowledgeSearchResultVO renderBlockContent(KnowledgeSearchResultVO result) {
         return result.setContent(contentRenderService.render(result.getContent()));
+    }
+
+    private KnowledgeSearchResultVO attachSourceFile(
+            KnowledgeSearchResultVO result,
+            KitKnowledgeSourceDocument document) {
+        if (result == null || document == null) {
+            return result;
+        }
+        return result.setSourceFileId(document.getFileId())
+                .setSourceFileName(document.getFileName())
+                .setSourceFileFormat(document.getFileFormat());
     }
 }

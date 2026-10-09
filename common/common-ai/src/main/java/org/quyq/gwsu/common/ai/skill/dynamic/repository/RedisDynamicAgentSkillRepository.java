@@ -6,8 +6,8 @@ import org.quyq.gwsu.common.ai.skill.dynamic.model.SkillCatalogEntry;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.skill.AgentSkill;
 import io.agentscope.core.skill.repository.AgentSkillRepositoryInfo;
+import io.agentscope.core.skill.repository.RuntimeContextSkillRepository;
 import io.agentscope.harness.agent.skill.LazyResourceCapable;
-import io.agentscope.harness.agent.skill.RuntimeContextSkillRepository;
 import io.agentscope.harness.agent.skill.SkillResources;
 
 import java.util.List;

@@ -49,9 +49,9 @@ public class KnowledgeSearchRerankService {
             RerankModelProvider.ConfiguredRerankModel configuredModel = configuredModelOptional.get();
             Response<List<Double>> response = configuredModel.model().scoreAll(segments, keyword);
             List<Double> scores = response.content();
-            if (scores == null || scores.size() != results.size()) {
+            if (scores.size() != results.size()) {
                 log.warn("重排模型返回分数数量异常，expected={}, actual={}",
-                        results.size(), scores == null ? 0 : scores.size());
+                        results.size(), scores.size());
                 return fallback(results, size);
             }
             int effectiveTopN = Math.min(Math.max(1, size), configuredModel.topN());

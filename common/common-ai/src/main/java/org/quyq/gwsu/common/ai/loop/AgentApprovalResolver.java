@@ -90,8 +90,9 @@ public final class AgentApprovalResolver {
         if (approvalResult == null) {
             return Collections.emptyList();
         }
+        String rejectReason = approvalResult.isApproved() ? null : StringUtils.hasText(approvalResult.rejectReason()) ? approvalResult.rejectReason() : "用户拒绝";
         return findPendingApprovalToolCalls(agent, sessionId, userId).stream()
-                .map(tool -> new ConfirmResult(approvalResult.isApproved(), tool))
+                .map(tool -> new ConfirmResult(approvalResult.isApproved(), tool, null, rejectReason))
                 .toList();
     }
 

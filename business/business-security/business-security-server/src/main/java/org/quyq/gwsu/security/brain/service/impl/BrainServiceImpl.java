@@ -34,6 +34,7 @@ import org.quyq.gwsu.security.brain.service.IBrainService;
 import org.quyq.gwsu.security.brain.service.agent.OutputViewAgent;
 import org.quyq.gwsu.security.brain.service.middleware.ApprovalTipMiddleware;
 import org.quyq.gwsu.security.brain.service.middleware.DynamicViewToolFilterMiddleware;
+import org.quyq.gwsu.security.brain.service.middleware.KnowledgeCitationMiddleware;
 import org.quyq.gwsu.security.brain.service.middleware.SystemPromptMiddleware;
 import org.quyq.gwsu.security.brain.service.middleware.StatisticsMiddleware;
 import org.quyq.gwsu.security.brain.service.skill.DatabaseSearchSkillRepository;
@@ -172,6 +173,7 @@ public class BrainServiceImpl implements IBrainService {
                 .sysPrompt(buildSysPrompt())
                 .model(ModelProvider.generateModel())
                 .middlewares(List.of(
+                        new KnowledgeCitationMiddleware(),
                         new StatisticsMiddleware(),
                         new DynamicViewToolFilterMiddleware(),
                         new ApprovalTipMiddleware(objectMapper),

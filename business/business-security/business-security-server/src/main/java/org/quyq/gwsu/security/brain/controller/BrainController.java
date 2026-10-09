@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.common.ai.agui.AguiController;
 import org.quyq.gwsu.common.ai.agui.dto.ChatDTO;
-import org.quyq.gwsu.common.ai.agui.model.AguiMessage;
 import org.quyq.gwsu.common.ai.agui.model.CopilotKitInfo;
 import org.quyq.gwsu.common.ai.agui.model.RunAgentInput;
 import org.quyq.gwsu.common.ai.agui.processor.AguiRequestProcessor;
@@ -27,7 +26,9 @@ import org.quyq.gwsu.security.api.config.dto.ConfigSaveDTO;
 import org.quyq.gwsu.security.api.config.enums.ConfigValueType;
 import org.quyq.gwsu.security.brain.service.IBrainHistoryService;
 import org.quyq.gwsu.security.brain.service.IBrainService;
+import org.quyq.gwsu.security.brain.service.citation.KnowledgeCitationContext;
 import org.quyq.gwsu.security.brain.service.history.BrainHistorySessionIndexService;
+import org.quyq.gwsu.security.brain.vo.BrainHistoryMessageVO;
 import org.quyq.gwsu.security.dict.service.ISecurityConfigService;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.http.MediaType;
@@ -75,9 +76,22 @@ public class BrainController implements DisposableBean {
             }
 
             @Override
+            protected void beforeRunStarted(RunAgentInput input, String userId,
+                                            RuntimeContext runtimeContext) {
+                // AgentScope 后续会基于此上下文派生子上下文，先创建以确保整条链路共享同一收集器。
+                KnowledgeCitationContext.getOrCreate(runtimeContext);
+            }
+
+            @Override
             protected void afterRunCompleted(RunAgentInput input, String userId,
                                              RuntimeContext runtimeContext) {
-                brainHistorySessionIndexService.refreshSessionIndex(input.threadId(), userId);
+                KnowledgeCitationContext citationContext = runtimeContext == null
+                        ? null
+                        : runtimeContext.get(KnowledgeCitationContext.class);
+                brainHistorySessionIndexService.refreshSessionIndex(
+                        input.threadId(),
+                        userId,
+                        citationContext == null ? java.util.Map.of() : citationContext.messageMetadataSnapshot());
             }
         };
 
@@ -134,7 +148,7 @@ public class BrainController implements DisposableBean {
 
     @Operation(summary = "查询会话消息列表")
     @GetMapping("history/sessions/{sessionId}/messages")
-    public R<List<AguiMessage>> getSessionMessages(@PathVariable String sessionId) {
+    public R<List<BrainHistoryMessageVO>> getSessionMessages(@PathVariable String sessionId) {
         String userId = securityUtils.userInfo().map(UserInfo::getUserId).orElse(null);
         if (userId == null) {
             return R.fail("用户未登录");

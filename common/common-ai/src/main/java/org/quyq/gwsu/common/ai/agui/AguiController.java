@@ -211,6 +211,14 @@ public abstract class AguiController implements DisposableBean {
     protected abstract CopilotKitInfo handleInfo();
 
     /**
+     * 智能体开始执行前的钩子。
+     *
+     * <p>在 AgentScope 派生运行上下文前调用；需要在整个运行链路中共享的状态应在此初始化。</p>
+     */
+    protected void beforeRunStarted(RunAgentInput input, String userId, RuntimeContext runtimeContext) {
+    }
+
+    /**
      * 智能体运行完成后的钩子。
      */
     protected void afterRunCompleted(RunAgentInput input, String userId, RuntimeContext runtimeContext) {
@@ -328,6 +336,7 @@ public abstract class AguiController implements DisposableBean {
                 () -> {
                     Disposable subscription;
                     try {
+                        beforeRunStarted(input, userId, runtimeContext);
 
                         // Process request - returns both agent and event stream
                         AguiRequestProcessor.ProcessResult result =

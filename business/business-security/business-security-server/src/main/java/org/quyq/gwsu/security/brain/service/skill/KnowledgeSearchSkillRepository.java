@@ -146,10 +146,11 @@ public class KnowledgeSearchSkillRepository implements AgentSkillRepository {
                 - 只能基于检索到的片段及其上下文作答
                 
                 ## 引用输出规则
-                - `sourceDocumentId` 表示内容关联的源文档
-                - 如果最终有匹配结果，输出正文后必须追加引用
-                - 引用格式固定为：`<documentId:***>,<documentId:***>`
-                - 同一 `sourceDocumentId` 只能输出一次，需按首次出现顺序去重
+                - 检索工具返回的 `citationKey` 是当前运行内有效的引用编号
+                - 使用知识库事实时，必须在相关句子末尾以内联形式标注引用，例如：`制度要求先完成审批。[K1]`
+                - 同一句由多个片段共同支持时连续标注，例如：`该结论由多处内容共同支持。[K1][K3]`
+                - 只能使用检索工具实际返回的 `citationKey`，禁止自行编造编号
+                - 不要输出 `sourceDocumentId`、`pageBlockId` 格式
                 """.formatted(wikiPageLanguage);
     }
 }

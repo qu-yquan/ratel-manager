@@ -42,7 +42,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.List;
 
 @AutoConfiguration(after = AgentscopeConfiguration.class)
-@ConditionalOnClass(name = "io.agentscope.harness.agent.skill.RuntimeContextSkillRepository")
+@ConditionalOnClass(name = "io.agentscope.core.skill.repository.RuntimeContextSkillRepository")
 @EnableScheduling
 @EnableConfigurationProperties(SkillRegistryProperties.class)
 @ImportRuntimeHints(DynamicSkillRuntimeHints.class)

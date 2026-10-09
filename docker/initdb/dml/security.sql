@@ -78,7 +78,7 @@ VALUES ('2077671528211812352', 'model_embedding_config', '向量化模型配置'
 INSERT INTO security_config (id, config_key, config_name, config_value, value_type, config_type, description, tenant_id,
                              create_op, create_time, modify_op, modify_time, deleted, delete_op, delete_time)
 VALUES ('2077671887638499328', 'model_rerank_config', '重排模型配置',
-        '{"enabled":false,"provider":"dashscope","topN":10,"dashscope":{"apiKey":"","modelName":"qwen3.7-text-rerank","baseUrl":"","instruct":""},"jina":{"apiKey":"","modelName":"jina-reranker-v2-base-multilingual","baseUrl":""},"xinference":{"apiKey":"","modelName":"","baseUrl":"http://localhost:9997"}}',
+        '{"enabled":true,"provider":"jina","topN":10,"dashscope":{"apiKey":"1","modelName":"qwen3.7-text-rerank","baseUrl":"http://localhost","instruct":"","topN":10,"returnDocuments":true},"jina":{"apiKey":"","modelName":"bge-m3","baseUrl":"http://127.0.0.1:3000/v1"},"xinference":{"apiKey":"","modelName":"bge-reranker-v2-m3","baseUrl":"http://localhost:9997"}}',
         4, 1, '重排模型提供商及连接参数配置', NULL, 'admin', '2026-07-16 16:29:13.947374', 'admin',
         '2026-07-16 16:29:13.947374', 0, NULL, NULL);
 INSERT INTO security_config (id, config_key, config_name, config_value, value_type, config_type, description, tenant_id,

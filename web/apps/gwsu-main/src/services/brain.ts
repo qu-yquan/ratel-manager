@@ -3,6 +3,7 @@
  */
 
 import { post, get, del } from '@gwsu/core';
+import type { KnowledgeReference } from './knowledge-reference';
 
 /**
  * 历史会话信息
@@ -41,6 +42,13 @@ export interface BrainMessage {
   encryptedValue?: string;
 }
 
+export interface BrainHistoryMessage {
+  message: BrainMessage;
+  metadata?: {
+    knowledgeReferences?: KnowledgeReference[];
+  } | null;
+}
+
 export interface BrainHistorySessionSlice {
   records: BrainHistorySession[];
   hasMore: boolean;
@@ -54,18 +62,25 @@ export async function getHistorySessions(
   pageNum: number = 1,
   pageSize: number = 20,
 ): Promise<BrainHistorySessionSlice> {
-  const response = await post<BrainHistorySessionSlice>('/security/brain/history/sessions', {
-    pageNum,
-    pageSize,
-  });
+  const response = await post<BrainHistorySessionSlice>(
+    '/security/brain/history/sessions',
+    {
+      pageNum,
+      pageSize,
+    },
+  );
   return response.data;
 }
 
 /**
  * 查询会话消息列表
  */
-export async function getSessionMessages(sessionId: string): Promise<BrainMessage[]> {
-  const response = await get<BrainMessage[]>(`/security/brain/history/sessions/${sessionId}/messages`);
+export async function getSessionMessages(
+  sessionId: string,
+): Promise<BrainHistoryMessage[]> {
+  const response = await get<BrainHistoryMessage[]>(
+    `/security/brain/history/sessions/${sessionId}/messages`,
+  );
   return response.data;
 }
 
@@ -73,7 +88,9 @@ export async function getSessionMessages(sessionId: string): Promise<BrainMessag
  * 删除会话
  */
 export async function deleteSession(sessionId: string): Promise<boolean> {
-  const response = await del<boolean>(`/security/brain/history/sessions/${sessionId}`);
+  const response = await del<boolean>(
+    `/security/brain/history/sessions/${sessionId}`,
+  );
   return response.data;
 }
 
@@ -84,16 +101,18 @@ export interface ApprovalStatusInfo {
   /** 审批阶段 */
   stage: 'POST_REASONING' | 'POST_ACTING' | null;
   /** 推理后暂停需要审批的信息 */
-  reasoningStageInfo: {
-    tip: string;
-    toolInfo: {
-      type: 'tool_use';
-      id: string;
-      name: string;
-      input: Record<string, unknown>;
-      content: string;
-    };
-  }[] | null;
+  reasoningStageInfo:
+    | {
+        tip: string;
+        toolInfo: {
+          type: 'tool_use';
+          id: string;
+          name: string;
+          input: Record<string, unknown>;
+          content: string;
+        };
+      }[]
+    | null;
   /** 行动后暂停需要审批的信息 */
   actingStageInfo: {
     tip: string;
@@ -110,9 +129,11 @@ export interface ApprovalStatusInfo {
  * 查询会话审批状态
  * 用于页面刷新后恢复审批卡片
  */
-export async function getApprovalStatus(threadId: string): Promise<ApprovalStatusInfo> {
+export async function getApprovalStatus(
+  threadId: string,
+): Promise<ApprovalStatusInfo> {
   const response = await get<ApprovalStatusInfo>(
-    `/security/brain/approval/status/${threadId}`
+    `/security/brain/approval/status/${threadId}`,
   );
   return response.data;
 }
