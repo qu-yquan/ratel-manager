@@ -15,7 +15,7 @@ import org.bsc.langgraph4j.action.AsyncNodeAction;
 import org.bsc.langgraph4j.state.Channel;
 import org.bsc.langgraph4j.state.Channels;
 import org.bsc.langgraph4j.state.Reducer;
-import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
+import io.agentscope.core.agui.event.AguiEvent;
 import org.quyq.gwsu.common.cache.utils.CacheUtils;
 import org.quyq.gwsu.common.core.domain.visitor.UserInfo;
 import org.quyq.gwsu.common.core.utils.AssertUtils;

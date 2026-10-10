@@ -1,16 +1,12 @@
 package org.quyq.gwsu.headless.graph;
 
 import cn.hutool.core.util.IdUtil;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.state.AgentStateStore;
 import lombok.extern.slf4j.Slf4j;
-import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
+import io.agentscope.core.agui.event.AguiEvent;
 import org.quyq.gwsu.common.ai.agui.tool.AskUserQuestionTool;
-import org.quyq.gwsu.common.ai.loop.ApprovalStage;
-import org.quyq.gwsu.common.ai.loop.domain.HumanApprovalInfo;
 import org.quyq.gwsu.headless.api.enums.HeadlessAgentStatus;
 import org.quyq.gwsu.headless.core.HeadlessAgentListener;
 import org.quyq.gwsu.headless.core.session.HeadlessPageWrapper;
@@ -29,8 +25,6 @@ public class HeadlessMessageHandler implements HeadlessAgentListener {
     private static final String OUTPUT_PANEL_SELECTOR = "#ai-output-panel";
 
     private final Sinks.Many<AguiEvent> sink = Sinks.many().unicast().onBackpressureBuffer();
-
-    private final Gson gson = new Gson();
 
     private final String userId;
 
@@ -77,14 +71,16 @@ public class HeadlessMessageHandler implements HeadlessAgentListener {
     }
 
     @Override
-    public void onHumanApproval(AguiEvent.Custom event, HeadlessPageWrapper wrapper) {
+    public void onHumanApproval(AguiEvent.RunFinished event, HeadlessPageWrapper wrapper) {
         syncContext(event.threadId(), event.runId());
-        HumanApprovalInfo approvalInfo = gson.fromJson(gson.toJson(event.value()), new TypeToken<HumanApprovalInfo>() {
-        }.getType());
-
-        String tip = approvalInfo.stage() == ApprovalStage.POST_REASONING
-                ? approvalInfo.reasoningStageInfo().getFirst().tip()
-                : approvalInfo.actingStageInfo().tip();
+        AguiEvent.RunFinishedInterruptOutcome outcome =
+                (AguiEvent.RunFinishedInterruptOutcome) event.outcome();
+        String tip = outcome.interrupts().stream()
+                .map(AguiEvent.Interrupt::message)
+                .filter(Objects::nonNull)
+                .filter(message -> !message.isBlank())
+                .findFirst()
+                .orElse("危险操作需要您审批，请确认是否继续操作。");
 
         String tipText = "\n\r" + tip;
         Msg tipMsg = Msg.builder()

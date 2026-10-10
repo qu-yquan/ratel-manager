@@ -34,7 +34,9 @@ public class OutputViewEventHandlerMiddleware implements MiddlewareBase {
         AtomicBoolean escape = new AtomicBoolean(false);
 
         return Flux.deferContextual(contextView -> {
-            AgentEventEmitter emitter = AgentEventEmitter.fromContext(contextView).orElse(null);
+            AgentEventEmitter emitter = AgentEventEmitter.fromContext(contextView)
+                    .or(() -> AgentEventEmitter.fromForwardingContext(contextView))
+                    .orElse(null);
             return next.apply(input)
                     .doOnNext(event -> {
                         if (event.getType() == AgentEventType.TEXT_BLOCK_DELTA) {

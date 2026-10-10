@@ -1,18 +1,17 @@
 package org.quyq.gwsu.security.brain.controller;
 
 import io.agentscope.core.agent.RuntimeContext;
-import io.agentscope.core.state.AgentStateStore;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.common.ai.agui.AguiController;
 import org.quyq.gwsu.common.ai.agui.dto.ChatDTO;
+import org.quyq.gwsu.common.ai.agui.model.AguiConnectionSnapshot;
 import org.quyq.gwsu.common.ai.agui.model.CopilotKitInfo;
-import org.quyq.gwsu.common.ai.agui.model.RunAgentInput;
-import org.quyq.gwsu.common.ai.agui.processor.AguiRequestProcessor;
+import io.agentscope.core.agui.model.RunAgentInput;
+import io.agentscope.core.agui.processor.AguiRequestProcessor;
 import org.quyq.gwsu.common.ai.agui.utils.WebToolUtils;
 import org.quyq.gwsu.common.ai.agui.web.WebToolCallbackRequest;
-import org.quyq.gwsu.common.ai.loop.domain.HumanApprovalInfo;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.core.domain.visitor.UserInfo;
 import org.quyq.gwsu.common.log.annotation.LogIgnore;
@@ -32,9 +31,11 @@ import org.quyq.gwsu.security.brain.vo.BrainHistoryMessageVO;
 import org.quyq.gwsu.security.dict.service.ISecurityConfigService;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.http.MediaType;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * CopilotKit Runtime 端点控制器
@@ -59,7 +60,7 @@ public class BrainController implements DisposableBean {
     private final ISecurityConfigService configService;
 
 
-    public BrainController(AguiRequestProcessor processor, IBrainService brainService, AgentStateStore agentStateStore, SecurityUtils securityUtils,
+    public BrainController(AguiRequestProcessor processor, IBrainService brainService, SecurityUtils securityUtils,
                            SessionUtils sessionUtils,
                            IBrainHistoryService brainHistoryService, WebToolUtils webToolUtils,
                            ISecurityConfigService configService,
@@ -76,6 +77,16 @@ public class BrainController implements DisposableBean {
             }
 
             @Override
+            protected AguiConnectionSnapshot restoreConnection(
+                    RunAgentInput input, String userId) {
+                if (!StringUtils.hasText(userId)) {
+                    return AguiConnectionSnapshot.empty();
+                }
+                return brainHistoryService.getConnectionSnapshot(
+                        input.getThreadId(), input.getRunId(), userId);
+            }
+
+            @Override
             protected void beforeRunStarted(RunAgentInput input, String userId,
                                             RuntimeContext runtimeContext) {
                 // AgentScope 后续会基于此上下文派生子上下文，先创建以确保整条链路共享同一收集器。
@@ -89,13 +100,11 @@ public class BrainController implements DisposableBean {
                         ? null
                         : runtimeContext.get(KnowledgeCitationContext.class);
                 brainHistorySessionIndexService.refreshSessionIndex(
-                        input.threadId(),
+                        input.getThreadId(),
                         userId,
-                        citationContext == null ? java.util.Map.of() : citationContext.messageMetadataSnapshot());
+                        citationContext == null ? Map.of() : citationContext.messageMetadataSnapshot());
             }
         };
-
-        this.aguiController.setAgentStateStore(agentStateStore);
 
     }
 
@@ -171,12 +180,6 @@ public class BrainController implements DisposableBean {
     @LogIgnore
     public R<Void> toolCallback(@RequestBody WebToolCallbackRequest request) {
         return aguiController.handleToolCallback(request);
-    }
-
-    @Operation(summary = "查询会话审批状态")
-    @GetMapping("approval/status/{threadId}")
-    public R<HumanApprovalInfo> getApprovalStatus(@PathVariable String threadId) {
-        return aguiController.handleApprovalStatus(threadId);
     }
 
     @Override

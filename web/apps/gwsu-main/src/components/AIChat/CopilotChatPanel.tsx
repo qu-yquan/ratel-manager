@@ -16,7 +16,14 @@ import {
   HistoryOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
-import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import {
+  Fragment,
+  useRef,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+} from 'react';
 import { createPortal } from 'react-dom';
 import Draggable, { DraggableEvent, DraggableData } from 'react-draggable';
 import type {
@@ -39,29 +46,16 @@ import { AskUserQuestionBar } from './AskUserQuestionBar';
 import { AiModeControlBar } from './AiModeControlBar';
 import { HeadlessSubmitBar } from './HeadlessSubmitBar';
 import { createCustomRenderMessage } from './CustomRenderMessage';
+import { clearHumanApproval, onHumanApproval } from '@/services/human-approval';
 import {
-  getSessionMessages,
-  getApprovalStatus,
-  type BrainMessage,
-} from '@/services/brain';
-import {
-  dispatchHumanApproval,
-  clearHumanApproval,
-  onHumanApproval,
-} from '@/services/human-approval';
-import {
-  dispatchAskUserQuestion,
   clearAskUserQuestion,
   onAskUserQuestion,
 } from '@/services/ask-user-question';
 import { clearAgentOutput } from '@/services/agent-output';
-import {
-  clearKnowledgeReferences,
-  notifyKnowledgeReferencesRestored,
-  restoreKnowledgeReferences,
-} from '@/services/knowledge-reference';
+import { clearKnowledgeReferences } from '@/services/knowledge-reference';
 import type { ModelLlmConfig } from '../SettingsPanel/ModelConfigTab/types';
 import { createDefaultModelLlmConfig } from '../SettingsPanel/ModelConfigTab/types';
+import { useForwardedPropsStore } from '@/stores/forwardedProps';
 import styles from './copilot-override.module.less';
 
 const MODEL_LLM_CONFIG_KEY = 'model_llm_config';
@@ -144,6 +138,23 @@ function createOneMonthLaterIsoString(): string {
   const minutes = String(expiredAt.getMinutes()).padStart(2, '0');
   const seconds = String(expiredAt.getSeconds()).padStart(2, '0');
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+/**
+ * 清理仅属于当前会话的交互状态，防止切换会话后旧控件残留。
+ * 无头浏览器始终由 AI 控制，清理会话时不能退回人工操作模式。
+ */
+function clearSessionInteractionState(): void {
+  clearHumanApproval();
+  clearAskUserQuestion();
+  clearAgentOutput();
+  clearKnowledgeReferences();
+
+  const forwardedProps = useForwardedPropsStore.getState();
+  const isHeadless = useHeadlessStore.getState().isHeadless;
+  forwardedProps.setOperationMode(isHeadless ? 'ai' : 'human');
+  forwardedProps.clearExitReason();
+  document.body.removeAttribute('data-headless-forms-visible');
 }
 
 function buildHeadlessInputContent(
@@ -261,7 +272,8 @@ export function CopilotChatPanel({
     panelState,
     setPanelPosition,
     currentThreadId,
-    setCurrentThreadId,
+    currentThreadIsExplicit,
+    setCurrentThread,
     viewConfig,
   } = usePanelContext();
   const { agent } = useAgent({ agentId: 'brain' });
@@ -272,7 +284,6 @@ export function CopilotChatPanel({
   const [llmConfig, setLlmConfig] = useState<ModelLlmConfig>(
     createDefaultModelLlmConfig(),
   );
-
   // 根据展示配置动态创建消息渲染组件
   const CustomMessageView = useMemo(
     () => createCustomRenderMessage(viewConfig),
@@ -283,6 +294,8 @@ export function CopilotChatPanel({
   const copilotChatRef = useRef<HTMLDivElement>(null);
   const selectedAttachmentCountRef = useRef(0);
   const pendingAttachmentCountRef = useRef(0);
+  /** 会话切换版本号，防止较早连接完成后错误标记新会话就绪。 */
+  const sessionTransitionRef = useRef(0);
 
   // 防止 Ant Design 弹框/抽屉的 focus trap 阻止面板内输入框获取焦点
   // Ant Design 的 rc-dialog 在打开时会通过 focusin 全局事件将焦点拉回弹框内部
@@ -457,109 +470,72 @@ export function CopilotChatPanel({
 
   // 新建会话
   const handleNewSession = () => {
+    sessionTransitionRef.current += 1;
+    agent.abortRun();
+    agent.pendingInterrupts = [];
     agent.setMessages([]);
-    clearHumanApproval();
-    clearAskUserQuestion();
-    clearAgentOutput();
-    clearKnowledgeReferences();
+    agent.setState({});
+    clearSessionInteractionState();
     selectedAttachmentCountRef.current = 0;
     pendingAttachmentCountRef.current = 0;
     // 清除 headlessStore 中的 threadId
     useHeadlessStore.getState().clearThreadId();
     // 生成新的 threadId，让后端创建新的会话
     const newThreadId = crypto.randomUUID();
-    setCurrentThreadId(newThreadId);
+    setCurrentThread(newThreadId, false);
     agent.threadId = newThreadId;
   };
 
-  const handleLoadSession = async (sessionId: string) => {
-    try {
-      // 先清除旧的弹框状态，避免切换会话后旧弹框残留
-      clearHumanApproval();
-      clearAskUserQuestion();
-      clearAgentOutput();
-      clearKnowledgeReferences();
-      const historyMessages = await getSessionMessages(sessionId);
-      const messages = historyMessages.map((item) => item.message);
-      historyMessages.forEach((item) => {
-        restoreKnowledgeReferences(
-          item.message.id,
-          item.metadata?.knowledgeReferences,
-        );
-      });
-      notifyKnowledgeReferencesRestored();
-      const formattedMessages = messages.map((msg: BrainMessage) => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content ?? '',
-        ...(msg.toolCalls && msg.toolCalls.length > 0
-          ? { toolCalls: msg.toolCalls }
-          : {}),
-        ...(msg.toolCallId ? { toolCallId: msg.toolCallId } : {}),
-        ...(msg.encryptedValue ? { encryptedValue: msg.encryptedValue } : {}),
-      }));
-      // 所有 agent 状态同步设置，再触发重渲染，确保重渲染时消息已就绪
-      agent.setMessages([]);
-      agent.threadId = sessionId;
-      agent.setMessages(
-        formattedMessages as Parameters<typeof agent.setMessages>[0],
-      );
-      setCurrentThreadId(sessionId);
-
-      // 检查是否需要恢复 AskUserQuestion 弹框
-      // 最新一条消息如果是 AskUserQuestion 工具调用且无对应结果，则恢复弹框
-      try {
-        const lastMsg = messages[messages.length - 1] as
-          | BrainMessage
-          | undefined;
-        if (lastMsg?.role === 'assistant' && lastMsg.toolCalls?.length) {
-          const askQuestionToolCall = lastMsg.toolCalls.find(
-            (tc) => tc.function?.name === 'AskUserQuestion',
-          );
-          if (askQuestionToolCall) {
-            const args =
-              typeof askQuestionToolCall.function?.arguments === 'string'
-                ? JSON.parse(askQuestionToolCall.function.arguments)
-                : askQuestionToolCall.function?.arguments ??
-                  askQuestionToolCall.args ??
-                  {};
-            dispatchAskUserQuestion({
-              toolCallId: askQuestionToolCall.id as string,
-              questions: Array.isArray(args.questions)
-                ? args.questions.map((q: Record<string, unknown>) => ({
-                    question: String(q.question ?? ''),
-                    header: String(q.header ?? ''),
-                    options: Array.isArray(q.options)
-                      ? q.options
-                      : q.options
-                      ? [q.options]
-                      : [],
-                    multiSelect: Boolean(q.multiSelect),
-                  }))
-                : [],
-            });
+  const waitForConnection = useCallback(
+    (sessionId: string): Promise<void> =>
+      new Promise((resolve) => {
+        let settled = false;
+        let subscription: ReturnType<typeof agent.subscribe> | undefined;
+        let timeout: number | undefined;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          if (timeout !== undefined) {
+            window.clearTimeout(timeout);
           }
-        }
-      } catch (e) {
-        console.warn('[AskUserQuestion] 历史会话恢复失败:', e);
-      }
+          subscription?.unsubscribe();
+          resolve();
+        };
+        timeout = window.setTimeout(finish, 30_000);
+        subscription = agent.subscribe({
+          onRunFinalized: ({ input }) => {
+            if (input.threadId === sessionId) finish();
+          },
+          onRunFailed: ({ input }) => {
+            if (input.threadId === sessionId) finish();
+          },
+        });
+      }),
+    [agent],
+  );
 
-      // 根据后端实际审批状态决定是否恢复审批弹框
-      try {
-        const approvalStatus = await getApprovalStatus(sessionId);
-        if (approvalStatus.stage) {
-          dispatchHumanApproval(approvalStatus as any);
-        }
-      } catch (e) {
-        console.warn('[HumanApproval] 查询审批状态失败:', e);
-      }
+  const handleLoadSession = async (sessionId: string) => {
+    const transition = ++sessionTransitionRef.current;
+    clearSessionInteractionState();
+    document.body.removeAttribute('data-headless-chat-ready');
+    agent.abortRun();
+    agent.pendingInterrupts = [];
+    agent.setMessages([]);
+    agent.setState({});
+    const connectionCompleted = waitForConnection(sessionId);
+    agent.threadId = sessionId;
+    setCurrentThread(sessionId, true);
 
-      // 会话恢复完成，通知后端可以发送消息
-      document.body.setAttribute('data-headless-chat-ready', 'true');
+    try {
+      await connectionCompleted;
+      if (transition === sessionTransitionRef.current) {
+        // /connect 已完成消息、引用和 interrupt 快照恢复。
+        document.body.setAttribute('data-headless-chat-ready', 'true');
+      }
     } catch (error) {
-      console.error('加载会话消息失败:', error);
-      message.error('加载会话消息失败');
-      // 即使失败也标记就绪，避免后端一直等待
+      if (transition !== sessionTransitionRef.current) return;
+      console.error('恢复会话连接失败:', error);
+      message.error('恢复会话连接失败');
       document.body.setAttribute('data-headless-chat-ready', 'true');
     }
   };
@@ -726,19 +702,21 @@ export function CopilotChatPanel({
           </Tooltip>
         </div>
       </div>
-      {/* AI模式终止控制 - 最上方 */}
-      <AiModeControlBar />
-      {/* 无头浏览器提交控制（默认隐藏，后端控制显隐） */}
-      <HeadlessSubmitBar />
-      {/* 人工审批卡片 */}
-      <HumanApprovalBar />
-      {/* AskUserQuestion 选择框 */}
-      <AskUserQuestionBar />
+      <Fragment key={`session-interactions-${currentThreadId ?? 'default'}`}>
+        {/* AI模式终止控制 - 最上方 */}
+        <AiModeControlBar />
+        {/* 无头浏览器提交控制（默认隐藏，后端控制显隐） */}
+        <HeadlessSubmitBar />
+        {/* 人工审批卡片 */}
+        <HumanApprovalBar />
+        {/* AskUserQuestion 选择框 */}
+        <AskUserQuestionBar />
+      </Fragment>
       {/* CopilotChat 组件 - 隐藏默认 header */}
       <div ref={copilotChatRef} style={{ display: 'contents' }}>
         <CopilotChatConfigurationProvider
           threadId={currentThreadId ?? undefined}
-          hasExplicitThreadId={false}
+          hasExplicitThreadId={currentThreadIsExplicit}
         >
           <CopilotChat
             key={currentThreadId ?? 'default-thread'}

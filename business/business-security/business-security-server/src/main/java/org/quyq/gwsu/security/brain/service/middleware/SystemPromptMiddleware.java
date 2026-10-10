@@ -9,7 +9,7 @@ import io.agentscope.core.message.Msg;
 import io.agentscope.core.state.AgentState;
 import lombok.RequiredArgsConstructor;
 import org.quyq.gwsu.common.ai.agui.model.AIRunnerInstanceWrapper;
-import org.quyq.gwsu.common.ai.agui.model.AguiMessage;
+import io.agentscope.core.agui.model.AguiMessage;
 import org.quyq.gwsu.common.ai.constants.AIConstants;
 import org.quyq.gwsu.common.core.domain.visitor.ClientInfo;
 import org.quyq.gwsu.common.core.domain.visitor.UserInfo;
@@ -83,7 +83,7 @@ public class SystemPromptMiddleware implements MiddlewareBase {
     private String buildUploadedFilePrompt(Agent agent, RuntimeContext runtimeContext) {
         AIRunnerInstanceWrapper wrapper = runtimeContext != null ? runtimeContext.get(AIRunnerInstanceWrapper.class) : null;
         List<AguiMessage> currentMessages = wrapper != null && wrapper.input() != null
-                ? wrapper.input().messages()
+                ? wrapper.input().getMessages()
                 : List.of();
         AgentState agentState = RuntimeContext.resolveAgentState(runtimeContext, agent);
         List<Msg> historyMessages = agentState != null

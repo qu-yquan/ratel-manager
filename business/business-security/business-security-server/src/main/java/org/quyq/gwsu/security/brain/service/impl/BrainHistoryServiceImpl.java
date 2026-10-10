@@ -1,22 +1,38 @@
 package org.quyq.gwsu.security.brain.service.impl;
 
+import static io.agentscope.core.agui.AguiInterruptConstants.METADATA_REPLY_ID;
+import static io.agentscope.core.agui.AguiInterruptConstants.METADATA_TOOL_CONTENT;
+import static io.agentscope.core.agui.AguiInterruptConstants.METADATA_TOOL_INPUT;
+import static io.agentscope.core.agui.AguiInterruptConstants.METADATA_TOOL_NAME;
+import static io.agentscope.core.agui.AguiInterruptConstants.TOOL_CALL_INTERRUPT_REASON;
+
 import lombok.RequiredArgsConstructor;
-import org.quyq.gwsu.common.ai.agui.model.AguiFunctionCall;
-import org.quyq.gwsu.common.ai.agui.model.AguiMessage;
-import org.quyq.gwsu.common.ai.agui.model.AguiToolCall;
-import org.quyq.gwsu.common.ai.agui.model.content.AguiTextContent;
+import io.agentscope.core.agui.event.AguiEvent;
+import io.agentscope.core.agui.model.AguiFunctionCall;
+import io.agentscope.core.agui.model.AguiMessage;
+import io.agentscope.core.agui.model.AguiToolCall;
+import io.agentscope.core.agui.model.MessageContent;
+import io.agentscope.core.message.ToolUseBlock;
+import io.agentscope.core.state.AgentState;
+import org.quyq.gwsu.common.ai.agui.converter.ApprovalInterruptEventConverter;
+import org.quyq.gwsu.common.ai.agui.model.AguiConnectionSnapshot;
+import org.quyq.gwsu.common.ai.constants.AIConstants;
+import org.quyq.gwsu.common.ai.loop.AgentApprovalResolver;
 import org.quyq.gwsu.common.core.config.GsonConfiguration;
 import org.quyq.gwsu.security.api.brain.dto.BrainHistoryQueryDTO;
 import org.quyq.gwsu.security.api.brain.vo.BrainHistorySessionSliceVo;
 import org.quyq.gwsu.security.api.brain.vo.BrainHistorySessionVo;
+import org.quyq.gwsu.security.brain.service.IBrainService;
 import org.quyq.gwsu.security.brain.service.IBrainHistoryService;
 import org.quyq.gwsu.security.brain.service.history.BrainHistoryBaseStoreRepository;
 import org.quyq.gwsu.security.brain.service.history.BrainHistorySessionIndexEntry;
 import org.quyq.gwsu.security.brain.service.history.BrainHistorySessionIndexRepository;
 import org.quyq.gwsu.security.brain.service.history.BrainHistorySessionIndexService;
+import org.quyq.gwsu.security.brain.vo.BrainHistoryMessageMetadataVO;
 import org.quyq.gwsu.security.brain.vo.BrainHistoryMessageVO;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import io.agentscope.core.util.JsonUtils;
 import tools.jackson.databind.ObjectMapper;
 
 import io.agentscope.core.state.AgentStateStore;
@@ -26,7 +42,9 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 大脑历史会话服务实现。
@@ -45,6 +63,7 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
     private final BrainHistorySessionIndexService sessionIndexService;
     private final BrainHistoryBaseStoreRepository baseStoreRepository;
     private final AgentStateStore agentStateStore;
+    private final IBrainService brainService;
 
     @Override
     public BrainHistorySessionSliceVo pageHistorySessions(BrainHistoryQueryDTO query, String userId) {
@@ -89,11 +108,168 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
                 restoredMessages.add(toAguiMessage(message));
             }
         }
-        return restoredMessages.stream()
-                .map(message -> new BrainHistoryMessageVO(
-                        message,
-                        entry.getMessageMetadata() == null ? null : entry.getMessageMetadata().get(message.id())))
+        PendingInterrupts pendingInterrupts = resolvePendingInterrupts(sessionId, userId);
+        int approvalMessageIndex = findInterruptMessageIndex(
+                restoredMessages, pendingInterrupts.approvals());
+        int questionMessageIndex = findInterruptMessageIndex(
+                restoredMessages, pendingInterrupts.questions());
+        List<BrainHistoryMessageVO> result = new ArrayList<>(restoredMessages.size());
+        for (int index = 0; index < restoredMessages.size(); index++) {
+            AguiMessage message = restoredMessages.get(index);
+            BrainHistoryMessageMetadataVO storedMetadata = entry.getMessageMetadata() == null
+                    ? null
+                    : entry.getMessageMetadata().get(message.getId());
+            result.add(new BrainHistoryMessageVO(
+                    message,
+                    mergeMetadata(
+                            storedMetadata,
+                            index == approvalMessageIndex ? pendingInterrupts.approvals() : List.of(),
+                            index == questionMessageIndex ? pendingInterrupts.questions() : List.of())));
+        }
+        return List.copyOf(result);
+    }
+
+    @Override
+    public AguiConnectionSnapshot getConnectionSnapshot(
+            String sessionId, String runId, String userId) {
+        List<BrainHistoryMessageVO> historyMessages = getSessionMessages(sessionId, userId);
+        if (historyMessages.isEmpty()) {
+            return AguiConnectionSnapshot.empty();
+        }
+
+        List<AguiMessage> messages = historyMessages.stream()
+                .map(BrainHistoryMessageVO::getMessage)
                 .toList();
+        Map<String, AguiEvent.Interrupt> interruptsById = new LinkedHashMap<>();
+        List<AguiEvent.Custom> customEvents = new ArrayList<>();
+        for (BrainHistoryMessageVO historyMessage : historyMessages) {
+            BrainHistoryMessageMetadataVO metadata = historyMessage.getMetadata();
+            if (metadata == null) {
+                continue;
+            }
+            if (metadata.getApprovalInterrupts() != null) {
+                metadata.getApprovalInterrupts()
+                        .forEach(interrupt -> interruptsById.put(interrupt.id(), interrupt));
+            }
+            if (metadata.getQuestionInterrupts() != null) {
+                metadata.getQuestionInterrupts()
+                        .forEach(interrupt -> interruptsById.put(interrupt.id(), interrupt));
+            }
+            if (metadata.getKnowledgeReferences() == null
+                    || metadata.getKnowledgeReferences().isEmpty()) {
+                continue;
+            }
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("messageId", historyMessage.getMessage().getId());
+            payload.put("references", metadata.getKnowledgeReferences());
+            customEvents.add(new AguiEvent.Custom(
+                    sessionId,
+                    runId,
+                    AIConstants.AguiCustomEvent.KNOWLEDGE_REFERENCES,
+                    Map.copyOf(payload)));
+        }
+        return new AguiConnectionSnapshot(
+                messages,
+                Map.of(),
+                List.copyOf(interruptsById.values()),
+                customEvents);
+    }
+
+    private PendingInterrupts resolvePendingInterrupts(String sessionId, String userId) {
+        AgentState agentState = AgentApprovalResolver.resolveAgentState(
+                brainService.getOrCreateSingletonAgent(), sessionId, userId);
+        List<ToolUseBlock> pendingToolCalls = AgentApprovalResolver.findPendingApprovalToolCalls(agentState);
+        if (pendingToolCalls.isEmpty()) {
+            return PendingInterrupts.EMPTY;
+        }
+        String pendingReplyId = AgentApprovalResolver.resolvePendingRequestReplyId(agentState);
+        String suspendedResultId = AgentApprovalResolver.resolveSuspendedResultId(agentState);
+        List<AguiEvent.Interrupt> approvals = pendingToolCalls.stream()
+                .filter(toolCall -> !AIConstants.ToolName.ASK_USER_QUESTION.equals(toolCall.getName()))
+                .filter(toolCall -> AgentApprovalResolver.resolveApprovalTips(toolCall) != null)
+                .map(toolCall -> ApprovalInterruptEventConverter.buildInterrupt(pendingReplyId, toolCall))
+                .toList();
+        List<AguiEvent.Interrupt> questions = pendingToolCalls.stream()
+                .filter(toolCall -> AIConstants.ToolName.ASK_USER_QUESTION.equals(toolCall.getName()))
+                .filter(toolCall -> StringUtils.hasText(suspendedResultId))
+                .map(toolCall -> buildQuestionInterrupt(suspendedResultId, toolCall))
+                .toList();
+        return new PendingInterrupts(approvals, questions);
+    }
+
+    private AguiEvent.Interrupt buildQuestionInterrupt(String replyId, ToolUseBlock toolUse) {
+        String toolCallId = toolUse.getId();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (StringUtils.hasText(toolUse.getName())) {
+            metadata.put(METADATA_TOOL_NAME, toolUse.getName());
+        }
+        if (toolUse.getInput() != null && !toolUse.getInput().isEmpty()) {
+            metadata.put(METADATA_TOOL_INPUT, toolUse.getInput());
+        }
+        metadata.put(METADATA_TOOL_CONTENT, JsonUtils.resolveToolCallArgsJson(toolUse));
+        if (StringUtils.hasText(replyId)) {
+            metadata.put(METADATA_REPLY_ID, replyId);
+        }
+
+        return new AguiEvent.Interrupt(
+                StringUtils.hasText(replyId) ? replyId + ":" + toolCallId : toolCallId,
+                TOOL_CALL_INTERRUPT_REASON,
+                "等待用户作答",
+                toolCallId,
+                null,
+                null,
+                Map.copyOf(metadata));
+    }
+
+    private int findInterruptMessageIndex(
+            List<AguiMessage> messages,
+            List<AguiEvent.Interrupt> interrupts) {
+        if (interrupts.isEmpty()) {
+            return -1;
+        }
+        for (int index = messages.size() - 1; index >= 0; index--) {
+            AguiMessage message = messages.get(index);
+            if (message.getToolCalls() == null || message.getToolCalls().isEmpty()) {
+                continue;
+            }
+            boolean containsPendingToolCall = message.getToolCalls().stream()
+                    .anyMatch(toolCall -> interrupts.stream()
+                            .anyMatch(interrupt -> interrupt.toolCallId().equals(toolCall.getId())));
+            if (containsPendingToolCall) {
+                return index;
+            }
+        }
+        for (int index = messages.size() - 1; index >= 0; index--) {
+            if ("assistant".equals(messages.get(index).getRole())) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private BrainHistoryMessageMetadataVO mergeMetadata(
+            BrainHistoryMessageMetadataVO storedMetadata,
+            List<AguiEvent.Interrupt> approvalInterrupts,
+            List<AguiEvent.Interrupt> questionInterrupts) {
+        boolean hasKnowledgeReferences = storedMetadata != null
+                && storedMetadata.getKnowledgeReferences() != null
+                && !storedMetadata.getKnowledgeReferences().isEmpty();
+        if (!hasKnowledgeReferences && approvalInterrupts.isEmpty() && questionInterrupts.isEmpty()) {
+            return null;
+        }
+        return new BrainHistoryMessageMetadataVO()
+                .setKnowledgeReferences(hasKnowledgeReferences
+                        ? storedMetadata.getKnowledgeReferences()
+                        : null)
+                .setApprovalInterrupts(approvalInterrupts.isEmpty() ? null : approvalInterrupts)
+                .setQuestionInterrupts(questionInterrupts.isEmpty() ? null : questionInterrupts);
+    }
+
+    private record PendingInterrupts(
+            List<AguiEvent.Interrupt> approvals,
+            List<AguiEvent.Interrupt> questions) {
+
+        private static final PendingInterrupts EMPTY = new PendingInterrupts(List.of(), List.of());
     }
 
     @Override
@@ -127,7 +303,7 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
         return new AguiMessage(
                 StringUtils.hasText(entry.id()) ? entry.id() : Instant.now().toString(),
                 role,
-                new AguiTextContent(entry.content()),
+                new MessageContent.Text(entry.content()),
                 null,
                 entry.toolCallId());
     }
@@ -158,7 +334,7 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
         return new AguiMessage(
                 messageId,
                 "tool",
-                new AguiTextContent(entry.output() != null ? entry.output() : ""),
+                new MessageContent.Text(entry.output() != null ? entry.output() : ""),
                 null,
                 toolCallId);
     }
@@ -181,7 +357,7 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
         return new AguiMessage(
                 StringUtils.hasText(entry.id()) ? entry.id() : Instant.now().toString(),
                 "assistant",
-                StringUtils.hasText(restored.content()) ? new AguiTextContent(restored.content()) : null,
+                StringUtils.hasText(restored.content()) ? new MessageContent.Text(restored.content()) : null,
                 restored.toolCalls().isEmpty() ? null : restored.toolCalls(),
                 null);
     }
@@ -219,7 +395,7 @@ public class BrainHistoryServiceImpl implements IBrainHistoryService {
         return new AguiMessage(
                 StringUtils.hasText(entry.id()) ? entry.id() : Instant.now().toString(),
                 "tool",
-                new AguiTextContent(stripToolResultPrefix(entry.content())),
+                new MessageContent.Text(stripToolResultPrefix(entry.content())),
                 null,
                 entry.toolCallId());
     }

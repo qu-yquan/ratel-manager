@@ -3,7 +3,7 @@ package org.quyq.gwsu.headless.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import org.quyq.gwsu.common.api.annotation.ApiClient;
-import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
+import io.agentscope.core.agui.event.AguiEvent;
 import org.quyq.gwsu.common.core.constants.CoreConstants;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.headless.api.dto.HeadlessDTO;

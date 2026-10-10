@@ -1,3 +1,5 @@
+import type { Interrupt, RunAgentResult } from '@ag-ui/client';
+
 /**
  * 问题选项
  */
@@ -34,4 +36,16 @@ export interface AskUserQuestionAnswer {
   answers: Record<string, string>;
   /** 可选的备注信息 */
   annotations: Record<string, { preview?: string; notes?: string }>;
+}
+
+export type AskUserQuestionResolve = (
+  payload?: unknown,
+  interruptId?: string,
+) => Promise<RunAgentResult | void>;
+
+/** AskUserQuestion 暂停工具对应的官方 AG-UI interrupt。 */
+export interface PendingAskUserQuestionInterrupt {
+  interrupt: Interrupt;
+  interrupts: Interrupt[];
+  resolve: AskUserQuestionResolve;
 }

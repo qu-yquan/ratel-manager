@@ -2,7 +2,7 @@ package org.quyq.gwsu.headless.graph;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
+import io.agentscope.core.agui.event.AguiEvent;
 import org.quyq.gwsu.headless.api.enums.HeadlessAgentStatus;
 
 import java.util.Map;

@@ -1,11 +1,19 @@
-import { CheckCircleOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import {
+  CheckCircleOutlined,
+  SafetyCertificateOutlined,
+} from '@ant-design/icons';
 import { Button } from 'antd';
-import { useAgent } from '@copilotkit/react-core/v2';
-import { useCopilotKit } from '@copilotkit/react-core/v2';
 import {
   clearHumanApproval,
+  getPendingApproval,
 } from '@/services/human-approval';
-import { clearAskUserQuestion } from '@/services/ask-user-question';
+import {
+  clearAskUserQuestionPrompt,
+  dispatchAskUserQuestion,
+  getPendingAskUserQuestion,
+  resolveAskUserQuestion,
+} from '@/services/ask-user-question';
+import type { AskUserQuestionAnswer } from '@/services/ask-user-question';
 import styles from './index.module.less';
 
 /**
@@ -19,16 +27,29 @@ import styles from './index.module.less';
  * 隐藏的 input 用于接收后端填充的值，按钮负责触发提交逻辑。
  */
 export function HeadlessSubmitBar() {
-  const { agent } = useAgent({ agentId: 'brain' });
-  const { copilotkit } = useCopilotKit();
-
   return (
     <div className={styles.submitBar} data-testid="headless-forms">
       {/* 隐藏输入框 - 接收后端填充的值 */}
-      <input data-testid="headless-approval-result" readOnly className={styles.hiddenInput} />
-      <input data-testid="headless-approval-reject-reason" readOnly className={styles.hiddenInput} />
-      <input data-testid="headless-question-answers" readOnly className={styles.hiddenInput} />
-      <input data-testid="headless-question-tool-call-id" readOnly className={styles.hiddenInput} />
+      <input
+        data-testid="headless-approval-result"
+        readOnly
+        className={styles.hiddenInput}
+      />
+      <input
+        data-testid="headless-approval-reject-reason"
+        readOnly
+        className={styles.hiddenInput}
+      />
+      <input
+        data-testid="headless-question-answers"
+        readOnly
+        className={styles.hiddenInput}
+      />
+      <input
+        data-testid="headless-question-tool-call-id"
+        readOnly
+        className={styles.hiddenInput}
+      />
 
       {/* 可见按钮区 */}
       <div className={styles.buttonRow}>
@@ -48,29 +69,25 @@ export function HeadlessSubmitBar() {
             const result = resultEl?.value;
             if (!result) return;
 
-            const rejectReason = reasonEl?.value ?? '';
-            const content =
-              result === 'REJECTED' && rejectReason
-                ? JSON.stringify({ result, rejectReason })
-                : JSON.stringify({ result });
-
-            const msgId = crypto.randomUUID();
-            agent.addMessage({ id: msgId, role: 'approval', content } as any);
-            clearHumanApproval();
-
             try {
-              await copilotkit.runAgent({ agent });
+              const pending = getPendingApproval();
+              if (!pending) {
+                throw new Error('当前没有待处理的官方 AG-UI interrupt');
+              }
+              const approved = result === 'APPROVED';
+              const rejectReason = reasonEl?.value.trim() ?? '';
+              const payload = approved
+                ? { approved: true }
+                : {
+                    approved: false,
+                    ...(rejectReason ? { reason: rejectReason } : {}),
+                  };
+              for (const interrupt of pending.interrupts) {
+                await pending.resolve(payload, interrupt.id);
+              }
+              clearHumanApproval(pending.interrupt.id);
             } catch (e) {
-              console.error('[HeadlessApproval] runAgent失败:', e);
-            }
-
-            // 清除 agent 消息列表中的 approval 消息，避免下次请求时带上
-            const currentMessages = agent.messages || [];
-            const filteredMessages = currentMessages.filter(
-              (msg: any) => msg.role !== 'approval',
-            );
-            if (filteredMessages.length !== currentMessages.length) {
-              agent.setMessages(filteredMessages);
+              console.error('[HeadlessApproval] interrupt恢复失败:', e);
             }
 
             // 重置表单值并隐藏
@@ -99,26 +116,22 @@ export function HeadlessSubmitBar() {
             if (!answersJson || !toolCallId) return;
             try {
               const answers = JSON.parse(answersJson);
-              const answer = { answers, annotations: {} };
-
-              const msgId = crypto.randomUUID();
-              agent.addMessage({
-                id: msgId,
-                role: 'tool',
-                content: JSON.stringify(answer),
-                toolCallId,
-              } as any);
-              clearAskUserQuestion();
-
+              const answer: AskUserQuestionAnswer = {
+                answers,
+                annotations: {},
+              };
+              const pendingPrompt = getPendingAskUserQuestion();
+              clearAskUserQuestionPrompt();
               try {
-                console.log('[Headless] runAgent before');
-                await copilotkit.runAgent({ agent });
-                console.log('[Headless] runAgent after');
+                await resolveAskUserQuestion(toolCallId, answer);
               } catch (e) {
-                console.error('[HeadlessQuestion] runAgent失败:', e);
+                if (pendingPrompt) {
+                  dispatchAskUserQuestion(pendingPrompt);
+                }
+                throw e;
               }
             } catch (e) {
-              console.error('[HeadlessQuestion] 提交失败:', e);
+              console.error('[HeadlessQuestion] interrupt恢复失败:', e);
             }
 
             // 重置表单值并隐藏

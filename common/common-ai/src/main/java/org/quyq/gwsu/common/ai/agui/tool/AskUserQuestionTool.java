@@ -19,7 +19,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class AskUserQuestionTool {
 
-    @Tool(name = AIConstants.ToolName.ASK_USER_QUESTION, description = """
+    @Tool(name = AIConstants.ToolName.ASK_USER_QUESTION, readOnly = true, description = """
             Use this tool when you need to ask the user questions during execution. This allows you to:
 
             Gather user preferences or requirements

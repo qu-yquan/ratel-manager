@@ -7,7 +7,7 @@ import com.dingtalk.open.app.api.models.bot.MessageContent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.common.api.utils.FeignUtils;
-import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
+import io.agentscope.core.agui.event.AguiEvent;
 import org.quyq.gwsu.common.cache.utils.CacheUtils;
 import org.quyq.gwsu.common.core.utils.AssertUtils;
 import org.quyq.gwsu.common.security.api.IAccountInfoClientApi;

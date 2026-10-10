@@ -1,13 +1,13 @@
 package org.quyq.gwsu.security.brain.service.prompt;
 
 import io.agentscope.core.message.Msg;
-import org.quyq.gwsu.common.ai.agui.converter.AguiMessageConverter;
-import org.quyq.gwsu.common.ai.agui.model.AguiMessage;
-import org.quyq.gwsu.common.ai.agui.model.content.AguiPartsContent;
-import org.quyq.gwsu.common.ai.agui.model.part.AguiAudioPart;
-import org.quyq.gwsu.common.ai.agui.model.part.AguiDocumentPart;
-import org.quyq.gwsu.common.ai.agui.model.part.AguiImagePart;
-import org.quyq.gwsu.common.ai.agui.model.part.AguiVideoPart;
+import org.quyq.gwsu.common.ai.agui.converter.CustomAguiMessageConverter;
+import io.agentscope.core.agui.model.AguiMessage;
+import io.agentscope.core.agui.model.MessageContent;
+import io.agentscope.core.agui.model.AudioInputContent;
+import io.agentscope.core.agui.model.DocumentInputContent;
+import io.agentscope.core.agui.model.ImageInputContent;
+import io.agentscope.core.agui.model.VideoInputContent;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -68,7 +68,7 @@ public final class UploadedFilePromptBuilder {
     }
 
     private static List<FileInfoItem> extractFromCurrentMessage(AguiMessage message) {
-        if (message == null || !(message.content() instanceof AguiPartsContent partsContent)) {
+        if (message == null || !(message.getContent() instanceof MessageContent.Blocks partsContent)) {
             return List.of();
         }
         return extractFromPartObjects(partsContent.parts());
@@ -78,8 +78,8 @@ public final class UploadedFilePromptBuilder {
         if (message == null || message.getMetadata() == null || message.getMetadata().isEmpty()) {
             return List.of();
         }
-        Object originalContent = message.getMetadata().get(AguiMessageConverter.METADATA_AGUI_ORIGINAL_CONTENT);
-        if (originalContent instanceof AguiPartsContent partsContent) {
+        Object originalContent = message.getMetadata().get(CustomAguiMessageConverter.METADATA_AGUI_ORIGINAL_CONTENT);
+        if (originalContent instanceof MessageContent.Blocks partsContent) {
             return extractFromPartObjects(partsContent.parts());
         }
         if (originalContent instanceof Map<?, ?> originalContentMap) {
@@ -106,16 +106,16 @@ public final class UploadedFilePromptBuilder {
     }
 
     private static FileInfoItem extractFromPart(Object part) {
-        if (part instanceof AguiDocumentPart documentPart) {
+        if (part instanceof DocumentInputContent documentPart) {
             return buildFileInfo(documentPart.metadata(), resolveMimeType(documentPart.source()));
         }
-        if (part instanceof AguiImagePart imagePart) {
+        if (part instanceof ImageInputContent imagePart) {
             return buildFileInfo(imagePart.metadata(), resolveMimeType(imagePart.source()));
         }
-        if (part instanceof AguiAudioPart audioPart) {
+        if (part instanceof AudioInputContent audioPart) {
             return buildFileInfo(audioPart.metadata(), resolveMimeType(audioPart.source()));
         }
-        if (part instanceof AguiVideoPart videoPart) {
+        if (part instanceof VideoInputContent videoPart) {
             return buildFileInfo(videoPart.metadata(), resolveMimeType(videoPart.source()));
         }
         if (part instanceof Map<?, ?> partMap) {

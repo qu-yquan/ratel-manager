@@ -1,6 +1,6 @@
 package org.quyq.gwsu.headless.core;
 
-import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
+import io.agentscope.core.agui.event.AguiEvent;
 import org.quyq.gwsu.common.ai.agui.tool.AskUserQuestionTool;
 import org.quyq.gwsu.headless.core.session.HeadlessPageWrapper;
 
@@ -61,11 +61,8 @@ public interface HeadlessAgentListener {
 
     // ==================== 自定义事件 ====================
 
-    /**
-     * HUMAN_APPROVAL：人工审批请求（CUSTOM 类型，name=HUMAN_APPROVAL）
-     * 收到此事件后，调用方需通过 HeadlessBrowserManager.approval() 提交审批结果
-     */
-    default void onHumanApproval(AguiEvent.Custom event, HeadlessPageWrapper wrapper) {}
+    /** RUN_FINISHED interrupt：官方 AG-UI 人工审批请求。 */
+    default void onHumanApproval(AguiEvent.RunFinished event, HeadlessPageWrapper wrapper) {}
 
     /**
      * AskUserQuestion：智能体提问

@@ -11,7 +11,7 @@ import io.agentscope.core.state.AgentState;
 import io.agentscope.core.state.AgentStateStore;
 import lombok.RequiredArgsConstructor;
 import org.bsc.langgraph4j.action.NodeAction;
-import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
+import io.agentscope.core.agui.event.AguiEvent;
 import org.quyq.gwsu.common.ai.constants.AIConstants;
 import org.quyq.gwsu.common.ai.loop.AgentApprovalResolver;
 import org.quyq.gwsu.common.ai.loop.domain.HumanApprovalInfo;

@@ -13,7 +13,8 @@ public enum AccountType {
 
     MANAGER("管理端"),
 
-    USER("官网端");
+    //有其他账号体系时，新增该枚举
+    ;
 
     private final String msg;
 

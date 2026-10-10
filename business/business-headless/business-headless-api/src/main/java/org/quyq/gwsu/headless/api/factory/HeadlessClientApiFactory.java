@@ -3,7 +3,7 @@ package org.quyq.gwsu.headless.api.factory;
 
 import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.common.api.fallback.FallbackFactory;
-import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
+import io.agentscope.core.agui.event.AguiEvent;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.headless.api.HeadlessClientApi;
 import org.quyq.gwsu.headless.api.dto.HeadlessDTO;

@@ -8,12 +8,9 @@ import { App } from 'antd';
 import { randomUUID } from '@ag-ui/client';
 import { dispatchWebTool } from '@/services/web-tool';
 import type { WebToolExecutePayload } from '@/services/web-tool';
-import { dispatchHumanApproval } from '@/services/human-approval';
-import type { HumanApprovalPayload } from '@/services/human-approval';
-import { dispatchAskUserQuestion } from '@/services/ask-user-question';
-import type {
-  QuestionParam,
-  QuestionOption,
+import {
+  dispatchAskUserQuestion,
+  normalizeAskUserQuestionPayload,
 } from '@/services/ask-user-question';
 import {
   dispatchAgentOutput,
@@ -88,18 +85,6 @@ function WebToolEventListener() {
   );
   const { notification } = App.useApp();
 
-  /**
-   * 规范化 options 字段
-   * 后端 QuestionParam.options 类型为 QuestionOption（单对象），
-   * 但 LLM 根据 description 会生成数组，前端兼容两种情况
-   */
-  const normalizeOptions = (options: unknown): QuestionOption[] => {
-    if (Array.isArray(options)) return options as QuestionOption[];
-    if (options && typeof options === 'object')
-      return [options as QuestionOption];
-    return [];
-  };
-
   const showRawError = (msg: string) => {
     notification.error({
       title: '请求错误',
@@ -121,10 +106,6 @@ function WebToolEventListener() {
         //web工具调用
         if (event.name === 'TOOL_EXECUTE') {
           dispatchWebTool(event.value as WebToolExecutePayload);
-        }
-        //人工干预审批
-        else if (event.name === 'HUMAN_APPROVAL') {
-          dispatchHumanApproval(event.value as HumanApprovalPayload);
         }
         // AI 输出视图 - 完整 JSONL Patch 行
         else if (event.name === 'AGENT_OUTPUT') {
@@ -154,20 +135,12 @@ function WebToolEventListener() {
       },
       onToolCallEndEvent: ({ toolCallName, toolCallArgs, event }): void => {
         if (toolCallName === 'AskUserQuestion') {
-          const rawQuestions = toolCallArgs?.questions;
-          if (Array.isArray(rawQuestions) && rawQuestions.length > 0) {
-            const questions: QuestionParam[] = rawQuestions.map(
-              (q: Record<string, unknown>) => ({
-                question: String(q.question ?? ''),
-                header: String(q.header ?? ''),
-                options: normalizeOptions(q.options),
-                multiSelect: Boolean(q.multiSelect),
-              }),
-            );
-            dispatchAskUserQuestion({
-              toolCallId: event.toolCallId,
-              questions,
-            });
+          const payload = normalizeAskUserQuestionPayload(
+            event.toolCallId,
+            toolCallArgs,
+          );
+          if (payload) {
+            dispatchAskUserQuestion(payload);
           }
         }
       },
@@ -220,6 +193,7 @@ export function GwsuCopilotKitProvider({
   return (
     <CopilotKit
       runtimeUrl="/api/security/brain/run/copilotKit"
+      useSingleEndpoint
       headers={getHeaders}
       properties={properties}
       agent="brain"

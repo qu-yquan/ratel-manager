@@ -2,7 +2,7 @@ package org.quyq.gwsu.security.brain.service;
 
 
 import io.agentscope.core.agent.Agent;
-import org.quyq.gwsu.common.ai.agui.processor.AguiRequestProcessor;
+import io.agentscope.core.agui.processor.AguiRequestProcessor;
 
 /**
  * @author Quyq

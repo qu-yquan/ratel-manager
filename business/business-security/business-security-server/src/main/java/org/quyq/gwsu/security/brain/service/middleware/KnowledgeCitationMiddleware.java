@@ -11,6 +11,7 @@ import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.middleware.AgentInput;
 import io.agentscope.core.middleware.MiddlewareBase;
+import org.quyq.gwsu.common.ai.constants.AIConstants;
 import org.quyq.gwsu.kit.api.knowledge.vo.KnowledgeSearchResultVO;
 import org.quyq.gwsu.security.brain.service.citation.KnowledgeCitationContext;
 import org.quyq.gwsu.security.brain.vo.BrainHistoryMessageMetadataVO;
@@ -39,7 +40,6 @@ public class KnowledgeCitationMiddleware implements MiddlewareBase {
 
     private static final Pattern CITATION_PATTERN = Pattern.compile("\\[(K\\d+)]");
     private static final String KNOWLEDGE_REFERENCES_KEY = "knowledgeReferences";
-    private static final String KNOWLEDGE_REFERENCES_EVENT = "KNOWLEDGE_REFERENCES";
 
     @Override
     public Flux<AgentEvent> onAgent(
@@ -88,7 +88,8 @@ public class KnowledgeCitationMiddleware implements MiddlewareBase {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("messageId", StringUtils.hasText(liveMessageId) ? liveMessageId : result.getId());
         payload.put("references", references);
-        CustomEvent referenceEvent = new CustomEvent(KNOWLEDGE_REFERENCES_EVENT, payload);
+        CustomEvent referenceEvent = new CustomEvent(
+                AIConstants.AguiCustomEvent.KNOWLEDGE_REFERENCES, payload);
         return Flux.just(referenceEvent, enrichedEvent);
     }
 

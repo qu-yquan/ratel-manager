@@ -2,16 +2,15 @@ package org.quyq.gwsu.common.ai.agui.model;
 
 
 import lombok.extern.slf4j.Slf4j;
-import org.quyq.gwsu.common.ai.agui.encoder.AguiEventEncoder;
-import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
-import org.quyq.gwsu.common.ai.agui.push.AguiEventPusher;
+import io.agentscope.core.agui.event.AguiEvent;
+import io.agentscope.core.agui.model.RunAgentInput;
+import io.agentscope.core.agui.processor.AguiRequestProcessor;
+import org.quyq.gwsu.common.ai.agui.encoder.AguiProtocolEventEncoder;
 import org.springframework.http.MediaType;
-import org.springframework.util.CollectionUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author Quyq
@@ -23,10 +22,15 @@ public record AIRunnerInstanceWrapper(
         RunAgentInput input ,
         SseEmitter emitter ,
         //是否是无头浏览器访问
-        boolean headless
+        boolean headless,
+        AtomicReference<AguiRequestProcessor.ProcessResult> processResult
 ) {
 
-    public static final AguiEventEncoder ENCODER = new AguiEventEncoder();
+    public AIRunnerInstanceWrapper(RunAgentInput input, SseEmitter emitter, boolean headless) {
+        this(input, emitter, headless, new AtomicReference<>());
+    }
+
+    public static final AguiProtocolEventEncoder ENCODER = new AguiProtocolEventEncoder();
 
     /**
      * 发送事件
@@ -39,6 +43,17 @@ public record AIRunnerInstanceWrapper(
 
         } catch (IOException e) {
             log.debug("Failed to send SSE event: {}", e.getMessage());
+        }
+    }
+
+    public void bindProcessResult(AguiRequestProcessor.ProcessResult result) {
+        processResult.set(result);
+    }
+
+    public void interrupt() {
+        AguiRequestProcessor.ProcessResult result = processResult.get();
+        if (result != null) {
+            result.interrupt(input.getThreadId());
         }
     }
 

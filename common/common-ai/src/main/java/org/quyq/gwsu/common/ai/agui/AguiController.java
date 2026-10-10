@@ -1,28 +1,23 @@
 package org.quyq.gwsu.common.ai.agui;
 
 
-import io.agentscope.core.ReActAgent;
-import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;
-import io.agentscope.core.message.Msg;
-import io.agentscope.core.message.ToolUseBlock;
-import io.agentscope.core.state.AgentStateStore;
-import io.agentscope.harness.agent.HarnessAgent;
+import io.agentscope.core.agui.AguiException;
+import io.agentscope.core.agui.runtime.AguiRuntimeContextRequest;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.common.ai.agui.dto.ChatDTO;
-import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
+import io.agentscope.core.agui.event.AguiEvent;
 import org.quyq.gwsu.common.ai.agui.model.AIRunnerInstanceWrapper;
+import org.quyq.gwsu.common.ai.agui.model.AguiConnectionSnapshot;
 import org.quyq.gwsu.common.ai.agui.model.CopilotKitInfo;
-import org.quyq.gwsu.common.ai.agui.model.RunAgentInput;
-import org.quyq.gwsu.common.ai.agui.processor.AguiRequestProcessor;
+import io.agentscope.core.agui.model.RunAgentInput;
+import io.agentscope.core.agui.processor.AguiRequestProcessor;
 import org.quyq.gwsu.common.ai.agui.utils.WebToolUtils;
 import org.quyq.gwsu.common.ai.agui.web.WebToolCallbackRequest;
 import org.quyq.gwsu.common.ai.constants.AIConstants;
-import org.quyq.gwsu.common.ai.loop.AgentApprovalResolver;
-import org.quyq.gwsu.common.ai.loop.domain.HumanApprovalInfo;
 import org.quyq.gwsu.common.cache.utils.CacheUtils;
 import org.quyq.gwsu.common.core.accessor.HeadersContextThreadLocalAccessor;
 import org.quyq.gwsu.common.core.domain.R;
@@ -75,11 +70,6 @@ public abstract class AguiController implements DisposableBean {
     private final static EmitterWrapperManager CURR_EMITTER = new EmitterWrapperManager();
 
     private RedisMessageListenerContainer listenerContainer = null;
-
-
-    @Setter
-    private AgentStateStore agentStateStore;
-
 
     public static AIRunnerInstanceWrapper getCurrEmitter(String threadId) {
         return CURR_EMITTER.get(threadId);
@@ -137,61 +127,6 @@ public abstract class AguiController implements DisposableBean {
     }
 
     /**
-     * 处理审批状态查询
-     * 从 Session 中加载 Agent，检查是否处于 STOP_REQUESTED 状态
-     *
-     * @param threadId 会话ID
-     * @return 审批状态信息
-     */
-    public R<HumanApprovalInfo> handleApprovalStatus(String threadId) {
-        if (agentStateStore == null) {
-            return R.ok(new HumanApprovalInfo(null, null, null));
-        }
-
-        try (ReActAgent agent = ReActAgent.builder()
-                .stateStore(agentStateStore)
-                .build()) {
-            String userId = getCurrUserId();
-
-
-            List<Msg> context = agent.getAgentState(userId, threadId)
-                    .getContext();
-            if (CollectionUtils.isEmpty(context)) {
-                return R.ok(new HumanApprovalInfo(null, null, null));
-            }
-            Msg lastMsg = findLastAssistantMsg(context);
-            if (lastMsg != null) {
-                HumanApprovalInfo approvalInfo = AgentApprovalResolver.buildReasoningApprovalInfo(
-                        lastMsg.getContentBlocks(ToolUseBlock.class));
-                if (approvalInfo != null) {
-                    return R.ok(approvalInfo);
-                }
-            }
-
-            return R.ok(new HumanApprovalInfo(null, null, null));
-        } catch (Exception e) {
-            log.error("Failed to query approval status for thread {}: {}", threadId, e.getMessage());
-            return R.ok(new HumanApprovalInfo(null, null, null));
-        }
-    }
-
-    /**
-     * 从消息列表中获取最后一条消息
-     */
-    private Msg findLastAssistantMsg(List<Msg> messages) {
-        if (messages == null || messages.isEmpty()) {
-            return null;
-        }
-        for (int i = messages.size() - 1; i >= 0; i--) {
-            Msg msg = messages.get(i);
-            if (msg.getRole() == io.agentscope.core.message.MsgRole.ASSISTANT) {
-                return msg;
-            }
-        }
-        return null;
-    }
-
-    /**
      * agui格式统一入口
      *
      * @param input
@@ -224,6 +159,16 @@ public abstract class AguiController implements DisposableBean {
     protected void afterRunCompleted(RunAgentInput input, String userId, RuntimeContext runtimeContext) {
     }
 
+    /**
+     * 恢复指定线程的 AG-UI 连接快照。
+     *
+     * <p>默认返回空快照；需要历史恢复的业务模块应覆盖该方法。该方法只用于读取，
+     * 不应创建会话或修改智能体状态。</p>
+     */
+    protected AguiConnectionSnapshot restoreConnection(RunAgentInput input, String userId) {
+        return AguiConnectionSnapshot.empty();
+    }
+
 
     /**
      * 获取当前登录的用户ID
@@ -238,11 +183,29 @@ public abstract class AguiController implements DisposableBean {
     protected SseEmitter handlerAgentConnect(ChatDTO request) {
         SseEmitter emitter = new SseEmitter(sseTimeout);
         RunAgentInput body = request.body();
+        String userId = getCurrUserId();
         AIRunnerInstanceWrapper wrapper = new AIRunnerInstanceWrapper(request.body(), emitter, false);
         executorService.submit(() -> {
-            wrapper.sendEvent(new AguiEvent.RunStarted(body.threadId(), body.runId()));
-            wrapper.sendEvent(new AguiEvent.RunFinished(body.threadId(), body.runId()));
-            emitter.complete();
+            wrapper.sendEvent(new AguiEvent.RunStarted(
+                    body.getThreadId(), body.getRunId(), null, body));
+            try {
+                AguiConnectionSnapshot snapshot = Objects.requireNonNull(
+                        restoreConnection(body, userId), "connection snapshot cannot be null");
+                wrapper.sendEvent(new AguiEvent.MessagesSnapshot(
+                        body.getThreadId(), body.getRunId(), snapshot.messages()));
+                wrapper.sendEvent(new AguiEvent.StateSnapshot(
+                        body.getThreadId(), body.getRunId(), snapshot.state()));
+                snapshot.customEvents().forEach(wrapper::sendEvent);
+                AguiEvent.RunFinishedOutcome outcome = snapshot.interrupts().isEmpty()
+                        ? new AguiEvent.RunFinishedSuccessOutcome()
+                        : new AguiEvent.RunFinishedInterruptOutcome(snapshot.interrupts());
+                wrapper.sendEvent(new AguiEvent.RunFinished(
+                        body.getThreadId(), body.getRunId(), null, outcome));
+                emitter.complete();
+            } catch (Exception exception) {
+                log.error("Restore AG-UI connection failed, threadId={}", body.getThreadId(), exception);
+                sendErrorAndComplete(wrapper, exception.getMessage());
+            }
         });
 
         return emitter;
@@ -294,18 +257,7 @@ public abstract class AguiController implements DisposableBean {
         if (StringUtils.hasText(threadId)) {
             AIRunnerInstanceWrapper currEmitter = getCurrEmitter(threadId);
             if (Objects.nonNull(currEmitter)) {
-                RuntimeContext context = RuntimeContext.builder()
-                        .sessionId(threadId)
-                        .userId(userId)
-                        .build();
-                Agent agent = processor.resolveAgent(agentId, context);
-                if (agent instanceof HarnessAgent ha) {
-                    ha.interrupt(context);
-                } else {
-                    agent.interrupt();
-                }
-
-
+                currEmitter.interrupt();
                 currEmitter.emitter().complete();
             }
 
@@ -318,8 +270,8 @@ public abstract class AguiController implements DisposableBean {
     private SseEmitter handleInternal(
             RunAgentInput input, String headerAgentId, String pathAgentId) {
         SseEmitter emitter = new SseEmitter(sseTimeout);
-        String threadId = input.threadId();
-        String runId = input.runId();
+        String threadId = input.getThreadId();
+        String runId = input.getRunId();
         String userId = getCurrUserId();
 
 
@@ -331,7 +283,7 @@ public abstract class AguiController implements DisposableBean {
 
         AIRunnerInstanceWrapper wrapper = new AIRunnerInstanceWrapper(input, emitter, isHeadless());
         RuntimeContext runtimeContext =
-                buildRuntimeContext(threadId, userId, input.forwardedProps(), wrapper);
+                buildRuntimeContext(threadId, userId, input.getForwardedProps(), wrapper);
         executorService.submit(
                 () -> {
                     Disposable subscription;
@@ -339,8 +291,16 @@ public abstract class AguiController implements DisposableBean {
                         beforeRunStarted(input, userId, runtimeContext);
 
                         // Process request - returns both agent and event stream
-                        AguiRequestProcessor.ProcessResult result =
-                                processor.process(input, headerAgentId, pathAgentId, runtimeContext);
+                        AguiRuntimeContextRequest<RuntimeContext> request = AguiRuntimeContextRequest
+                                .<RuntimeContext>builder()
+                                .input(input)
+                                .headerAgentId(headerAgentId)
+                                .pathAgentId(pathAgentId)
+                                .transport(AguiRuntimeContextRequest.Transport.MVC)
+                                .nativeRequest(runtimeContext)
+                                .build();
+                        AguiRequestProcessor.ProcessResult result = processor.process(request);
+                        wrapper.bindProcessResult(result);
                         CURR_EMITTER.put(threadId, wrapper);
                         // Set up callbacks for client disconnect handling
                         emitter.onCompletion(
@@ -354,7 +314,7 @@ public abstract class AguiController implements DisposableBean {
                                             "SSE connection timed out for run {}, interrupting agent",
                                             runId);
                                     CURR_EMITTER.remove(threadId);
-                                    result.agent().interrupt();
+                                    result.interrupt(threadId);
                                 });
                         emitter.onError(
                                 (ex) -> {
@@ -363,7 +323,7 @@ public abstract class AguiController implements DisposableBean {
                                             runId,
                                             ex.getMessage());
                                     CURR_EMITTER.remove(threadId);
-                                    result.agent().interrupt();
+                                    result.interrupt(threadId);
                                 });
 
                         // Subscribe to event stream
@@ -386,7 +346,7 @@ public abstract class AguiController implements DisposableBean {
                                                 },
                                                 () -> {
                                                     try {
-                                                        afterRunCompleted(input, userId, runtimeContext);
+                                                        afterRunCompleted(input, userId, result.runtimeContext());
                                                     } catch (Exception exception) {
                                                         log.warn("Run completed hook execute failed, threadId={}", threadId, exception);
                                                     }
@@ -403,7 +363,7 @@ public abstract class AguiController implements DisposableBean {
                         log.error("Agent not found: {}", e.getMessage());
                         sendErrorAndComplete(wrapper, e.getMessage());
                     } catch (Exception e) {
-                        log.error("Error processing AG-UI request: {}", e);
+                        log.error("Error processing AG-UI request", e);
                         sendErrorAndComplete(wrapper, e.getMessage());
                     }
                 });
@@ -440,12 +400,10 @@ public abstract class AguiController implements DisposableBean {
     private void sendErrorAndComplete(
             AIRunnerInstanceWrapper wrapper, String errorMessage) {
         RunAgentInput param = wrapper.input();
-        AguiEvent.Raw errorEvent = new AguiEvent.Raw(param.threadId(), param.runId(), Map.of("error", errorMessage));
-        AguiEvent.RunFinished finishEvent = new AguiEvent.RunFinished(param.threadId(), param.runId());
-
+        AguiEvent.RunError errorEvent = new AguiEvent.RunError(
+                param.getThreadId(), param.getRunId(), errorMessage, "INTERNAL_ERROR");
         wrapper.sendEvent(errorEvent);
-        wrapper.sendEvent(finishEvent);
-
+        wrapper.emitter().complete();
     }
 
 

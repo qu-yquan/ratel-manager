@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.quyq.gwsu.common.ai.AgentException;
 import org.quyq.gwsu.common.ai.agui.model.AIRunnerInstanceWrapper;
-import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
+import io.agentscope.core.agui.event.AguiEvent;
 import org.quyq.gwsu.common.ai.agui.web.WebToolInfo;
 import org.quyq.gwsu.common.ai.agui.web.WebToolStatus;
 import org.quyq.gwsu.common.ai.agui.web.WebToolTask;
@@ -85,7 +85,8 @@ public class WebToolUtils {
         // 1. 发送CUSTOM事件给前端（通过ToolEmitter → Hook → SSE）
         WebToolInfo info = new WebToolInfo(toolCallId, toolName, params);
 
-        AguiEvent.Custom customAguiEvent = new AguiEvent.Custom(wrapper.input().threadId(), wrapper.input().runId(),
+        AguiEvent.Custom customAguiEvent = new AguiEvent.Custom(
+                wrapper.input().getThreadId(), wrapper.input().getRunId(),
                 AIConstants.AguiCustomEvent.TOOL_EXECUTE
                 , info);
 

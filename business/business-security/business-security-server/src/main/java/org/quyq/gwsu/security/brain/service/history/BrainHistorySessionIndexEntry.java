@@ -25,4 +25,5 @@ public class BrainHistorySessionIndexEntry {
      * 以消息 ID 为键的扩展元数据，与会话索引明细一并存储。
      */
     private Map<String, BrainHistoryMessageMetadataVO> messageMetadata;
+
 }

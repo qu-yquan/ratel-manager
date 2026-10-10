@@ -4,6 +4,7 @@ import org.quyq.gwsu.security.api.brain.dto.BrainHistoryQueryDTO;
 import org.quyq.gwsu.security.api.brain.vo.BrainHistorySessionSliceVo;
 import org.quyq.gwsu.security.api.brain.vo.BrainHistorySessionVo;
 import org.quyq.gwsu.security.brain.vo.BrainHistoryMessageVO;
+import org.quyq.gwsu.common.ai.agui.model.AguiConnectionSnapshot;
 
 import java.util.List;
 
@@ -31,6 +32,16 @@ public interface IBrainHistoryService {
      * @return 消息列表
      */
     List<BrainHistoryMessageVO> getSessionMessages(String sessionId, String userId);
+
+    /**
+     * 恢复 AG-UI 线程连接快照。
+     *
+     * @param sessionId 会话ID
+     * @param runId     本次连接运行ID
+     * @param userId    用户ID
+     * @return AG-UI 连接快照
+     */
+    AguiConnectionSnapshot getConnectionSnapshot(String sessionId, String runId, String userId);
 
 
     /**

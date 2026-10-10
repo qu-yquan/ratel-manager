@@ -1,170 +1,85 @@
+import {
+  CheckOutlined,
+  CloseOutlined,
+  SafetyCertificateOutlined,
+  SendOutlined,
+} from '@ant-design/icons';
+import type { Interrupt } from '@ag-ui/client';
+import { useInterrupt } from '@copilotkit/react-core/v2';
 import { Button, Input } from 'antd';
-import { SafetyCertificateOutlined, CheckOutlined, CloseOutlined, SendOutlined } from '@ant-design/icons';
-import { useState, useEffect, useCallback } from 'react';
-import { useAgent } from '@copilotkit/react-core/v2';
-import { useCopilotKit } from '@copilotkit/react-core/v2';
-import { onHumanApproval, clearHumanApproval } from '@/services/human-approval';
-import type { HumanApprovalPayload, ApprovalResultType } from '@/services/human-approval';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  clearHumanApproval,
+  setPendingApproval,
+  type ApprovalResolve,
+} from '@/services/human-approval';
 import styles from './HumanApprovalBar.module.less';
 
-/**
- * 嵌入式人工审批卡片组件
- * 展示在聊天输入框上方，供用户对 AI 的操作进行审批或拒绝
- *
- * 两种审批阶段：
- * - POST_REASONING：推理后暂停，用户可审批/拒绝（拒绝时可选填写原因）
- * - POST_ACTING：行动后暂停，用户审批/拒绝（拒绝时直接提交，不需要原因）
- */
-export function HumanApprovalBar() {
-  const [approvalPayload, setApprovalPayload] = useState<HumanApprovalPayload | null>(null);
+interface ApprovalCardProps {
+  interrupt: Interrupt;
+  interrupts: Interrupt[];
+  resolve: ApprovalResolve;
+}
+
+function ApprovalCard({ interrupt, interrupts, resolve }: ApprovalCardProps) {
   const [showRejectReason, setShowRejectReason] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { agent } = useAgent({ agentId: 'brain' });
-  const { copilotkit } = useCopilotKit();
 
-  // 监听审批事件（payload 为 null 时清除审批状态）
   useEffect(() => {
-    const unsubscribe = onHumanApproval((payload) => {
-      setApprovalPayload(payload);
-      setShowRejectReason(false);
-      setRejectReason('');
-    });
-    return unsubscribe;
-  }, []);
+    setPendingApproval({ interrupt, interrupts, resolve });
+    return () => clearHumanApproval(interrupt.id);
+  }, [interrupt, interrupts, resolve]);
 
-  /**
-   * 提交审批结果
-   * 将审批消息以 role: 'approval' 的形式发送给 agent，后端识别后从 messages 中移除，不进入上下文历史
-   */
-  const submitApproval = useCallback(async (result: ApprovalResultType, reason?: string) => {
-    if (!approvalPayload) return;
-
-    setSubmitting(true);
-    try {
-      // 构造审批消息内容
-      const approvalContent = result === 'REJECTED' && reason
-        ? JSON.stringify({ result, rejectReason: reason })
-        : JSON.stringify({ result });
-
-      // 将审批消息追加到 agent 消息列表
-      // role: 'approval' — 后端 AguiRequestProcessor 识别后从 messages 中移除，不进入上下文历史
-      const approvalMsgId = crypto.randomUUID();
-      agent.addMessage({
-        id: approvalMsgId,
-        role: 'approval',
-        content: approvalContent,
-      } as any);
-
-      // 清除审批状态（必须在 runAgent 之前调用）
-      // 否则 runAgent 期间新分发的审批事件会被清除，导致第二次审批不弹框
-      clearHumanApproval();
-      setApprovalPayload(null);
-      setShowRejectReason(false);
-      setRejectReason('');
-
-      // 触发 agent 继续运行
-      await copilotkit.runAgent({ agent });
-
-      // 从 agent 消息列表中移除 approval 消息，避免下次请求时带上
-      const currentMessages = agent.messages || [];
-      const filteredMessages = currentMessages.filter(
-        (msg: any) => msg.role !== 'approval'
-      );
-      if (filteredMessages.length !== currentMessages.length) {
-        agent.setMessages(filteredMessages);
+  const submit = useCallback(
+    async (approved: boolean, reason?: string) => {
+      setSubmitting(true);
+      try {
+        const payload = approved
+          ? { approved: true }
+          : { approved: false, ...(reason ? { reason } : {}) };
+        for (const item of interrupts) {
+          await resolve(payload, item.id);
+        }
+        clearHumanApproval(interrupt.id);
+      } catch (error) {
+        console.error('[HumanApproval] 提交官方 interrupt 响应失败:', error);
+      } finally {
+        setSubmitting(false);
       }
-    } catch (error) {
-      console.error('[HumanApproval] 提交审批结果失败:', error);
-    } finally {
-      setSubmitting(false);
-    }
-  }, [approvalPayload, agent, copilotkit]);
+    },
+    [interrupt.id, interrupts, resolve],
+  );
 
-  // 点击批准
-  const handleApprove = useCallback(() => {
-    submitApproval('APPROVED');
-  }, [submitApproval]);
-
-  // 点击拒绝
-  const handleReject = useCallback(() => {
-    const stage = approvalPayload?.stage;
-    if (stage === 'POST_REASONING') {
-      // POST_REASONING 阶段：展开拒绝原因输入框
-      setShowRejectReason(true);
-    } else {
-      // POST_ACTING 阶段：直接提交拒绝
-      submitApproval('REJECTED');
-    }
-  }, [approvalPayload, submitApproval]);
-
-  // 确认拒绝（带原因）
-  const handleConfirmReject = useCallback(() => {
-    submitApproval('REJECTED', rejectReason.trim() || undefined);
-  }, [submitApproval, rejectReason]);
-
-  // 取消拒绝原因输入
-  const handleCancelReject = useCallback(() => {
-    setShowRejectReason(false);
-    setRejectReason('');
-  }, []);
-
-  // 无待审批事件时不渲染
-  if (!approvalPayload) return null;
-
-  // 提取展示信息
-  const { stage, reasoningStageInfo, actingStageInfo } = approvalPayload;
-
-  const tip = stage === 'POST_REASONING'
-    ? reasoningStageInfo?.[0]?.tip ?? 'AI 请求执行操作，请确认是否允许'
-    : actingStageInfo?.tip ?? '操作已执行，请确认结果';
-
-  const toolName = stage === 'POST_REASONING'
-    ? reasoningStageInfo?.[0]?.toolInfo.name
-    : actingStageInfo?.resultInfo.name;
-
-  const toolInput = stage === 'POST_REASONING'
-    ? reasoningStageInfo?.[0]?.toolInfo.input
-    : null;
-
-  const toolOutput = stage === 'POST_ACTING'
-    ? actingStageInfo?.resultInfo.output
-    : null;
-
-  // 格式化工具参数摘要
-  const formatInputSummary = (input: Record<string, unknown> | null | undefined): string => {
-    if (!input) return '';
-    const entries = Object.entries(input);
-    if (entries.length === 0) return '';
-    // 限制显示长度
-    const summary = entries.map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`).join(', ');
-    return summary.length > 80 ? summary.slice(0, 80) + '...' : summary;
-  };
-
-  // 格式化工具输出摘要
-  const formatOutputSummary = (output: { type: string; text: string }[] | null | undefined): string => {
-    if (!output) return '';
-    const text = output.map(o => o.text).join(' ');
-    return text.length > 80 ? text.slice(0, 80) + '...' : text;
-  };
+  const metadata = (interrupt.metadata ?? {}) as Record<string, unknown>;
+  const toolName = String(metadata.toolName ?? '');
+  const toolInput = metadata.toolInput as Record<string, unknown> | undefined;
+  const tip = interrupt.message || 'AI 请求执行操作，请确认是否允许';
+  const inputSummary = toolInput
+    ? Object.entries(toolInput)
+        .map(
+          ([key, value]) =>
+            `${key}=${
+              typeof value === 'string' ? value : JSON.stringify(value)
+            }`,
+        )
+        .join(', ')
+    : '';
 
   return (
-    <div className={styles.approvalBar}>
+    <div className={styles.approvalBar} data-testid="human-approval">
       <div className={styles.approvalContent}>
         <SafetyCertificateOutlined className={styles.approvalIcon} />
         <div className={styles.approvalInfo}>
           <div className={styles.approvalTip}>{tip}</div>
           <div className={styles.approvalDetail}>
-            {toolName && (
-              <>
-                <span className={styles.toolName}>{toolName}</span>
-                {toolInput && formatInputSummary(toolInput) && (
-                  <span>{formatInputSummary(toolInput)}</span>
-                )}
-                {toolOutput && formatOutputSummary(toolOutput) && (
-                  <span>{formatOutputSummary(toolOutput)}</span>
-                )}
-              </>
+            {toolName && <span className={styles.toolName}>{toolName}</span>}
+            {inputSummary && (
+              <span>
+                {inputSummary.length > 80
+                  ? `${inputSummary.slice(0, 80)}...`
+                  : inputSummary}
+              </span>
             )}
           </div>
         </div>
@@ -175,7 +90,7 @@ export function HumanApprovalBar() {
             className={styles.approveBtn}
             icon={<CheckOutlined />}
             loading={submitting}
-            onClick={handleApprove}
+            onClick={() => void submit(true)}
           >
             批准
           </Button>
@@ -184,28 +99,26 @@ export function HumanApprovalBar() {
             size="small"
             className={styles.rejectBtn}
             icon={<CloseOutlined />}
-            loading={submitting && !showRejectReason}
-            onClick={handleReject}
-            disabled={showRejectReason}
+            disabled={showRejectReason || submitting}
+            onClick={() => setShowRejectReason(true)}
           >
             拒绝
           </Button>
         </div>
       </div>
 
-      {/* 拒绝原因输入区域 - 仅 POST_REASONING 阶段展开 */}
       {showRejectReason && (
         <div className={styles.rejectReasonArea}>
           <Input.TextArea
             className={styles.rejectInput}
             value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
+            onChange={(event) => setRejectReason(event.target.value)}
             placeholder="可选：填写拒绝原因..."
             autoSize={{ minRows: 1, maxRows: 3 }}
-            onPressEnter={(e) => {
-              if (!e.shiftKey) {
-                e.preventDefault();
-                handleConfirmReject();
+            onPressEnter={(event) => {
+              if (!event.shiftKey) {
+                event.preventDefault();
+                void submit(false, rejectReason.trim() || undefined);
               }
             }}
           />
@@ -216,14 +129,18 @@ export function HumanApprovalBar() {
             className={styles.rejectConfirmBtn}
             icon={<SendOutlined />}
             loading={submitting}
-            onClick={handleConfirmReject}
+            onClick={() => void submit(false, rejectReason.trim() || undefined)}
           >
             提交
           </Button>
           <Button
             size="small"
             className={styles.rejectConfirmBtn}
-            onClick={handleCancelReject}
+            disabled={submitting}
+            onClick={() => {
+              setShowRejectReason(false);
+              setRejectReason('');
+            }}
           >
             取消
           </Button>
@@ -231,4 +148,30 @@ export function HumanApprovalBar() {
       )}
     </div>
   );
+}
+
+/** 使用 CopilotKit 官方 interrupt/resume 协议渲染审批卡片。 */
+export function HumanApprovalBar() {
+  const liveInterruptElement = useInterrupt({
+    agentId: 'brain',
+    renderInChat: false,
+    enabled: (event) => {
+      if (event.name !== 'on_interrupt' || !event.value) return false;
+      const interrupt = event.value as Interrupt;
+      const metadata = (interrupt.metadata ?? {}) as Record<string, unknown>;
+      return metadata['agentscope.interruptKind'] === 'permission_confirm';
+    },
+    render: ({ interrupt, interrupts, resolve }) => {
+      if (!interrupt) return <></>;
+      return (
+        <ApprovalCard
+          interrupt={interrupt}
+          interrupts={interrupts}
+          resolve={resolve}
+        />
+      );
+    },
+  });
+
+  return liveInterruptElement;
 }

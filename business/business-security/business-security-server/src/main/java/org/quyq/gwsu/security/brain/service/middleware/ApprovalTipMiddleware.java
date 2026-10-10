@@ -4,9 +4,6 @@ import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.AgentBase;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;
-import io.agentscope.core.event.AgentEventEmitter;
-import io.agentscope.core.event.CustomEvent;
-import io.agentscope.core.event.RequireUserConfirmEvent;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.message.ContentBlock;
@@ -15,17 +12,14 @@ import io.agentscope.core.middleware.ActingInput;
 import io.agentscope.core.middleware.MiddlewareBase;
 import io.agentscope.core.permission.PermissionBehavior;
 import io.agentscope.core.permission.PermissionContextState;
-import io.agentscope.core.permission.PermissionDecision;
 import io.agentscope.core.state.AgentState;
 import io.agentscope.core.tool.AgentTool;
 import io.agentscope.core.tool.ToolBase;
 import io.agentscope.core.tool.Toolkit;
 import lombok.RequiredArgsConstructor;
 import org.quyq.gwsu.common.ai.constants.AIConstants;
-import org.quyq.gwsu.common.ai.loop.AgentApprovalResolver;
 import org.quyq.gwsu.common.ai.loop.ApprovalStage;
 import org.quyq.gwsu.common.ai.loop.domain.ApprovalTips;
-import org.quyq.gwsu.common.ai.loop.domain.HumanApprovalInfo;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.context.ContextView;
@@ -36,7 +30,7 @@ import java.util.*;
 import java.util.function.Function;
 
 /**
- * 在 AgentScope v2 权限拦截进入 ASK 时，回填审批提示到最终 assistant 消息 metadata。
+ * 在 AgentScope v2 权限拦截进入 ASK 前，将审批提示写入工具调用和 assistant 消息 metadata。
  */
 @RequiredArgsConstructor
 public class ApprovalTipMiddleware implements MiddlewareBase {
@@ -56,9 +50,10 @@ public class ApprovalTipMiddleware implements MiddlewareBase {
                             return next.apply(input);
                         }
 
-                        AgentEventEmitter emitter = AgentEventEmitter.fromContext(contextView).orElse(null);
-                        return next.apply(input)
-                                .map(event -> attachApprovalTips(event, ctx, approvalTips, emitter));
+                        List<ToolUseBlock> enrichedToolCalls =
+                                enrichToolCalls(input.toolCalls(), approvalTips);
+                        syncLastAssistantMsg(ctx, enrichedToolCalls);
+                        return next.apply(new ActingInput(enrichedToolCalls));
                     });
         });
     }
@@ -108,46 +103,18 @@ public class ApprovalTipMiddleware implements MiddlewareBase {
                         ApprovalStage.POST_REASONING));
     }
 
-    AgentEvent attachApprovalTips(AgentEvent event, RuntimeContext ctx, List<ApprovalTips> approvalTips) {
-        return attachApprovalTips(event, ctx, approvalTips, null);
-    }
-
-    AgentEvent attachApprovalTips(
-            AgentEvent event,
-            RuntimeContext ctx,
-            List<ApprovalTips> approvalTips,
-            AgentEventEmitter emitter) {
-        if (!(event instanceof RequireUserConfirmEvent requireUserConfirmEvent)
-                || CollectionUtils.isEmpty(approvalTips)) {
-            return event;
-        }
-
-        RequireUserConfirmEvent enrichedEvent = enrichRequireUserConfirmEvent(requireUserConfirmEvent, approvalTips);
-        syncLastAssistantMsg(ctx, enrichedEvent);
-        emitHumanApprovalEvent(enrichedEvent, emitter);
-        return enrichedEvent;
-    }
-
-    RequireUserConfirmEvent enrichRequireUserConfirmEvent(
-            RequireUserConfirmEvent event, List<ApprovalTips> approvalTips) {
-        if (event == null || CollectionUtils.isEmpty(event.getToolCalls()) || CollectionUtils.isEmpty(approvalTips)) {
-            return event;
+    List<ToolUseBlock> enrichToolCalls(
+            List<ToolUseBlock> toolCalls, List<ApprovalTips> approvalTips) {
+        if (CollectionUtils.isEmpty(toolCalls) || CollectionUtils.isEmpty(approvalTips)) {
+            return toolCalls;
         }
 
         Map<String, ApprovalTips> tipsByCallId = new LinkedHashMap<>();
         approvalTips.forEach(tip -> tipsByCallId.putIfAbsent(tip.callId(), tip));
 
-        List<ToolUseBlock> enrichedToolCalls = event.getToolCalls().stream()
+        return toolCalls.stream()
                 .map(toolCall -> attachApprovalTip(toolCall, tipsByCallId.get(toolCall.getId())))
                 .toList();
-        RequireUserConfirmEvent enrichedEvent = new RequireUserConfirmEvent(
-                event.getId(),
-                event.getCreatedAt(),
-                event.getReplyId(),
-                enrichedToolCalls);
-        enrichedEvent.withSource(event.getSource());
-        enrichedEvent.withMetadata(event.getMetadata());
-        return enrichedEvent;
     }
 
     private ToolUseBlock attachApprovalTip(ToolUseBlock toolCall, ApprovalTips approvalTips) {
@@ -166,8 +133,8 @@ public class ApprovalTipMiddleware implements MiddlewareBase {
                 toolCall.getState());
     }
 
-    private void syncLastAssistantMsg(RuntimeContext ctx, RequireUserConfirmEvent event) {
-        if (ctx == null || event == null || CollectionUtils.isEmpty(event.getToolCalls())) {
+    private void syncLastAssistantMsg(RuntimeContext ctx, List<ToolUseBlock> toolCalls) {
+        if (ctx == null || CollectionUtils.isEmpty(toolCalls)) {
             return;
         }
 
@@ -178,7 +145,7 @@ public class ApprovalTipMiddleware implements MiddlewareBase {
 
         List<Msg> messages = agentState.contextMutable();
         Map<String, ToolUseBlock> toolCallsById = new LinkedHashMap<>();
-        event.getToolCalls().forEach(toolCall -> toolCallsById.put(toolCall.getId(), toolCall));
+        toolCalls.forEach(toolCall -> toolCallsById.put(toolCall.getId(), toolCall));
         for (int i = messages.size() - 1; i >= 0; i--) {
             Msg msg = messages.get(i);
             if (!isApprovalTargetAssistantMsg(msg, toolCallsById.keySet())) {
@@ -212,21 +179,6 @@ public class ApprovalTipMiddleware implements MiddlewareBase {
                 originalToolCall.getContent(),
                 metadata,
                 originalToolCall.getState());
-    }
-
-    private void emitHumanApprovalEvent(RequireUserConfirmEvent event, AgentEventEmitter emitter) {
-        if (event == null || emitter == null) {
-            return;
-        }
-
-        HumanApprovalInfo approvalInfo = AgentApprovalResolver.buildReasoningApprovalInfo(event.getToolCalls());
-        if (approvalInfo == null) {
-            return;
-        }
-
-        emitter.emit(new CustomEvent(
-                AIConstants.AguiCustomEvent.HUMAN_APPROVAL,
-                objectMapper.convertValue(approvalInfo, Map.class)));
     }
 
     private boolean isApprovalTargetAssistantMsg(Msg msg, Set<String> targetToolCallIds) {

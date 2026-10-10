@@ -1,7 +1,7 @@
 package org.quyq.gwsu.common.ai.agui.dto;
 
 
-import org.quyq.gwsu.common.ai.agui.model.RunAgentInput;
+import io.agentscope.core.agui.model.RunAgentInput;
 
 import java.util.Map;
 

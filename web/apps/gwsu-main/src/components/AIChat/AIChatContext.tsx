@@ -61,8 +61,10 @@ interface PanelContextValue {
   setViewMode: (mode: AIChatViewMode) => void;
   /** 当前会话ID */
   currentThreadId: string | null;
-  /** 设置当前会话ID */
-  setCurrentThreadId: (threadId: string | null) => void;
+  /** 当前会话是否是后端已存在、需要执行 /connect 的显式线程 */
+  currentThreadIsExplicit: boolean;
+  /** 原子切换当前会话及其显式状态 */
+  setCurrentThread: (threadId: string | null, explicit: boolean) => void;
   /** 展示配置 */
   viewConfig: ViewConfig;
 }
@@ -109,8 +111,17 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
 
   // 视图模式状态
   const [viewMode, setViewMode] = useState<AIChatViewMode>('chat');
-  // 当前会话ID
-  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
+  // 当前会话选择。新会话为非显式线程，历史会话为显式线程。
+  const [currentThread, setCurrentThreadState] = useState<{
+    threadId: string | null;
+    explicit: boolean;
+  }>({ threadId: null, explicit: false });
+  const setCurrentThread = useCallback(
+    (threadId: string | null, explicit: boolean) => {
+      setCurrentThreadState({ threadId, explicit });
+    },
+    [],
+  );
   // 展示配置（从 store 读取，与 CopilotKitProvider 共享）
   const viewConfig = useViewConfigStore();
 
@@ -180,8 +191,9 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
     togglePanel,
     viewMode,
     setViewMode,
-    currentThreadId,
-    setCurrentThreadId,
+    currentThreadId: currentThread.threadId,
+    currentThreadIsExplicit: currentThread.explicit,
+    setCurrentThread,
     viewConfig,
   };
 

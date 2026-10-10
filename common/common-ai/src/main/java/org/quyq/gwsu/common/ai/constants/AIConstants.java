@@ -17,14 +17,14 @@ public interface AIConstants {
     interface AguiCustomEvent {
 
         /**
-         * 人工审批事件
-         */
-        String HUMAN_APPROVAL = "HUMAN_APPROVAL";
-
-        /**
          * web端工具执行事件
          */
         String TOOL_EXECUTE = "TOOL_EXECUTE";
+
+        /**
+         * 知识库引用事件。
+         */
+        String KNOWLEDGE_REFERENCES = "KNOWLEDGE_REFERENCES";
 
     }
 

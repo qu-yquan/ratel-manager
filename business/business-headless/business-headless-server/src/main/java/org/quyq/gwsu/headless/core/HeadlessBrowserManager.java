@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * 交互方式：
  * - sendMessage：发送普通聊天消息，SSE 流实时推送事件给 listener
- * - approval：提交人工审批结果，通过前端隐藏表单提交
+ * - approval：通过前端隐藏控制条提交官方 AG-UI resume
  * - userAnswer：提交用户问题回答，通过前端隐藏表单提交
  */
 @Slf4j
@@ -56,7 +56,7 @@ public class HeadlessBrowserManager implements AutoCloseable {
      * <p>
      * 流程：获取分布式锁 → 借用 BrowserContext → 认证登录 → 发送消息 → 收集 SSE 事件 → 保存会话
      * <p>
-     * 当 SSE 流中出现 HUMAN_APPROVAL 或 AskUserQuestion 事件时，流会结束，
+     * 当 SSE 流中出现 RUN_FINISHED interrupt 或 AskUserQuestion 事件时，流会结束，
      * 调用方需根据 listener 回调决定后续操作（调用 approval() 或 userAnswer()）
      *
      * @param userId   用户 ID

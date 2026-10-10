@@ -1,13 +1,7 @@
-export type {
-  ApprovalStage,
-  ApprovalResultType,
-  HumanApprovalPayload,
-  ReasoningStageInfo,
-  ActingStageInfo,
-} from './types';
+export type { PendingApproval, ApprovalResolve } from './types';
 
 export {
-  dispatchHumanApproval,
+  setPendingApproval,
   clearHumanApproval,
   getPendingApproval,
   onHumanApproval,

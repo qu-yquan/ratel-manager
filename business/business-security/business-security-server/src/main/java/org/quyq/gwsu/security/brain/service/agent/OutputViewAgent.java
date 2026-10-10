@@ -121,7 +121,9 @@ public class OutputViewAgent implements AgentTool {
                     .role(MsgRole.USER)
                     .content(TextBlock.builder().text(message).build())
                     .build();
-            AgentEventEmitter parentEmitter = AgentEventEmitter.fromContext(contextView).orElse(null);
+            AgentEventEmitter parentEmitter = AgentEventEmitter.fromContext(contextView)
+                    .or(() -> AgentEventEmitter.fromForwardingContext(contextView))
+                    .orElse(null);
 
             return agent.streamEvents(request, childContext)
                     .doOnNext(event -> {

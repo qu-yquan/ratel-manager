@@ -2,7 +2,7 @@ package org.quyq.gwsu.headless.core.session;
 
 import com.microsoft.playwright.*;
 import lombok.extern.slf4j.Slf4j;
-import org.quyq.gwsu.common.ai.agui.event.AguiEvent;
+import io.agentscope.core.agui.event.AguiEvent;
 import org.quyq.gwsu.common.ai.agui.tool.AskUserQuestionTool;
 import org.quyq.gwsu.common.core.exception.BusinessException;
 import org.quyq.gwsu.common.security.constants.SecurityConstants;
@@ -413,10 +413,9 @@ public class HeadlessBrowserSession implements AutoCloseable {
                 pageOperationLock.unlock();
             }
 
-            log.info("审批结果已提交: result={}, hasRejectReason={}", result, !reason.isEmpty());
-
             // 等待后续 SSE 流完成
             awaitSseCompletion(collector);
+            log.info("审批结果已提交并完成续跑: result={}, hasRejectReason={}", result, !reason.isEmpty());
         } catch (Exception e) {
             log.error("提交审批失败", e);
             throw new RuntimeException("提交审批失败", e);
@@ -482,10 +481,9 @@ public class HeadlessBrowserSession implements AutoCloseable {
                 pageOperationLock.unlock();
             }
 
-            log.info("用户回答已提交: toolCallId={}", toolCallId);
-
             // 等待后续 SSE 流完成
             awaitSseCompletion(collector);
+            log.info("用户回答已提交并完成续跑: toolCallId={}", toolCallId);
         } catch (Exception e) {
             log.error("提交用户回答失败", e);
             throw new RuntimeException("提交用户回答失败", e);
@@ -737,6 +735,10 @@ public class HeadlessBrowserSession implements AutoCloseable {
                 return;
             }
 
+            if (event instanceof AguiEvent.RunFinished runFinished
+                    && runFinished.outcome() instanceof AguiEvent.RunFinishedInterruptOutcome) {
+                listener.onHumanApproval(runFinished, pageWrapper);
+            }
             listener.onEvent(event, pageWrapper);
 
             switch (event) {
@@ -769,8 +771,7 @@ public class HeadlessBrowserSession implements AutoCloseable {
                 case AguiEvent.StateDelta e -> listener.onStateDelta(e, pageWrapper);
                 case AguiEvent.Custom e -> {
                     String name = e.name();
-                    if ("HUMAN_APPROVAL".equals(name)) listener.onHumanApproval(e, pageWrapper);
-                    else if ("TOOL_EXECUTE".equals(name)) listener.onToolExecute(e, pageWrapper);
+                    if ("TOOL_EXECUTE".equals(name)) listener.onToolExecute(e, pageWrapper);
                     else if ("AGENT_OUTPUT".equals(name) || "AGENT_OUTPUT_END".equals(name))
                         listener.onAgentOutput(e, pageWrapper);
                     else listener.onCustomEvent(e, pageWrapper);
