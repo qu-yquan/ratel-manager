@@ -16,10 +16,12 @@ import {
 } from '@/services/ask-user-question';
 import {
   dispatchAgentOutput,
+  dispatchAgentOutputStart,
   dispatchAgentOutputEnd,
 } from '@/services/agent-output';
 import type {
   AgentOutputPayload,
+  AgentOutputStartPayload,
   AgentOutputEndPayload,
 } from '@/services/agent-output';
 import { dispatchKnowledgeReferences } from '@/services/knowledge-reference';
@@ -112,6 +114,8 @@ function WebToolEventListener() {
         // AI 输出视图 - 完整 JSONL Patch 行
         else if (event.name === 'AGENT_OUTPUT') {
           dispatchAgentOutput(event.value as AgentOutputPayload);
+        } else if (event.name === 'AGENT_OUTPUT_START') {
+          dispatchAgentOutputStart(event.value as AgentOutputStartPayload);
         }
         // AI 输出视图 - 输出结束
         else if (event.name === 'AGENT_OUTPUT_END') {

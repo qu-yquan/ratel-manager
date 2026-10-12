@@ -12,11 +12,15 @@ import io.agentscope.core.event.TextBlockDeltaEvent;
 import io.agentscope.core.middleware.AgentInput;
 import io.agentscope.core.middleware.MiddlewareBase;
 import lombok.extern.slf4j.Slf4j;
+import org.quyq.gwsu.security.brain.service.citation.KnowledgeCitationContext;
 import reactor.core.publisher.Flux;
 
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author Quyq
@@ -25,6 +29,8 @@ import java.util.function.Function;
  */
 @Slf4j
 public class OutputViewEventHandlerMiddleware implements MiddlewareBase {
+
+    private static final Pattern CITATION_PATTERN = Pattern.compile("\\[(K\\d+)]");
 
     @Override
     public Flux<AgentEvent> onAgent(Agent agent, RuntimeContext ctx, AgentInput input, Function<AgentInput, Flux<AgentEvent>> next) {
@@ -37,13 +43,23 @@ public class OutputViewEventHandlerMiddleware implements MiddlewareBase {
             AgentEventEmitter emitter = AgentEventEmitter.fromContext(contextView)
                     .or(() -> AgentEventEmitter.fromForwardingContext(contextView))
                     .orElse(null);
+            if (emitter != null) {
+                emitter.emit(new CustomEvent("AGENT_OUTPUT_START", Map.of("text", "start")));
+            }
             return next.apply(input)
                     .doOnNext(event -> {
                         if (event.getType() == AgentEventType.TEXT_BLOCK_DELTA) {
                             TextBlockDeltaEvent deltaEvent = (TextBlockDeltaEvent) event;
                             String text = deltaEvent.getDelta();
                             if (text != null && !text.isEmpty()) {
-                                handleChunk(text, ctx, emitter, jsonBuffer, braceDepth, inString, escape);
+                                handleChunk(
+                                        text,
+                                        ctx,
+                                        emitter,
+                                        jsonBuffer,
+                                        braceDepth,
+                                        inString,
+                                        escape);
                             }
                         } else if (event.getType() == AgentEventType.AGENT_END) {
                             handleEnd(ctx, emitter, jsonBuffer, braceDepth, inString, escape);
@@ -109,7 +125,7 @@ public class OutputViewEventHandlerMiddleware implements MiddlewareBase {
                 if (braceDepth.get() == 0) {
                     String json = jsonBuffer.toString();
                     jsonBuffer.setLength(0);
-                    trySendPatch(json, emitter);
+                    trySendPatch(json, rc, emitter);
                 }
             } else if (c == '"') {
                 inString.set(true);
@@ -141,14 +157,28 @@ public class OutputViewEventHandlerMiddleware implements MiddlewareBase {
         emitter.emit(new CustomEvent("AGENT_OUTPUT_END", java.util.Map.of("text", "done")));
     }
 
-    private void trySendPatch(String json, AgentEventEmitter emitter) {
+    private void trySendPatch(String json, RuntimeContext runtimeContext, AgentEventEmitter emitter) {
         if (!JSONUtil.isTypeJSON(json)) {
             log.warn("Malformed JSON patch, skipping: {}", json);
             return;
         }
 
         log.info("输出面板内容：{}", json);
-        emitter.emit(new CustomEvent("AGENT_OUTPUT", java.util.Map.of("text", json)));
+        List<String> citationKeys = extractCitationKeys(json);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("text", json);
+        payload.put("references", KnowledgeCitationContext.getOrCreate(runtimeContext)
+                .referencesForCitationKeys(citationKeys));
+        emitter.emit(new CustomEvent("AGENT_OUTPUT", payload));
+    }
+
+    private List<String> extractCitationKeys(String text) {
+        Set<String> keys = new LinkedHashSet<>();
+        Matcher matcher = CITATION_PATTERN.matcher(text);
+        while (matcher.find()) {
+            keys.add(matcher.group(1));
+        }
+        return List.copyOf(keys);
     }
 
     private void resetParser(StringBuilder jsonBuffer, AtomicInteger braceDepth, AtomicBoolean inString, AtomicBoolean escape) {

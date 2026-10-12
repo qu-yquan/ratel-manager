@@ -9,12 +9,18 @@ import {
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import type { BaseComponentProps } from '@json-render/react';
+import { KnowledgeCitationText } from '@/components/KnowledgeCitation';
 import type { EChartsOption } from 'echarts';
 import styles from './Chart.module.less';
 
 echarts.use([
-  BarChart, LineChart, PieChart,
-  TitleComponent, TooltipComponent, LegendComponent, GridComponent,
+  BarChart,
+  LineChart,
+  PieChart,
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent,
   CanvasRenderer,
 ]);
 
@@ -31,13 +37,18 @@ interface ChartProps {
 
 function buildOption(props: ChartProps): EChartsOption {
   const { chartType, data } = props;
-  const primaryColor = getComputedStyle(document.documentElement)
-    .getPropertyValue('--primary-color')
-    .trim() || '#1a5fb4';
+  const primaryColor =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue('--primary-color')
+      .trim() || '#1a5fb4';
 
   const colorPalette = [
     primaryColor,
-    '#16a34a', '#d97706', '#6b4c9a', '#dc2626', '#0891b2',
+    '#16a34a',
+    '#d97706',
+    '#6b4c9a',
+    '#dc2626',
+    '#0891b2',
   ];
 
   if (chartType === 'pie') {
@@ -45,17 +56,19 @@ function buildOption(props: ChartProps): EChartsOption {
       color: colorPalette,
       tooltip: { trigger: 'item' },
       legend: { bottom: 0, textStyle: { color: '#6b7280' } },
-      series: [{
-        type: 'pie',
-        radius: ['40%', '70%'],
-        avoidLabelOverlap: true,
-        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
-        label: { show: true, color: '#374151' },
-        data: data.categories.map((cat, i) => ({
-          name: cat,
-          value: data.series[0]?.values[i] ?? 0,
-        })),
-      }],
+      series: [
+        {
+          type: 'pie',
+          radius: ['40%', '70%'],
+          avoidLabelOverlap: true,
+          itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+          label: { show: true, color: '#374151' },
+          data: data.categories.map((cat, i) => ({
+            name: cat,
+            value: data.series[0]?.values[i] ?? 0,
+          })),
+        },
+      ],
     };
   }
 
@@ -63,17 +76,31 @@ function buildOption(props: ChartProps): EChartsOption {
   return {
     color: colorPalette,
     tooltip: { trigger: 'axis' },
-    legend: { data: data.series.map((s) => s.name), bottom: 0, textStyle: { color: '#6b7280' } },
+    legend: {
+      data: data.series.map((s) => s.name),
+      bottom: 0,
+      textStyle: { color: '#6b7280' },
+    },
     grid: { left: '3%', right: '4%', top: 16, bottom: 40, containLabel: true },
-    xAxis: { type: 'category', data: data.categories, axisLabel: { color: '#6b7280' } },
-    yAxis: { type: 'value', axisLabel: { color: '#6b7280' }, splitLine: { lineStyle: { color: '#f3f4f6' } } },
+    xAxis: {
+      type: 'category',
+      data: data.categories,
+      axisLabel: { color: '#6b7280' },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: '#6b7280' },
+      splitLine: { lineStyle: { color: '#f3f4f6' } },
+    },
     series: data.series.map((s) => ({
       name: s.name,
       type: chartType === 'area' ? 'line' : chartType,
       data: s.values,
       smooth: true,
       ...(isArea ? { areaStyle: { opacity: 0.15 } } : {}),
-      ...(chartType === 'bar' ? { itemStyle: { borderRadius: [4, 4, 0, 0] } } : {}),
+      ...(chartType === 'bar'
+        ? { itemStyle: { borderRadius: [4, 4, 0, 0] } }
+        : {}),
     })),
   };
 }
@@ -117,7 +144,11 @@ const Chart: React.FC<BaseComponentProps<ChartProps>> = ({ props }) => {
 
   return (
     <div className={styles.chartContainer}>
-      {props.title && <div className={styles.chartTitle}>{props.title}</div>}
+      {props.title && (
+        <div className={styles.chartTitle}>
+          <KnowledgeCitationText text={props.title} />
+        </div>
+      )}
       <div ref={chartRef} className={styles.chartWrapper} />
     </div>
   );

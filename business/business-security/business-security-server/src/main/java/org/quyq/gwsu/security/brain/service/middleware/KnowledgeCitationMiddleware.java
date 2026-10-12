@@ -12,15 +12,12 @@ import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.middleware.AgentInput;
 import io.agentscope.core.middleware.MiddlewareBase;
 import org.quyq.gwsu.common.ai.constants.AIConstants;
-import org.quyq.gwsu.kit.api.knowledge.vo.KnowledgeSearchResultVO;
 import org.quyq.gwsu.security.brain.service.citation.KnowledgeCitationContext;
 import org.quyq.gwsu.security.brain.vo.BrainHistoryMessageMetadataVO;
-import org.quyq.gwsu.security.brain.vo.KnowledgeReferenceLocationVO;
 import org.quyq.gwsu.security.brain.vo.KnowledgeReferenceVO;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -140,56 +137,6 @@ public class KnowledgeCitationMiddleware implements MiddlewareBase {
     private List<KnowledgeReferenceVO> aggregateReferences(
             List<String> citationKeys,
             KnowledgeCitationContext citationContext) {
-        Map<String, KnowledgeReferenceVO> referencesByDocument = new LinkedHashMap<>();
-        Map<String, Set<String>> locationKeysByDocument = new LinkedHashMap<>();
-
-        for (String citationKey : citationKeys) {
-            KnowledgeSearchResultVO result = citationContext.find(citationKey);
-            if (result == null || !StringUtils.hasText(result.getSourceDocumentId())) {
-                continue;
-            }
-            String documentId = result.getSourceDocumentId();
-            KnowledgeReferenceVO reference = referencesByDocument.computeIfAbsent(documentId,
-                    ignored -> new KnowledgeReferenceVO()
-                            .setDocumentId(documentId)
-                            .setFileId(result.getSourceFileId())
-                            .setFileName(resolveFileName(result))
-                            .setFileFormat(result.getSourceFileFormat())
-                            .setLocations(new ArrayList<>()));
-
-            if (result.getScore() != null
-                    && (reference.getBestScore() == null || result.getScore() > reference.getBestScore())) {
-                reference.setBestScore(result.getScore());
-            }
-
-            String locationIdentity = StringUtils.hasText(result.getPageBlockId())
-                    ? "block:" + result.getPageBlockId()
-                    : "chunk:" + result.getChunkId();
-            Set<String> locationKeys = locationKeysByDocument.computeIfAbsent(documentId,
-                    ignored -> new LinkedHashSet<>());
-            if (locationKeys.add(locationIdentity)) {
-                reference.getLocations().add(new KnowledgeReferenceLocationVO()
-                        .setCitationKey(citationKey)
-                        .setChunkId(result.getChunkId())
-                        .setPageId(result.getPageId())
-                        .setPageVersionId(result.getPageVersionId())
-                        .setPageBlockId(result.getPageBlockId())
-                        .setHeadingPath(result.getHeadingPath())
-                        .setBlockOrder(result.getBlockOrder()));
-            }
-        }
-
-        referencesByDocument.values().forEach(reference -> reference.setChunkCount(reference.getLocations().size()));
-        return List.copyOf(referencesByDocument.values());
-    }
-
-    private String resolveFileName(KnowledgeSearchResultVO result) {
-        if (StringUtils.hasText(result.getSourceFileName())) {
-            return result.getSourceFileName();
-        }
-        if (StringUtils.hasText(result.getTitle())) {
-            return result.getTitle();
-        }
-        return "未命名知识文档";
+        return citationContext.referencesForCitationKeys(citationKeys);
     }
 }

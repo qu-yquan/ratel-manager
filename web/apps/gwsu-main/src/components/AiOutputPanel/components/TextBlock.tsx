@@ -1,4 +1,5 @@
 import type { BaseComponentProps } from '@json-render/react';
+import { KnowledgeCitationText } from '@/components/KnowledgeCitation';
 import styles from './TextBlock.module.less';
 
 interface TextBlockProps {
@@ -18,10 +19,18 @@ const TextBlock: React.FC<BaseComponentProps<TextBlockProps>> = ({ props }) => {
   const className = variantClass[variant] || styles.textBlock;
 
   if (variant === 'heading') {
-    return <h3 className={className}>{props.content}</h3>;
+    return (
+      <h3 className={className}>
+        <KnowledgeCitationText text={props.content} />
+      </h3>
+    );
   }
 
-  return <div className={`${styles.textBlock} ${className}`}>{props.content}</div>;
+  return (
+    <div className={`${styles.textBlock} ${className}`}>
+      <KnowledgeCitationText text={props.content} />
+    </div>
+  );
 };
 
 export default TextBlock;

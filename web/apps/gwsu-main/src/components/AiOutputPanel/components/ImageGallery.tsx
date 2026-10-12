@@ -1,5 +1,6 @@
 import { Image } from 'antd';
 import type { BaseComponentProps } from '@json-render/react';
+import { KnowledgeCitationText } from '@/components/KnowledgeCitation';
 import styles from './ImageGallery.module.less';
 
 interface ImageItem {
@@ -16,7 +17,9 @@ interface ImageGalleryProps {
   images: ImageItem[];
 }
 
-const ImageGallery: React.FC<BaseComponentProps<ImageGalleryProps>> = ({ props }) => {
+const ImageGallery: React.FC<BaseComponentProps<ImageGalleryProps>> = ({
+  props,
+}) => {
   const images = props.images ?? [];
 
   if (images.length === 0) {
@@ -25,8 +28,16 @@ const ImageGallery: React.FC<BaseComponentProps<ImageGalleryProps>> = ({ props }
 
   return (
     <div className={styles.gallery}>
-      {props.title && <div className={styles.title}>{props.title}</div>}
-      {props.description && <div className={styles.description}>{props.description}</div>}
+      {props.title && (
+        <div className={styles.title}>
+          <KnowledgeCitationText text={props.title} />
+        </div>
+      )}
+      {props.description && (
+        <div className={styles.description}>
+          <KnowledgeCitationText text={props.description} />
+        </div>
+      )}
       <Image.PreviewGroup>
         <div
           className={styles.grid}
@@ -41,8 +52,16 @@ const ImageGallery: React.FC<BaseComponentProps<ImageGalleryProps>> = ({ props }
               />
               {(image.title || image.description) && (
                 <figcaption className={styles.caption}>
-                  {image.title && <div className={styles.imageTitle}>{image.title}</div>}
-                  {image.description && <div className={styles.imageDescription}>{image.description}</div>}
+                  {image.title && (
+                    <div className={styles.imageTitle}>
+                      <KnowledgeCitationText text={image.title} />
+                    </div>
+                  )}
+                  {image.description && (
+                    <div className={styles.imageDescription}>
+                      <KnowledgeCitationText text={image.description} />
+                    </div>
+                  )}
                 </figcaption>
               )}
             </figure>

@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react';
-import { FileSearchOutlined } from '@ant-design/icons';
 import { CopilotChatAssistantMessage } from '@copilotkit/react-core/v2';
-import { Tooltip } from 'antd';
 import type {
   KnowledgeReference,
   KnowledgeReferenceLocation,
 } from '@/services/knowledge-reference';
-import styles from './index.module.less';
+import {
+  getKnowledgeCitationTargets,
+  KnowledgeCitationButton,
+  type KnowledgeCitationTarget,
+} from '@/components/KnowledgeCitation';
 
 interface MarkdownNode {
   type: string;
@@ -18,11 +20,6 @@ interface MarkdownNode {
 
 interface CitationPluginOptions {
   citationKeys: string[];
-}
-
-interface CitationTarget {
-  reference: KnowledgeReference;
-  location: KnowledgeReferenceLocation;
 }
 
 type DefaultMarkdownProps = React.ComponentProps<
@@ -109,15 +106,10 @@ export function KnowledgeCitationRenderer({
   remarkPlugins,
   ...props
 }: KnowledgeCitationRendererProps) {
-  const citationTargets = useMemo(() => {
-    const targets = new Map<string, CitationTarget>();
-    references.forEach((reference) => {
-      reference.locations.forEach((location) => {
-        targets.set(location.citationKey, { reference, location });
-      });
-    });
-    return targets;
-  }, [references]);
+  const citationTargets = useMemo(
+    () => getKnowledgeCitationTargets(references),
+    [references],
+  );
 
   const citationKeys = useMemo(
     () => Array.from(citationTargets.keys()),
@@ -156,18 +148,14 @@ export function KnowledgeCitationRenderer({
             </a>
           );
         }
-        const label = `查看引用：${target.reference.fileName}`;
         return (
-          <Tooltip title={label}>
-            <button
-              type="button"
-              className={styles.citationButton}
-              aria-label={label}
-              onClick={() => onOpenCitation(target.reference, target.location)}
-            >
-              <FileSearchOutlined aria-hidden="true" />
-            </button>
-          </Tooltip>
+          <KnowledgeCitationButton
+            target={target}
+            onOpenCitation={({
+              reference,
+              location,
+            }: KnowledgeCitationTarget) => onOpenCitation(reference, location)}
+          />
         );
       },
     }),

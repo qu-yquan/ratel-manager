@@ -1,12 +1,10 @@
 import { useRef, useEffect, useMemo, useCallback } from 'react';
 import * as echarts from 'echarts/core';
 import { GraphChart } from 'echarts/charts';
-import {
-  TitleComponent,
-  TooltipComponent,
-} from 'echarts/components';
+import { TitleComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import type { BaseComponentProps } from '@json-render/react';
+import { KnowledgeCitationText } from '@/components/KnowledgeCitation';
 import type { EChartsOption } from 'echarts';
 import styles from './FlowChart.module.less';
 
@@ -31,7 +29,10 @@ interface FlowChartProps {
   edges: FlowEdge[];
 }
 
-const nodeStyles: Record<string, { symbol: string; color: string; borderColor: string }> = {
+const nodeStyles: Record<
+  string,
+  { symbol: string; color: string; borderColor: string }
+> = {
   start: { symbol: 'circle', color: '#16a34a', borderColor: '#16a34a' },
   process: { symbol: 'roundRect', color: '#ffffff', borderColor: '#1a5fb4' },
   decision: { symbol: 'diamond', color: '#fffbeb', borderColor: '#f59e0b' },
@@ -52,7 +53,11 @@ function calculateNodePositions(
   nodes: FlowNode[],
   edges: FlowEdge[],
   direction: 'vertical' | 'horizontal',
-): { positions: Record<string, [number, number]>; maxMain: number; maxCross: number } {
+): {
+  positions: Record<string, [number, number]>;
+  maxMain: number;
+  maxCross: number;
+} {
   if (nodes.length === 0) {
     return { positions: {}, maxMain: 0, maxCross: 0 };
   }
@@ -95,9 +100,8 @@ function calculateNodePositions(
 
     // 计算 rank：所有前驱的最大 rank + 1
     const preds = predecessors.get(id) || [];
-    const maxPredRank = preds.length > 0
-      ? Math.max(...preds.map((p) => rank.get(p) ?? 0))
-      : -1;
+    const maxPredRank =
+      preds.length > 0 ? Math.max(...preds.map((p) => rank.get(p) ?? 0)) : -1;
     rank.set(id, maxPredRank + 1);
 
     // 更新后继的入度
@@ -114,9 +118,8 @@ function calculateNodePositions(
   nodeIds.forEach((id) => {
     if (!rank.has(id)) {
       const preds = predecessors.get(id) || [];
-      const maxPredRank = preds.length > 0
-        ? Math.max(...preds.map((p) => rank.get(p) ?? 0))
-        : -1;
+      const maxPredRank =
+        preds.length > 0 ? Math.max(...preds.map((p) => rank.get(p) ?? 0)) : -1;
       rank.set(id, maxPredRank + 1);
     }
   });
@@ -166,66 +169,81 @@ function calculateNodePositions(
 }
 
 function buildFlowOption(props: FlowChartProps): EChartsOption {
-  const direction = props.direction === 'horizontal' ? 'horizontal' : 'vertical';
-  const { positions } = calculateNodePositions(props.nodes, props.edges, direction);
+  const direction =
+    props.direction === 'horizontal' ? 'horizontal' : 'vertical';
+  const { positions } = calculateNodePositions(
+    props.nodes,
+    props.edges,
+    direction,
+  );
 
   return {
     tooltip: {},
     animation: true,
-    series: [{
-      type: 'graph',
-      layout: 'none',
-      roam: false,
-      label: {
-        show: true,
-        fontSize: 12,
-        color: '#374151',
-      },
-      edgeSymbol: ['none', 'arrow'],
-      edgeSymbolSize: [0, 8],
-      edgeLabel: {
-        show: true,
-        fontSize: 11,
-        color: '#6b7280',
-      },
-      lineStyle: {
-        color: '#9ca3af',
-        width: 1.5,
-        curveness: 0.2,
-      },
-      data: props.nodes.map((node) => {
-        const style = nodeStyles[node.type] || nodeStyles.process;
-        return {
-          name: node.id,
-          x: positions[node.id][0],
-          y: positions[node.id][1],
-          label: { formatter: node.label },
-          symbol: style.symbol,
-          symbolSize: node.type === 'decision' ? [60, 40] : node.type === 'start' || node.type === 'end' ? 50 : [80, 36],
-          itemStyle: {
-            color: style.color,
-            borderColor: style.borderColor,
-            borderWidth: 2,
-          },
-        };
-      }),
-      links: props.edges.map((edge) => {
-        const nodeIndexMap = new Map(props.nodes.map((n, i) => [n.id, i]));
-        const sourceIdx = nodeIndexMap.get(edge.from);
-        const targetIdx = nodeIndexMap.get(edge.to);
-        const isBackEdge = sourceIdx !== undefined && targetIdx !== undefined && targetIdx < sourceIdx;
+    series: [
+      {
+        type: 'graph',
+        layout: 'none',
+        roam: false,
+        label: {
+          show: true,
+          fontSize: 12,
+          color: '#374151',
+        },
+        edgeSymbol: ['none', 'arrow'],
+        edgeSymbolSize: [0, 8],
+        edgeLabel: {
+          show: true,
+          fontSize: 11,
+          color: '#6b7280',
+        },
+        lineStyle: {
+          color: '#9ca3af',
+          width: 1.5,
+          curveness: 0.2,
+        },
+        data: props.nodes.map((node) => {
+          const style = nodeStyles[node.type] || nodeStyles.process;
+          return {
+            name: node.id,
+            x: positions[node.id][0],
+            y: positions[node.id][1],
+            label: { formatter: node.label },
+            symbol: style.symbol,
+            symbolSize:
+              node.type === 'decision'
+                ? [60, 40]
+                : node.type === 'start' || node.type === 'end'
+                ? 50
+                : [80, 36],
+            itemStyle: {
+              color: style.color,
+              borderColor: style.borderColor,
+              borderWidth: 2,
+            },
+          };
+        }),
+        links: props.edges.map((edge) => {
+          const nodeIndexMap = new Map(props.nodes.map((n, i) => [n.id, i]));
+          const sourceIdx = nodeIndexMap.get(edge.from);
+          const targetIdx = nodeIndexMap.get(edge.to);
+          const isBackEdge =
+            sourceIdx !== undefined &&
+            targetIdx !== undefined &&
+            targetIdx < sourceIdx;
 
-        return {
-          source: edge.from,
-          target: edge.to,
-          value: edge.label ? 1 : undefined,
-          edgeLabel: edge.label ? { formatter: edge.label } : undefined,
-          lineStyle: {
-            curveness: isBackEdge ? 0.3 : 0.1,
-          },
-        };
-      }),
-    }],
+          return {
+            source: edge.from,
+            target: edge.to,
+            value: edge.label ? 1 : undefined,
+            edgeLabel: edge.label ? { formatter: edge.label } : undefined,
+            lineStyle: {
+              curveness: isBackEdge ? 0.3 : 0.1,
+            },
+          };
+        }),
+      },
+    ],
   };
 }
 
@@ -234,10 +252,12 @@ const FlowChart: React.FC<BaseComponentProps<FlowChartProps>> = ({ props }) => {
   const instanceRef = useRef<echarts.ECharts | null>(null);
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const direction = props.direction === 'horizontal' ? 'horizontal' : 'vertical';
+  const direction =
+    props.direction === 'horizontal' ? 'horizontal' : 'vertical';
 
   const { maxMain, maxCross } = useMemo(
-    () => calculateNodePositions(props.nodes || [], props.edges || [], direction),
+    () =>
+      calculateNodePositions(props.nodes || [], props.edges || [], direction),
     [props.nodes, props.edges, direction],
   );
 
@@ -280,7 +300,11 @@ const FlowChart: React.FC<BaseComponentProps<FlowChartProps>> = ({ props }) => {
 
   return (
     <div className={styles.flowContainer}>
-      {props.title && <div className={styles.flowTitle}>{props.title}</div>}
+      {props.title && (
+        <div className={styles.flowTitle}>
+          <KnowledgeCitationText text={props.title} />
+        </div>
+      )}
       <div ref={chartRef} className={styles.flowWrapper} style={wrapperStyle} />
     </div>
   );

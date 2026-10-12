@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.quyq.gwsu.common.core.domain.R;
 import org.quyq.gwsu.common.core.domain.KeyValue;
+import org.quyq.gwsu.common.security.annotation.LoginAllowAccess;
 import org.quyq.gwsu.kit.api.knowledge.enums.KnowledgeBlockType;
 import org.quyq.gwsu.kit.api.knowledge.vo.KnowledgeSearchMetaVO;
 import org.quyq.gwsu.kit.api.knowledge.KnowledgeClientApi;
@@ -174,6 +175,7 @@ public class KnowledgeController implements KnowledgeClientApi {
     }
 
     @GetMapping("/document/{documentId}/citation-preview")
+    @LoginAllowAccess
     @Operation(summary = "读取知识引用文档预览")
     public R<KnowledgeDocumentBlocksVO> getCitationPreview(
             @PathVariable String documentId,

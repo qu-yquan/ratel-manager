@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { BaseComponentProps } from '@json-render/react';
+import { KnowledgeCitationText } from '@/components/KnowledgeCitation';
 import styles from './DataTable.module.less';
 
 interface ColumnDef {
@@ -49,17 +50,23 @@ const DataTable: React.FC<BaseComponentProps<DataTableProps>> = ({ props }) => {
 
   return (
     <div className={styles.tableContainer}>
-      {props.title && <div className={styles.tableTitle}>{props.title}</div>}
+      {props.title && (
+        <div className={styles.tableTitle}>
+          <KnowledgeCitationText text={props.title} />
+        </div>
+      )}
       <table className={styles.table}>
         <thead>
           <tr>
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`${styles.th} ${isBordered ? styles.borderedTd : ''}`}
+                className={`${styles.th} ${
+                  isBordered ? styles.borderedTd : ''
+                }`}
                 style={col.width ? { width: col.width } : undefined}
               >
-                {col.label}
+                <KnowledgeCitationText text={col.label} />
               </th>
             ))}
           </tr>
@@ -69,16 +76,18 @@ const DataTable: React.FC<BaseComponentProps<DataTableProps>> = ({ props }) => {
             data.map((row, rowIdx) => (
               <tr
                 key={rowIdx}
-                className={`${isStriped && rowIdx % 2 === 1 ? styles.stripedRow : ''} ${
-                  rowIdx >= newRowFrom ? styles.rowAnimated : ''
-                }`}
+                className={`${
+                  isStriped && rowIdx % 2 === 1 ? styles.stripedRow : ''
+                } ${rowIdx >= newRowFrom ? styles.rowAnimated : ''}`}
               >
                 {columns.map((col) => (
                   <td
                     key={col.key}
-                    className={`${styles.td} ${isBordered ? styles.borderedTd : ''}`}
+                    className={`${styles.td} ${
+                      isBordered ? styles.borderedTd : ''
+                    }`}
                   >
-                    {String(row[col.key] ?? '')}
+                    <KnowledgeCitationText text={String(row[col.key] ?? '')} />
                   </td>
                 ))}
               </tr>

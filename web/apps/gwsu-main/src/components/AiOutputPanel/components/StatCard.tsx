@@ -1,5 +1,10 @@
-import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined } from '@ant-design/icons';
+import {
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  MinusOutlined,
+} from '@ant-design/icons';
 import type { BaseComponentProps } from '@json-render/react';
+import { KnowledgeCitationText } from '@/components/KnowledgeCitation';
 import styles from './StatCard.module.less';
 
 interface StatCardProps {
@@ -22,13 +27,17 @@ const StatCard: React.FC<BaseComponentProps<StatCardProps>> = ({ props }) => {
 
   return (
     <div className={styles.statCard}>
-      <div className={styles.title}>{props.title}</div>
+      <div className={styles.title}>
+        <KnowledgeCitationText text={props.title} />
+      </div>
       <div className={styles.valueRow}>
-        <span className={styles.value}>{props.value}</span>
+        <span className={styles.value}>
+          <KnowledgeCitationText text={props.value} />
+        </span>
         {props.changeRate && (
           <span className={`${styles.trend} ${config.className}`}>
             {config.icon}
-            {props.changeRate}
+            <KnowledgeCitationText text={props.changeRate} />
           </span>
         )}
       </div>
