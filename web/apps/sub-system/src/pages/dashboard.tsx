@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useProjectConfigStore } from '@gwsu/core';
-import styles from './dashboard.module.less';
+import { useState, useEffect } from "react";
+import { useProjectConfigStore } from "@gwsu/core";
+import styles from "./dashboard.module.less";
 
 function useCurrentTime() {
   const [time, setTime] = useState(new Date());
@@ -12,11 +12,21 @@ function useCurrentTime() {
 }
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  return date.toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
 }
 
 function formatDate(date: Date): string {
-  return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+  return date.toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  });
 }
 
 export default function Dashboard() {

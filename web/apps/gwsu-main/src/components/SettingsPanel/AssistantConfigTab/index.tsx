@@ -7,11 +7,18 @@ import {
   ControlOutlined,
 } from '@ant-design/icons';
 import { fetchConfigsBatch } from '@gwsu/core';
-import { saveOrUpdateConfig, saveRemoteControlConfig } from '../services/config';
+import {
+  saveOrUpdateConfig,
+  saveRemoteControlConfig,
+} from '../services/config';
 import type { ConfigInfo } from '../services/config';
 import { ConfigValueType, ConfigType } from '@gwsu/core';
 import type { ViewConfig, RemoteControlConfig, AssistantTabKey } from './types';
-import { createDefaultViewConfig, createDefaultRemoteControlConfig, DEFAULT_DINGTALK_REMOTE_CONFIG } from './types';
+import {
+  createDefaultViewConfig,
+  createDefaultRemoteControlConfig,
+  DEFAULT_DINGTALK_REMOTE_CONFIG,
+} from './types';
 import ViewConfigForm from './ViewConfigForm';
 import RemoteControlForm from './RemoteControlForm';
 import styles from './index.module.less';
@@ -26,17 +33,23 @@ const AssistantConfigTab: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AssistantTabKey>('view');
 
   // 展示配置
-  const [viewConfig, setViewConfig] = useState<ViewConfig>(createDefaultViewConfig());
+  const [viewConfig, setViewConfig] = useState<ViewConfig>(
+    createDefaultViewConfig(),
+  );
   const [viewConfigId, setViewConfigId] = useState<string | undefined>();
 
   // 远程操作配置
-  const [remoteControlConfig, setRemoteControlConfig] = useState<RemoteControlConfig>(createDefaultRemoteControlConfig());
-  const [remoteControlConfigId, setRemoteControlConfigId] = useState<string | undefined>();
+  const [remoteControlConfig, setRemoteControlConfig] =
+    useState<RemoteControlConfig>(createDefaultRemoteControlConfig());
+  const [, setRemoteControlConfigId] = useState<string | undefined>();
 
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     try {
-      const configMap = await fetchConfigsBatch([VIEW_CONFIG_KEY, REMOTE_CONTROL_CONFIG_KEY]);
+      const configMap = await fetchConfigsBatch([
+        VIEW_CONFIG_KEY,
+        REMOTE_CONTROL_CONFIG_KEY,
+      ]);
 
       // 解析展示配置
       const viewInfo = configMap[VIEW_CONFIG_KEY] as ConfigInfo | undefined;
@@ -56,10 +69,14 @@ const AssistantConfigTab: React.FC = () => {
       }
 
       // 解析远程操作配置
-      const remoteInfo = configMap[REMOTE_CONTROL_CONFIG_KEY] as ConfigInfo | undefined;
+      const remoteInfo = configMap[REMOTE_CONTROL_CONFIG_KEY] as
+        | ConfigInfo
+        | undefined;
       if (remoteInfo?.configValue) {
         try {
-          const parsed = JSON.parse(remoteInfo.configValue) as RemoteControlConfig;
+          const parsed = JSON.parse(
+            remoteInfo.configValue,
+          ) as RemoteControlConfig;
           setRemoteControlConfig({
             type: parsed.type || 'NONE',
             dingTalk: { ...DEFAULT_DINGTALK_REMOTE_CONFIG, ...parsed.dingTalk },
@@ -154,10 +171,11 @@ const AssistantConfigTab: React.FC = () => {
     );
   }
 
-  const tabs: { key: AssistantTabKey; label: string; icon: React.ReactNode }[] = [
-    { key: 'view', label: '展示配置', icon: <EyeOutlined /> },
-    { key: 'remote', label: '远程操作', icon: <ControlOutlined /> },
-  ];
+  const tabs: { key: AssistantTabKey; label: string; icon: React.ReactNode }[] =
+    [
+      { key: 'view', label: '展示配置', icon: <EyeOutlined /> },
+      { key: 'remote', label: '远程操作', icon: <ControlOutlined /> },
+    ];
 
   return (
     <div className={styles.assistantConfig}>
@@ -167,7 +185,9 @@ const AssistantConfigTab: React.FC = () => {
           {tabs.map((tab) => (
             <button
               key={tab.key}
-              className={`${styles.sideTab} ${activeTab === tab.key ? styles.sideTabActive : ''}`}
+              className={`${styles.sideTab} ${
+                activeTab === tab.key ? styles.sideTabActive : ''
+              }`}
               onClick={() => setActiveTab(tab.key)}
             >
               <span className={styles.sideTabIcon}>{tab.icon}</span>
@@ -179,7 +199,10 @@ const AssistantConfigTab: React.FC = () => {
         {/* 右侧内容区 */}
         <div className={styles.sideTabContent}>
           {activeTab === 'view' && (
-            <ViewConfigForm value={viewConfig} onChange={handleViewConfigChange} />
+            <ViewConfigForm
+              value={viewConfig}
+              onChange={handleViewConfigChange}
+            />
           )}
 
           {activeTab === 'remote' && (
@@ -194,7 +217,13 @@ const AssistantConfigTab: React.FC = () => {
             <Button icon={<ReloadOutlined />} onClick={fetchConfig}>
               重置
             </Button>
-            <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave} data-ai-approval>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              loading={saving}
+              onClick={handleSave}
+              data-ai-approval
+            >
               保存
             </Button>
           </div>

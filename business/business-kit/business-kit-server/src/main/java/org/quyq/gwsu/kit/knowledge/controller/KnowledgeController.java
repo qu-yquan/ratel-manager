@@ -173,6 +173,14 @@ public class KnowledgeController implements KnowledgeClientApi {
         return R.ok(markdownService.getBlocks(documentId));
     }
 
+    @GetMapping("/document/{documentId}/citation-preview")
+    @Operation(summary = "读取知识引用文档预览")
+    public R<KnowledgeDocumentBlocksVO> getCitationPreview(
+            @PathVariable String documentId,
+            @RequestParam(required = false) String pageVersionId) {
+        return R.ok(markdownService.getCitationPreview(documentId, pageVersionId));
+    }
+
     @PostMapping("/document/markdown")
     @Operation(summary = "保存文档Markdown")
     public R<Void> saveMarkdown(@RequestBody KnowledgeMarkdownSaveDTO dto) {

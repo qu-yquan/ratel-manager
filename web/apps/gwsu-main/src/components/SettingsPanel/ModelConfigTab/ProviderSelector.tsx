@@ -7,12 +7,17 @@ interface ProviderSelectorProps {
   onChange?: (value: ModelProvider) => void;
 }
 
-const ProviderSelector: React.FC<ProviderSelectorProps> = ({ value, onChange }) => {
-  const options = PROVIDER_LIST.map((item: ProviderInfo) => ({
+const ProviderSelector: React.FC<ProviderSelectorProps> = ({
+  value,
+  onChange,
+}) => {
+  const options = PROVIDER_LIST.map((item: ProviderInfo<ModelProvider>) => ({
     label: (
       <div style={{ textAlign: 'center', padding: '4px 0' }}>
         <div style={{ fontWeight: 500, fontSize: 14 }}>{item.label}</div>
-        <div style={{ fontSize: 11, color: 'var(--ant-color-text-secondary)' }}>{item.description}</div>
+        <div style={{ fontSize: 11, color: 'var(--ant-color-text-secondary)' }}>
+          {item.description}
+        </div>
       </div>
     ),
     value: item.key,

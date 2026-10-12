@@ -1,22 +1,22 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from "react";
 import {
   BankOutlined,
   ShopOutlined,
   ApartmentOutlined,
   TeamOutlined,
   UsergroupAddOutlined,
-} from '@ant-design/icons';
-import type { DeptTreeNode } from '../types';
+} from "@ant-design/icons";
+import type { DeptTreeNode } from "../types";
 
 /**
  * 部门树公共逻辑 hook，提取搜索、展开、图标、过滤等共享功能
  */
 export function useDeptTree(treeData: DeptTreeNode[]) {
-  const [searchValue, setSearchValue] = useState('');
+  const [searchValue, setSearchValue] = useState("");
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
 
   // 树数据加载后默认展开所有节点
-  useMemo(() => {
+  useEffect(() => {
     const collectKeys = (nodes: DeptTreeNode[]): React.Key[] => {
       const keys: React.Key[] = [];
       const walk = (items: DeptTreeNode[]) => {
@@ -46,21 +46,19 @@ export function useDeptTree(treeData: DeptTreeNode[]) {
 
   const filterTree = (data: DeptTreeNode[], search: string): DeptTreeNode[] => {
     if (!search) return data;
-    return data
-      .map((node) => {
-        const match = node.name.toLowerCase().includes(search.toLowerCase());
-        const children = node.children ? filterTree(node.children, search) : [];
-        if (match || children.length > 0) {
-          return { ...node, children };
-        }
-        return null;
-      })
-      .filter((node): node is DeptTreeNode => node !== null);
+    return data.flatMap((node): DeptTreeNode[] => {
+      const match = node.name.toLowerCase().includes(search.toLowerCase());
+      const children = node.children ? filterTree(node.children, search) : [];
+      if (match || children.length > 0) {
+        return [{ ...node, children }];
+      }
+      return [];
+    });
   };
 
   const filteredTreeData = useMemo(
     () => filterTree(treeData, searchValue),
-    [treeData, searchValue],
+    [treeData, searchValue]
   );
 
   return {

@@ -1,13 +1,16 @@
-import React, { useEffect, useRef } from 'react';
-import { Graph, NodeEvent } from '@antv/g6';
-import type { DeptTreeNode } from '../types';
+import React, { useEffect, useRef } from "react";
+import { Graph, NodeEvent } from "@antv/g6";
+import type { DeptTreeNode } from "../types";
 
 interface OrgChartGraphProps {
   data: DeptTreeNode[];
-  onNodeDoubleClick: (deptId: number) => void;
+  onNodeDoubleClick: (deptId: string) => void;
 }
 
-const OrgChartGraph: React.FC<OrgChartGraphProps> = ({ data, onNodeDoubleClick }) => {
+const OrgChartGraph: React.FC<OrgChartGraphProps> = ({
+  data,
+  onNodeDoubleClick,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<Graph | null>(null);
 
@@ -38,8 +41,8 @@ const OrgChartGraph: React.FC<OrgChartGraphProps> = ({ data, onNodeDoubleClick }
     };
 
     // 添加虚拟根节点
-    nodes.push({ id: 'root', data: { label: '组织架构', type: 0 } });
-    walk(data, 'root');
+    nodes.push({ id: "root", data: { label: "组织架构", type: 0 } });
+    walk(data, "root");
 
     if (graphRef.current) {
       graphRef.current.destroy();
@@ -54,31 +57,32 @@ const OrgChartGraph: React.FC<OrgChartGraphProps> = ({ data, onNodeDoubleClick }
       height,
       autoResize: true,
       padding: 20,
-      behaviors: ['drag-canvas', 'zoom-canvas', 'drag-element'],
+      behaviors: ["drag-canvas", "zoom-canvas", "drag-element"],
       node: {
-        type: 'rect',
+        type: "rect",
         style: {
           size: [140, 36],
-          fill: '#fff',
-          stroke: '#1677ff',
+          fill: "#fff",
+          stroke: "#1677ff",
           lineWidth: 1,
           radius: 4,
-          labelText: (d: Record<string, any>) => (d.data?.label as string) || '',
-          labelPlacement: 'center',
+          labelText: (d: Record<string, any>) =>
+            (d.data?.label as string) || "",
+          labelPlacement: "center",
           labelFontSize: 12,
-          labelFill: '#333',
+          labelFill: "#333",
         },
       },
       edge: {
-        type: 'cubic-vertical',
+        type: "cubic-vertical",
         style: {
-          stroke: '#999',
+          stroke: "#999",
           lineWidth: 1,
         },
       },
       layout: {
-        type: 'dagre',
-        rankdir: 'TB',
+        type: "dagre",
+        rankdir: "TB",
         nodesep: 30,
         ranksep: 60,
       },
@@ -91,10 +95,11 @@ const OrgChartGraph: React.FC<OrgChartGraphProps> = ({ data, onNodeDoubleClick }
 
     graphRef.current = graph;
 
-    graph.on(NodeEvent.DBLCLICK, (e: { target: { id: string } }) => {
-      const nodeId = e.target?.id;
-      if (nodeId && nodeId !== 'root') {
-        onNodeDoubleClick(Number(nodeId));
+    graph.on(NodeEvent.DBLCLICK, (e) => {
+      const target = "target" in e ? e.target : undefined;
+      const nodeId = target && "id" in target ? target.id : undefined;
+      if (nodeId && nodeId !== "root") {
+        onNodeDoubleClick(String(nodeId));
       }
     });
 
@@ -102,16 +107,16 @@ const OrgChartGraph: React.FC<OrgChartGraphProps> = ({ data, onNodeDoubleClick }
       if (graphRef.current && containerRef.current) {
         graphRef.current.resize(
           containerRef.current.offsetWidth,
-          containerRef.current.offsetHeight,
+          containerRef.current.offsetHeight
         );
         void graphRef.current.fitView();
       }
     };
 
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
       if (graphRef.current) {
         graphRef.current.destroy();
         graphRef.current = null;
@@ -119,7 +124,7 @@ const OrgChartGraph: React.FC<OrgChartGraphProps> = ({ data, onNodeDoubleClick }
     };
   }, [data, onNodeDoubleClick]);
 
-  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
+  return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 };
 
 export default OrgChartGraph;

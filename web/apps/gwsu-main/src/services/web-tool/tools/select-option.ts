@@ -1,6 +1,11 @@
 import { registerWebTool } from '../registry';
 import type { WebToolExecutor, WebToolResult } from '../types';
-import { selectorMap, isElementVisible, sleep, waitForCondition, elementDescription } from '../dom-engine';
+import {
+  selectorMap,
+  isElementVisible,
+  sleep,
+  waitForCondition,
+} from '../dom-engine';
 
 /**
  * 选择下拉框选项工具
@@ -39,7 +44,7 @@ const selectOptionTool: WebToolExecutor = {
         return await handleNativeSelect(element as HTMLSelectElement, text);
       }
 
-      return await handleAntSelect(element, text, index);
+      return await handleAntSelect(element, text);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return { success: false, result: `选择失败: ${message}` };
@@ -60,7 +65,9 @@ async function handleNativeSelect(
   );
 
   if (!option) {
-    const availableOptions = options.map((o) => o.textContent?.trim()).join(', ');
+    const availableOptions = options
+      .map((o) => o.textContent?.trim())
+      .join(', ');
     return {
       success: false,
       result: `未找到选项 "${optionText}"，可用选项: ${availableOptions}`,
@@ -81,7 +88,6 @@ async function handleNativeSelect(
 async function handleAntSelect(
   element: Element,
   optionText: string,
-  index: number,
 ): Promise<WebToolResult> {
   // 1. 点击 Select 组件打开下拉面板
   const trigger = element.classList.contains('ant-select')
@@ -124,23 +130,38 @@ async function handleAntSelect(
   await sleep(200);
 
   // 3. 在下拉面板中查找并点击目标选项
-  const visibleDropdowns = Array.from(document.querySelectorAll('.ant-select-dropdown')).filter(
-    (d) => d instanceof HTMLElement && d.offsetParent !== null,
-  );
+  const visibleDropdowns = Array.from(
+    document.querySelectorAll('.ant-select-dropdown'),
+  ).filter((d) => d instanceof HTMLElement && d.offsetParent !== null);
 
   for (const dropdown of visibleDropdowns) {
     const options = dropdown.querySelectorAll('.ant-select-item-option');
     for (const option of options) {
       const optionTextContent = option.textContent?.trim();
-      if (optionTextContent === optionText || optionTextContent?.includes(optionText)) {
+      if (
+        optionTextContent === optionText ||
+        optionTextContent?.includes(optionText)
+      ) {
         option.dispatchEvent(
-          new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }),
+          new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+          }),
         );
         option.dispatchEvent(
-          new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0 }),
+          new MouseEvent('mouseup', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+          }),
         );
         option.dispatchEvent(
-          new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }),
+          new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+          }),
         );
 
         await sleep(300);
@@ -160,7 +181,9 @@ async function handleAntSelect(
 
   return {
     success: false,
-    result: `下拉面板中未找到选项 "${optionText}"，可用选项: ${availableOptions.join(', ')}`,
+    result: `下拉面板中未找到选项 "${optionText}"，可用选项: ${availableOptions.join(
+      ', ',
+    )}`,
   };
 }
 

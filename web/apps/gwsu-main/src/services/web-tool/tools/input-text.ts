@@ -1,6 +1,11 @@
 import { registerWebTool } from '../registry';
 import type { WebToolExecutor, WebToolResult } from '../types';
-import { selectorMap, isElementVisible, sleep, elementDescription } from '../dom-engine';
+import {
+  selectorMap,
+  isElementVisible,
+  sleep,
+  elementDescription,
+} from '../dom-engine';
 
 /**
  * 输入文本工具
@@ -46,13 +51,18 @@ const inputTextTool: WebToolExecutor = {
       await sleep(50);
 
       if (tagName === 'input' || tagName === 'textarea') {
-        await handleNativeInput(element as HTMLInputElement | HTMLTextAreaElement, text);
-      } else if (element.isContentEditable) {
-        await handleContentEditable(element as HTMLElement, text);
+        await handleNativeInput(
+          element as HTMLInputElement | HTMLTextAreaElement,
+          text,
+        );
+      } else if (element instanceof HTMLElement && element.isContentEditable) {
+        await handleContentEditable(element, text);
       } else {
         return {
           success: false,
-          result: `索引 ${index} 的元素 ${elementDescription(element)} 不是输入框`,
+          result: `索引 ${index} 的元素 ${elementDescription(
+            element,
+          )} 不是输入框`,
         };
       }
 
@@ -62,7 +72,10 @@ const inputTextTool: WebToolExecutor = {
 
       return {
         success: true,
-        result: `已在索引 ${index} 的输入框中输入文本: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`,
+        result: `已在索引 ${index} 的输入框中输入文本: "${text.substring(
+          0,
+          50,
+        )}${text.length > 50 ? '...' : ''}"`,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -108,7 +121,10 @@ async function handleNativeInput(
  * 处理 contenteditable 元素
  * Plan A: 合成事件; Plan B: execCommand 降级
  */
-async function handleContentEditable(element: HTMLElement, text: string): Promise<void> {
+async function handleContentEditable(
+  element: HTMLElement,
+  text: string,
+): Promise<void> {
   // Plan A: 合成 InputEvent
   const cleared =
     element.dispatchEvent(
@@ -139,7 +155,11 @@ async function handleContentEditable(element: HTMLElement, text: string): Promis
   if (inserted) {
     element.innerText = text;
     element.dispatchEvent(
-      new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }),
+      new InputEvent('input', {
+        bubbles: true,
+        inputType: 'insertText',
+        data: text,
+      }),
     );
   }
 

@@ -1,0 +1,38 @@
+.locationAlert {
+  margin-bottom: 1rem;
+}
+
+.document {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--ant-color-text);
+}
+
+.block {
+  position: relative;
+  padding: 0.25rem 0.75rem;
+  border-left: 0.1875rem solid transparent;
+  border-radius: var(--ant-border-radius);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.highlightedBlock {
+  border-left-color: var(--ant-color-primary);
+  background: var(--ant-color-primary-bg);
+  box-shadow: 0 0 0 1px var(--ant-color-primary-border);
+}
+
+.hitLabel {
+  display: inline-block;
+  margin-bottom: 0.25rem;
+  color: var(--ant-color-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block {
+    transition: none;
+  }
+}

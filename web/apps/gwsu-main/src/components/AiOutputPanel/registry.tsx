@@ -11,13 +11,13 @@ import FlowChart from './components/FlowChart';
 
 export const { registry } = defineRegistry(catalog, {
   components: {
-    Dashboard,
-    Section,
-    StatCard,
-    Chart,
-    DataTable,
-    TextBlock,
-    ImageGallery,
-    FlowChart,
+    Dashboard: (context) => <Dashboard {...context} />,
+    Section: (context) => <Section {...context} />,
+    StatCard: (context) => <StatCard {...context} />,
+    Chart: (context) => <Chart {...context} />,
+    DataTable: (context) => <DataTable {...context} />,
+    TextBlock: (context) => <TextBlock {...context} />,
+    ImageGallery: (context) => <ImageGallery {...context} />,
+    FlowChart: (context) => <FlowChart {...context} />,
   },
 });

@@ -172,6 +172,7 @@ public class KnowledgeCitationMiddleware implements MiddlewareBase {
                         .setCitationKey(citationKey)
                         .setChunkId(result.getChunkId())
                         .setPageId(result.getPageId())
+                        .setPageVersionId(result.getPageVersionId())
                         .setPageBlockId(result.getPageBlockId())
                         .setHeadingPath(result.getHeadingPath())
                         .setBlockOrder(result.getBlockOrder()));

@@ -1,6 +1,7 @@
 {
   "extends": "../../gwsu-core/tsconfig.base.json",
   "compilerOptions": {
+    "moduleResolution": "bundler",
     "importHelpers": true,
     "sourceMap": true,
     "baseUrl": "./",

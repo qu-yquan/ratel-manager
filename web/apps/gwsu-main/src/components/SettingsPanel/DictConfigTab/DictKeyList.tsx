@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button, Input, Space, Popconfirm, App, Pagination } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
-import { getDictPage, saveOrUpdateDict, deleteDicts } from '../services/dict';
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
+import { getDictPage, deleteDicts } from '../services/dict';
 import type { DictInfo, DictQuery } from '../services/dict';
 import DictFormModal from './DictFormModal';
 import styles from './index.module.less';
@@ -23,27 +28,30 @@ const DictKeyList: React.FC<DictKeyListProps> = ({ onSelect, selectedId }) => {
   const [formVisible, setFormVisible] = useState(false);
   const [editingDict, setEditingDict] = useState<DictInfo | null>(null);
 
-  const fetchData = useCallback(async (pageNum = currentPage, pSize = pageSize, keyword = searchKey) => {
-    setLoading(true);
-    try {
-      const query: DictQuery = { pageNum, pageSize: pSize };
-      if (keyword) {
-        query.dictKey = keyword;
-        query.dictName = keyword;
+  const fetchData = useCallback(
+    async (pageNum = currentPage, pSize = pageSize, keyword = searchKey) => {
+      setLoading(true);
+      try {
+        const query: DictQuery = { pageNum, pageSize: pSize };
+        if (keyword) {
+          query.dictKey = keyword;
+          query.dictName = keyword;
+        }
+        const result = await getDictPage(query);
+        if (result) {
+          setDataSource(result.records);
+          setTotal(result.total);
+          setCurrentPage(pageNum);
+          setPageSize(pSize);
+        }
+      } catch {
+        // error handled by request util
+      } finally {
+        setLoading(false);
       }
-      const result = await getDictPage(query);
-      if (result) {
-        setDataSource(result.records);
-        setTotal(result.total);
-        setCurrentPage(pageNum);
-        setPageSize(pSize);
-      }
-    } catch {
-      // error handled by request util
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, pageSize, searchKey]);
+    },
+    [currentPage, pageSize, searchKey],
+  );
 
   useEffect(() => {
     fetchData(1);
@@ -86,13 +94,27 @@ const DictKeyList: React.FC<DictKeyListProps> = ({ onSelect, selectedId }) => {
       <div className={styles.panelHeader}>
         <span className={styles.panelTitle}>字典列表</span>
         <Space>
-          <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleAdd}>
+          <Button
+            type="primary"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={handleAdd}
+          >
             新增
           </Button>
-          <Button size="small" icon={<ReloadOutlined />} onClick={() => fetchData(1)} />
+          <Button
+            size="small"
+            icon={<ReloadOutlined />}
+            onClick={() => fetchData(1)}
+          />
         </Space>
       </div>
-      <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color, #f0f0f0)' }}>
+      <div
+        style={{
+          padding: '8px 12px',
+          borderBottom: '1px solid var(--border-color, #f0f0f0)',
+        }}
+      >
         <Input.Search
           size="small"
           placeholder="搜索字典"
@@ -111,7 +133,9 @@ const DictKeyList: React.FC<DictKeyListProps> = ({ onSelect, selectedId }) => {
           dataSource.map((item) => (
             <div
               key={item.id}
-              className={`${styles.dictItem} ${selectedId === item.id ? styles.active : ''}`}
+              className={`${styles.dictItem} ${
+                selectedId === item.id ? styles.active : ''
+              }`}
               onClick={() => onSelect(item)}
             >
               <div className={styles.dictItemInfo}>
@@ -119,10 +143,26 @@ const DictKeyList: React.FC<DictKeyListProps> = ({ onSelect, selectedId }) => {
                 <div className={styles.dictItemName}>{item.dictName}</div>
               </div>
               <div className={styles.dictItemActions}>
-                <Button type="link" size="small" icon={<EditOutlined />} onClick={(e) => handleEdit(item, e)} />
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={(e) => handleEdit(item, e)}
+                />
                 {item.dictType !== 1 && (
-                  <Popconfirm title="确定删除此字典？" onConfirm={(e) => handleDelete(item.id!, e as React.MouseEvent)}>
-                    <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()} />
+                  <Popconfirm
+                    title="确定删除此字典？"
+                    onConfirm={(e) =>
+                      handleDelete(item.id!, e as React.MouseEvent)
+                    }
+                  >
+                    <Button
+                      type="link"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   </Popconfirm>
                 )}
               </div>

@@ -1,4 +1,11 @@
-import { Fragment, isValidElement, type ReactElement } from 'react';
+import {
+  Fragment,
+  isValidElement,
+  useCallback,
+  useState,
+  type ComponentProps,
+  type ReactElement,
+} from 'react';
 import {
   CopilotChatMessageView,
   CopilotChatAssistantMessage,
@@ -7,9 +14,19 @@ import {
 } from '@copilotkit/react-core/v2';
 import type { AssistantMessage, Message } from '@ag-ui/core';
 import { ExecutionSummary } from './ExecutionSummary';
+import { KnowledgeCitationRenderer } from './KnowledgeCitationRenderer';
+import {
+  KnowledgePreviewDrawer,
+  type KnowledgePreviewTarget,
+} from './KnowledgePreviewDrawer';
 import { KnowledgeReferenceList } from './KnowledgeReferenceList';
 import type { ViewConfig } from './types';
 import { RAW_ERROR_MESSAGE_NAME } from '@/providers/CopilotKitProvider';
+import {
+  useKnowledgeReferences,
+  type KnowledgeReference,
+  type KnowledgeReferenceLocation,
+} from '@/services/knowledge-reference';
 import styles from './copilot-override.module.less';
 
 const DEFAULT_VIEW_CONFIG: ViewConfig = {
@@ -19,20 +36,62 @@ const DEFAULT_VIEW_CONFIG: ViewConfig = {
   enableDragMode: false,
 };
 
+type AssistantMarkdownRendererProps = ComponentProps<
+  typeof CopilotChatAssistantMessage.MarkdownRenderer
+>;
+
 export function createCustomRenderMessage(
   viewConfig: ViewConfig = DEFAULT_VIEW_CONFIG,
 ) {
   function CustomAssistantMessage(props: CopilotChatAssistantMessageProps) {
     const { message } = props;
+    const references = useKnowledgeReferences(message.id);
+    const [previewTarget, setPreviewTarget] =
+      useState<KnowledgePreviewTarget>();
     const isRawError =
       (message as AssistantMessage & { name?: string }).name ===
       RAW_ERROR_MESSAGE_NAME;
 
+    const handleOpenCitation = useCallback(
+      (reference: KnowledgeReference, location: KnowledgeReferenceLocation) =>
+        setPreviewTarget({ reference, location }),
+      [],
+    );
+    const handleOpenReference = useCallback(
+      (reference: KnowledgeReference) => setPreviewTarget({ reference }),
+      [],
+    );
+    const handleClosePreview = useCallback(
+      () => setPreviewTarget(undefined),
+      [],
+    );
+    const MarkdownRenderer = useCallback(
+      (rendererProps: AssistantMarkdownRendererProps) => (
+        <KnowledgeCitationRenderer
+          {...rendererProps}
+          references={references}
+          onOpenCitation={handleOpenCitation}
+        />
+      ),
+      [handleOpenCitation, references],
+    );
+
     if (!isRawError) {
       return (
         <>
-          <CopilotChatAssistantMessage {...props} toolCallsView={() => null} />
-          <KnowledgeReferenceList messageId={message.id} />
+          <CopilotChatAssistantMessage
+            {...props}
+            markdownRenderer={MarkdownRenderer}
+            toolCallsView={() => null}
+          />
+          <KnowledgeReferenceList
+            references={references}
+            onOpenReference={handleOpenReference}
+          />
+          <KnowledgePreviewDrawer
+            target={previewTarget}
+            onClose={handleClosePreview}
+          />
         </>
       );
     }
@@ -46,11 +105,16 @@ export function createCustomRenderMessage(
     );
   }
 
+  const CustomAssistantMessageSlot = Object.assign(
+    CustomAssistantMessage,
+    CopilotChatAssistantMessage,
+  );
+
   function CustomMessageView(props: CopilotChatMessageViewProps) {
     return (
       <CopilotChatMessageView
         {...props}
-        assistantMessage={CustomAssistantMessage}
+        assistantMessage={CustomAssistantMessageSlot}
         reasoningMessage={false as any}
       >
         {({ messages, messageElements, isRunning, interruptElement }) => {

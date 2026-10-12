@@ -1,26 +1,26 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { App } from 'antd';
-import { ApartmentOutlined } from '@ant-design/icons';
-import styles from './index.module.less';
-import DeptTreePanel from './components/DeptTreePanel';
-import DeptDetailPanel from './components/DeptDetailPanel';
-import DeptFormModal from './components/DeptFormModal';
-import { getDeptTree, getDeptTypes, getDeptDetail } from '@/services/dept';
-import type { DeptTreeNode, DeptDetail, DeptTypeOption } from './types';
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { App } from "antd";
+import { ApartmentOutlined } from "@ant-design/icons";
+import styles from "./index.module.less";
+import DeptTreePanel from "./components/DeptTreePanel";
+import DeptDetailPanel from "./components/DeptDetailPanel";
+import DeptFormModal from "./components/DeptFormModal";
+import { getDeptTree, getDeptTypes, getDeptDetail } from "@/services/dept";
+import type { DeptTreeNode, DeptDetail, DeptTypeOption } from "./types";
 
 const DeptPage: React.FC = () => {
   const { message } = App.useApp();
   const [treeData, setTreeData] = useState<DeptTreeNode[]>([]);
   const [deptTypes, setDeptTypes] = useState<DeptTypeOption[]>([]);
   const [selectedDept, setSelectedDept] = useState<DeptDetail | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [formModalData, setFormModalData] = useState<{
-    mode: 'create' | 'edit';
-    parentId?: number;
+    mode: "create" | "edit";
+    parentId?: string;
     dept?: DeptDetail;
-  }>({ mode: 'create' });
+  }>({ mode: "create" });
 
   const [treeWidth, setTreeWidth] = useState(280);
   const isResizing = useRef(false);
@@ -36,14 +36,14 @@ const DeptPage: React.FC = () => {
       // 刷新树数据时同步刷新当前选中部门的详情
       if (selectedNodeId) {
         try {
-          const detail = await getDeptDetail(String(selectedNodeId));
+          const detail = await getDeptDetail(selectedNodeId);
           setSelectedDept(detail);
         } catch {
           // 详情获取失败不影响树刷新
         }
       }
     } catch {
-      message.error('加载部门树失败');
+      message.error("加载部门树失败");
     } finally {
       setLoading(false);
     }
@@ -53,23 +53,23 @@ const DeptPage: React.FC = () => {
     void loadTreeData();
   }, [loadTreeData]);
 
-  const handleSelectNode = useCallback((nodeId: number, dept: DeptDetail) => {
+  const handleSelectNode = useCallback((nodeId: string, dept: DeptDetail) => {
     setSelectedNodeId(nodeId);
     setSelectedDept(dept);
   }, []);
 
   const handleCreateRoot = useCallback(() => {
-    setFormModalData({ mode: 'create' });
+    setFormModalData({ mode: "create" });
     setFormModalVisible(true);
   }, []);
 
-  const handleCreateChild = useCallback((parentId: number) => {
-    setFormModalData({ mode: 'create', parentId });
+  const handleCreateChild = useCallback((parentId: string) => {
+    setFormModalData({ mode: "create", parentId });
     setFormModalVisible(true);
   }, []);
 
   const handleEdit = useCallback((dept: DeptDetail) => {
-    setFormModalData({ mode: 'edit', dept });
+    setFormModalData({ mode: "edit", dept });
     setFormModalVisible(true);
   }, []);
 
@@ -84,13 +84,16 @@ const DeptPage: React.FC = () => {
     void loadTreeData();
   }, [loadTreeData]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    isResizing.current = true;
-    startX.current = e.clientX;
-    startWidth.current = treeWidth;
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, [treeWidth]);
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      isResizing.current = true;
+      startX.current = e.clientX;
+      startWidth.current = treeWidth;
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [treeWidth]
+  );
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing.current) return;
@@ -101,8 +104,8 @@ const DeptPage: React.FC = () => {
 
   const handleMouseUp = useCallback(() => {
     isResizing.current = false;
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
   }, [handleMouseMove]);
 
   return (

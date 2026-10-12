@@ -1,12 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button, App, Spin, Modal } from 'antd';
-import { SaveOutlined, ReloadOutlined, CloudServerOutlined, FilterOutlined } from '@ant-design/icons';
+import {
+  SaveOutlined,
+  ReloadOutlined,
+  CloudServerOutlined,
+  FilterOutlined,
+} from '@ant-design/icons';
 import { fetchConfigsBatch, ConfigValueType, ConfigType } from '@gwsu/core';
 import { saveOrUpdateConfig } from '../services/config';
 import type { ConfigInfo } from '../services/config';
 import ServerConfigForm from './ServerConfigForm';
 import ExtensionFilterForm from './ExtensionFilterForm';
-import type { UploadServerConfig, ExtensionFilterConfig, AttachmentTabKey } from './types';
+import type {
+  UploadServerConfig,
+  ExtensionFilterConfig,
+  AttachmentTabKey,
+} from './types';
 import {
   UPLOAD_SERVER_CONFIG_KEY,
   UPLOAD_EXTENSION_CONFIG_KEY,
@@ -21,20 +30,33 @@ const AttachmentConfigTab: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<AttachmentTabKey>('server');
 
-  const [serverConfig, setServerConfig] = useState<UploadServerConfig>(createDefaultServerConfig());
+  const [serverConfig, setServerConfig] = useState<UploadServerConfig>(
+    createDefaultServerConfig(),
+  );
   const [serverConfigId, setServerConfigId] = useState<string | undefined>();
-  const [extensionConfig, setExtensionConfig] = useState<ExtensionFilterConfig>(createDefaultExtensionConfig());
-  const [extensionConfigId, setExtensionConfigId] = useState<string | undefined>();
+  const [extensionConfig, setExtensionConfig] = useState<ExtensionFilterConfig>(
+    createDefaultExtensionConfig(),
+  );
+  const [extensionConfigId, setExtensionConfigId] = useState<
+    string | undefined
+  >();
 
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     try {
-      const configMap = await fetchConfigsBatch([UPLOAD_SERVER_CONFIG_KEY, UPLOAD_EXTENSION_CONFIG_KEY]);
+      const configMap = await fetchConfigsBatch([
+        UPLOAD_SERVER_CONFIG_KEY,
+        UPLOAD_EXTENSION_CONFIG_KEY,
+      ]);
 
-      const serverInfo = configMap[UPLOAD_SERVER_CONFIG_KEY] as ConfigInfo | undefined;
+      const serverInfo = configMap[UPLOAD_SERVER_CONFIG_KEY] as
+        | ConfigInfo
+        | undefined;
       if (serverInfo?.configValue) {
         try {
-          const parsed = JSON.parse(serverInfo.configValue) as UploadServerConfig;
+          const parsed = JSON.parse(
+            serverInfo.configValue,
+          ) as UploadServerConfig;
           setServerConfig({ ...createDefaultServerConfig(), ...parsed });
           setServerConfigId(serverInfo.id);
         } catch {
@@ -47,10 +69,14 @@ const AttachmentConfigTab: React.FC = () => {
         setServerConfigId(undefined);
       }
 
-      const extInfo = configMap[UPLOAD_EXTENSION_CONFIG_KEY] as ConfigInfo | undefined;
+      const extInfo = configMap[UPLOAD_EXTENSION_CONFIG_KEY] as
+        | ConfigInfo
+        | undefined;
       if (extInfo?.configValue) {
         try {
-          const parsed = JSON.parse(extInfo.configValue) as ExtensionFilterConfig;
+          const parsed = JSON.parse(
+            extInfo.configValue,
+          ) as ExtensionFilterConfig;
           setExtensionConfig({ ...createDefaultExtensionConfig(), ...parsed });
           setExtensionConfigId(extInfo.id);
         } catch {
@@ -107,7 +133,7 @@ const AttachmentConfigTab: React.FC = () => {
       title: '确认更改',
       content: '更改上传服务配置可能导致原上传文件不可用，确认更改吗？',
       okText: '确认更改',
-      okType: 'warning',
+      okType: 'danger',
       cancelText: '取消',
       onOk: async () => {
         setSaving(true);
@@ -165,7 +191,11 @@ const AttachmentConfigTab: React.FC = () => {
     );
   }
 
-  const tabs: { key: AttachmentTabKey; label: string; icon: React.ReactNode }[] = [
+  const tabs: {
+    key: AttachmentTabKey;
+    label: string;
+    icon: React.ReactNode;
+  }[] = [
     { key: 'server', label: '服务配置', icon: <CloudServerOutlined /> },
     { key: 'filter', label: '文件过滤', icon: <FilterOutlined /> },
   ];
@@ -177,7 +207,9 @@ const AttachmentConfigTab: React.FC = () => {
           {tabs.map((tab) => (
             <button
               key={tab.key}
-              className={`${styles.sideTab} ${activeTab === tab.key ? styles.sideTabActive : ''}`}
+              className={`${styles.sideTab} ${
+                activeTab === tab.key ? styles.sideTabActive : ''
+              }`}
               onClick={() => setActiveTab(tab.key)}
             >
               <span className={styles.sideTabIcon}>{tab.icon}</span>
@@ -191,7 +223,10 @@ const AttachmentConfigTab: React.FC = () => {
             <ServerConfigForm value={serverConfig} onChange={setServerConfig} />
           )}
           {activeTab === 'filter' && (
-            <ExtensionFilterForm value={extensionConfig} onChange={setExtensionConfig} />
+            <ExtensionFilterForm
+              value={extensionConfig}
+              onChange={setExtensionConfig}
+            />
           )}
 
           <div className={styles.actionBar}>
@@ -202,7 +237,9 @@ const AttachmentConfigTab: React.FC = () => {
               type="primary"
               icon={<SaveOutlined />}
               loading={saving}
-              onClick={activeTab === 'server' ? handleSaveServer : handleSaveFilter}
+              onClick={
+                activeTab === 'server' ? handleSaveServer : handleSaveFilter
+              }
             >
               保存
             </Button>

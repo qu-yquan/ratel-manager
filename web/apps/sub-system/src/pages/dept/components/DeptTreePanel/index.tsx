@@ -1,24 +1,20 @@
-import React from 'react';
-import { Input, Button, Tree, App, Spin } from 'antd';
-import type { TreeProps } from 'antd';
-import {
-  SearchOutlined,
-  PlusOutlined,
-  MoreOutlined,
-} from '@ant-design/icons';
+import React from "react";
+import { Input, Button, Tree, App, Spin } from "antd";
+import type { TreeProps } from "antd";
+import { SearchOutlined, PlusOutlined, MoreOutlined } from "@ant-design/icons";
 // @ts-ignore
-import { history } from 'umi';
-import styles from './index.module.less';
-import { getDeptDetail } from '@/services/dept';
-import type { DeptTreeNode, DeptDetail } from '../../types';
-import { useDeptTree } from '../../hooks/useDeptTree';
-import {AuthGate} from '@gwsu/core'
-import { PERM_ADD } from '../../permissionConstants';
+import { history } from "umi";
+import styles from "./index.module.less";
+import { getDeptDetail } from "@/services/dept";
+import type { DeptTreeNode, DeptDetail } from "../../types";
+import { useDeptTree } from "../../hooks/useDeptTree";
+import { AuthGate } from "@gwsu/core";
+import { PERM_ADD } from "../../permissionConstants";
 
 interface DeptTreePanelProps {
   treeData: DeptTreeNode[];
   loading: boolean;
-  selectedKey: number | null;
+  selectedKey: string | null;
   onSelect: (nodeId: string, dept: DeptDetail) => void;
   onCreateRoot: () => void;
   onCreateChild: (parentId: string) => void;
@@ -42,7 +38,7 @@ const DeptTreePanel: React.FC<DeptTreePanelProps> = ({
     filteredTreeData,
   } = useDeptTree(treeData);
 
-  const convertToTreeData = (data: DeptTreeNode[]): TreeProps['treeData'] => {
+  const convertToTreeData = (data: DeptTreeNode[]): TreeProps["treeData"] => {
     return data.map((node) => ({
       key: node.id,
       title: (
@@ -90,14 +86,14 @@ const DeptTreePanel: React.FC<DeptTreePanelProps> = ({
     }));
   };
 
-  const handleSelect: TreeProps['onSelect'] = async (keys) => {
+  const handleSelect: TreeProps["onSelect"] = async (keys) => {
     if (keys.length === 0) return;
     const nodeId = keys[0] as string;
     try {
       const dept = await getDeptDetail(nodeId);
       onSelect(nodeId, dept);
     } catch {
-      message.error('获取部门详情失败');
+      message.error("获取部门详情失败");
     }
   };
 

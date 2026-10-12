@@ -120,11 +120,14 @@ const RouteSelector: React.FC<RouteSelectorProps> = ({
   );
 
   // 菜单点击
-  const handleMenuClick: MenuProps['onClick'] = useCallback(({ key }) => {
-    history.push(key);
-    setOpen(false);
-    setSearchValue('');
-  }, []);
+  const handleMenuClick: MenuProps['onClick'] = useCallback(
+    (info: Parameters<NonNullable<MenuProps['onClick']>>[0]) => {
+      history.push(info.key);
+      setOpen(false);
+      setSearchValue('');
+    },
+    [],
+  );
 
   // 搜索输入
   const handleSearchChange = useCallback(

@@ -41,7 +41,7 @@ export function AskUserQuestionBar() {
   const [submitting, setSubmitting] = useState(false);
   const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const liveInterruptElement = useInterrupt({
+  const liveInterruptElement = useInterrupt<void, false>({
     agentId: 'brain',
     renderInChat: false,
     enabled: (event) => isAskUserQuestionInterrupt(event.value),
@@ -57,9 +57,9 @@ export function AskUserQuestionBar() {
           dispatchAskUserQuestion(restoredPayload);
         }
       }
-      return null;
+      return undefined;
     },
-    render: () => null,
+    render: () => <></>,
   });
 
   // 监听 AskUserQuestion 事件

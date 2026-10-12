@@ -133,7 +133,12 @@ export function ExecutionSummary({
             ? getStringArg(args, 'task', 'prompt', 'description')
             : undefined,
           args,
-          result: result?.content,
+          result:
+            typeof result?.content === 'string'
+              ? result.content
+              : result?.content
+              ? JSON.stringify(result.content)
+              : undefined,
           error: result?.error,
           completed: !!result,
         };

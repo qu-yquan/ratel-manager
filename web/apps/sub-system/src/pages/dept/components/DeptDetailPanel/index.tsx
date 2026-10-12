@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { Tabs } from 'antd';
-import BasicInfoTab from './BasicInfoTab';
-import RelationGraphTab from './RelationGraphTab';
-import UserListTab from './UserListTab';
-import AddParentModal from '../AddParentModal';
-import styles from './index.module.less';
-import type { DeptDetail, DeptTypeOption } from '../../types';
+import React, { useState } from "react";
+import { Tabs } from "antd";
+import BasicInfoTab from "./BasicInfoTab";
+import RelationGraphTab from "./RelationGraphTab";
+import UserListTab from "./UserListTab";
+import AddParentModal from "../AddParentModal";
+import styles from "./index.module.less";
+import type { DeptDetail, DeptTypeOption } from "../../types";
 
 interface DeptDetailPanelProps {
   dept: DeptDetail;
@@ -22,12 +22,12 @@ const DeptDetailPanel: React.FC<DeptDetailPanelProps> = ({
   onDeleteSuccess,
   onRefresh,
 }) => {
-  const [activeTab, setActiveTab] = useState('basic');
+  const [activeTab, setActiveTab] = useState("basic");
   const [addParentVisible, setAddParentVisible] = useState(false);
-  const [ setAddUserVisible] = useState(false);
+  const [, setAddUserVisible] = useState(false);
 
-  const handleNodeClick = (deptId: number) => {
-    console.log('Navigate to dept:', deptId);
+  const handleNodeClick = (deptId: string) => {
+    console.log("Navigate to dept:", deptId);
   };
 
   // 当前已存在的所有父部门ID（用于过滤）
@@ -39,8 +39,8 @@ const DeptDetailPanel: React.FC<DeptDetailPanelProps> = ({
   // @ts-ignore
   const tabItems = [
     {
-      key: 'basic',
-      label: '基本信息',
+      key: "basic",
+      label: "基本信息",
       children: (
         <BasicInfoTab
           dept={dept}
@@ -53,13 +53,13 @@ const DeptDetailPanel: React.FC<DeptDetailPanelProps> = ({
       ),
     },
     {
-      key: 'relation',
-      label: '关系图',
+      key: "relation",
+      label: "关系图",
       children: <RelationGraphTab dept={dept} onNodeClick={handleNodeClick} />,
     },
     {
-      key: 'users',
-      label: '用户列表',
+      key: "users",
+      label: "用户列表",
       children: (
         <UserListTab
           deptId={dept.id}

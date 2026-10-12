@@ -1,15 +1,16 @@
 import { FileTextOutlined } from '@ant-design/icons';
-import { useKnowledgeReferences } from '@/services/knowledge-reference';
+import type { KnowledgeReference } from '@/services/knowledge-reference';
 import styles from './index.module.less';
 
 interface KnowledgeReferenceListProps {
-  messageId: string;
+  references: KnowledgeReference[];
+  onOpenReference: (reference: KnowledgeReference) => void;
 }
 
 export function KnowledgeReferenceList({
-  messageId,
+  references,
+  onOpenReference,
 }: KnowledgeReferenceListProps) {
-  const references = useKnowledgeReferences(messageId);
   if (references.length === 0) return null;
 
   return (
@@ -18,17 +19,24 @@ export function KnowledgeReferenceList({
       <ul className={styles.list}>
         {references.map((reference) => (
           <li className={styles.item} key={reference.documentId}>
-            <FileTextOutlined className={styles.icon} aria-hidden />
-            <div className={styles.content}>
-              <div className={styles.fileName} title={reference.fileName}>
-                {reference.fileName}
+            <button
+              type="button"
+              className={styles.referenceButton}
+              aria-label={`预览引用文档：${reference.fileName}`}
+              onClick={() => onOpenReference(reference)}
+            >
+              <FileTextOutlined className={styles.icon} aria-hidden="true" />
+              <div className={styles.content}>
+                <div className={styles.fileName} title={reference.fileName}>
+                  {reference.fileName}
+                </div>
+                <div className={styles.meta}>
+                  {reference.fileFormat?.toUpperCase() || '文档'}
+                  <span className={styles.separator}>·</span>
+                  {reference.chunkCount} 处
+                </div>
               </div>
-              <div className={styles.meta}>
-                {reference.fileFormat?.toUpperCase() || '文档'}
-                <span className={styles.separator}>·</span>
-                {reference.chunkCount} 处
-              </div>
-            </div>
+            </button>
           </li>
         ))}
       </ul>

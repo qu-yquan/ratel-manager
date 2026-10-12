@@ -59,28 +59,28 @@ const SidebarNavigation: React.FC = () => {
   }, [selectedOpenKeys]);
 
   const handleOpenKeysChange: MenuProps['onOpenChange'] = useCallback(
-    (keys) => {
+    (keys: string[]) => {
       if (normalizedKeyword) {
         setOpenKeys(keys);
         return;
       }
 
-      const lastOpenedKey = keys.find((key) => !openKeys.includes(key));
+      const lastOpenedKey = keys.find((key: string) => !openKeys.includes(key));
       if (!lastOpenedKey) {
         setOpenKeys(keys);
         return;
       }
 
       const siblingKeys = getSiblingSubmenuKeys(menus, lastOpenedKey);
-      setOpenKeys(keys.filter((key) => !siblingKeys.includes(key)));
+      setOpenKeys(keys.filter((key: string) => !siblingKeys.includes(key)));
     },
     [menus, normalizedKeyword, openKeys],
   );
 
   const handleMenuClick: MenuProps['onClick'] = useCallback(
-    ({ key }) => {
+    (info: Parameters<NonNullable<MenuProps['onClick']>>[0]) => {
       switchToInterface();
-      history.push(key);
+      history.push(info.key);
     },
     [switchToInterface],
   );

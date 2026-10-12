@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, Select, InputNumber, Switch, App } from 'antd';
-import { saveDept, getDeptTree } from '@/services/dept';
-import type { DeptDetail, DeptTypeOption, DeptTreeNode } from '../../types';
+import React, { useEffect, useState } from "react";
+import { Modal, Form, Input, Select, InputNumber, Switch, App } from "antd";
+import { saveDept, getDeptTree } from "@/services/dept";
+import type { DeptDetail, DeptTypeOption, DeptTreeNode } from "../../types";
 
 interface DeptFormModalProps {
   visible: boolean;
-  mode: 'create' | 'edit';
-  parentId?: number;
+  mode: "create" | "edit";
+  parentId?: string;
   dept?: DeptDetail;
   deptTypes: DeptTypeOption[];
   onClose: () => void;
@@ -29,9 +29,11 @@ const DeptFormModal: React.FC<DeptFormModalProps> = ({
 
   useEffect(() => {
     if (visible) {
-      getDeptTree().then(setDeptTree).catch(() => {});
+      getDeptTree()
+        .then(setDeptTree)
+        .catch(() => {});
 
-      if (mode === 'edit' && dept) {
+      if (mode === "edit" && dept) {
         form.setFieldsValue({
           name: dept.name,
           type: dept.type,
@@ -56,7 +58,7 @@ const DeptFormModal: React.FC<DeptFormModalProps> = ({
       setLoading(true);
 
       const data = {
-        ...(mode === 'edit' && dept ? { id: dept.id } : {}),
+        ...(mode === "edit" && dept ? { id: dept.id } : {}),
         name: values.name,
         type: values.type,
         parentId: values.parentId || null,
@@ -65,21 +67,24 @@ const DeptFormModal: React.FC<DeptFormModalProps> = ({
       };
 
       await saveDept(data);
-      message.success(mode === 'edit' ? '编辑成功' : '创建成功');
+      message.success(mode === "edit" ? "编辑成功" : "创建成功");
       onSuccess();
     } catch {
-      message.error(mode === 'edit' ? '编辑失败' : '创建失败');
+      message.error(mode === "edit" ? "编辑失败" : "创建失败");
     } finally {
       setLoading(false);
     }
   };
 
-  const convertToOptions = (nodes: DeptTreeNode[], level = 0): { value: string; label: string }[] => {
+  const convertToOptions = (
+    nodes: DeptTreeNode[],
+    level = 0
+  ): { value: string; label: string }[] => {
     const options: { value: string; label: string }[] = [];
     nodes.forEach((node) => {
       options.push({
         value: node.id,
-        label: `${'\u3000'.repeat(level)}${node.name}`,
+        label: `${"\u3000".repeat(level)}${node.name}`,
       });
       if (node.children) {
         options.push(...convertToOptions(node.children, level + 1));

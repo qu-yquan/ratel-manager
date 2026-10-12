@@ -16,6 +16,8 @@ public class KnowledgeReferenceLocationVO {
 
     private String pageId;
 
+    private String pageVersionId;
+
     private String pageBlockId;
 
     private String headingPath;

@@ -20,6 +20,11 @@
 }
 
 .item {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.referenceButton {
   display: flex;
   gap: 0.375rem;
   align-items: center;
@@ -29,7 +34,21 @@
   padding: 0.3125rem 0.5rem;
   border: 1px solid var(--ant-color-border-secondary);
   border-radius: var(--ant-border-radius);
+  color: inherit;
   background: var(--ant-color-fill-quaternary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--ant-color-primary-border-hover);
+    background: var(--ant-color-primary-bg);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ant-color-primary-border-hover);
+    outline-offset: 2px;
+  }
 }
 
 .icon {

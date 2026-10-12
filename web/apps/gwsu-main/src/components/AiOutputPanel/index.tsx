@@ -24,17 +24,19 @@ const AiOutputPanel: React.FC = () => {
   const [spec, setSpec] = useState<Spec | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [hasContent, setHasContent] = useState(false);
-  const compilerRef = useRef<ReturnType<typeof createSpecStreamCompiler> | null>(null);
+  const compilerRef = useRef<ReturnType<
+    typeof createSpecStreamCompiler<Spec>
+  > | null>(null);
   // 标记是否已收到过 AGENT_OUTPUT_END，用于判断新一轮输出是否需要重置编译器
   const hasEndedRef = useRef(false);
 
   // 确保编译器初始化
   if (!compilerRef.current) {
-    compilerRef.current = createSpecStreamCompiler();
+    compilerRef.current = createSpecStreamCompiler<Spec>();
   }
 
   const handleClear = useCallback(() => {
-    compilerRef.current = createSpecStreamCompiler();
+    compilerRef.current = createSpecStreamCompiler<Spec>();
     hasEndedRef.current = false;
     setSpec(null);
     setHasContent(false);
@@ -49,7 +51,7 @@ const AiOutputPanel: React.FC = () => {
 
       // 上一轮输出已结束，当前是新一轮 OutputViewAgent 调用，需要重置编译器
       if (hasEndedRef.current) {
-        compilerRef.current = createSpecStreamCompiler();
+        compilerRef.current = createSpecStreamCompiler<Spec>();
         setSpec(null);
         setHasContent(false);
         hasEndedRef.current = false;
@@ -58,8 +60,15 @@ const AiOutputPanel: React.FC = () => {
       setIsStreaming(true);
 
       try {
-        const { result, newPatches } = compilerRef.current.push(text + '\n');
-        if (newPatches.length > 0 && result && result.root && Object.keys(result.elements || {}).length > 0) {
+        const compiler = compilerRef.current;
+        if (!compiler) return;
+        const { result, newPatches } = compiler.push(text + '\n');
+        if (
+          newPatches.length > 0 &&
+          result &&
+          result.root &&
+          Object.keys(result.elements || {}).length > 0
+        ) {
           setSpec({ ...result });
           setHasContent(true);
         }
@@ -88,7 +97,7 @@ const AiOutputPanel: React.FC = () => {
   return (
     <div id="ai-output-panel" className={styles.aiOutputPanel}>
       {hasContent && spec && (
-        <JSONUIProvider>
+        <JSONUIProvider registry={registry}>
           <Renderer spec={spec} registry={registry} />
         </JSONUIProvider>
       )}
@@ -102,7 +111,9 @@ const AiOutputPanel: React.FC = () => {
         <div className={styles.emptyState}>
           <RobotOutlined className={styles.emptyIcon} />
           <div className={styles.emptyTitle}>AI 输出区</div>
-          <div className={styles.emptySubtitle}>智能助手的输出结果将在此展示</div>
+          <div className={styles.emptySubtitle}>
+            智能助手的输出结果将在此展示
+          </div>
         </div>
       )}
     </div>

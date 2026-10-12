@@ -2,6 +2,8 @@ export type {
   KnowledgeReference,
   KnowledgeReferenceLocation,
   KnowledgeReferencesPayload,
+  KnowledgeCitationPreview,
+  KnowledgeCitationPreviewBlock,
 } from './types';
 
 export {
@@ -11,3 +13,4 @@ export {
   restoreKnowledgeReferences,
   useKnowledgeReferences,
 } from './store';
+export { getKnowledgeCitationPreview } from './preview';

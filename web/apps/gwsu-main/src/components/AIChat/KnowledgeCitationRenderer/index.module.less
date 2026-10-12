@@ -1,0 +1,28 @@
+.citationButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0 0.125rem;
+  padding: 0;
+  border: 1px solid var(--ant-color-primary-border);
+  border-radius: 50%;
+  color: var(--ant-color-primary);
+  background: var(--ant-color-primary-bg);
+  font-size: 0.75rem;
+  line-height: 1;
+  vertical-align: text-bottom;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--ant-color-primary);
+    color: var(--ant-color-primary-hover);
+    background: var(--ant-color-primary-bg-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ant-color-primary-border-hover);
+    outline-offset: 2px;
+  }
+}

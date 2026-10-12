@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import styles from './InteractiveCat.module.less';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import styles from "./InteractiveCat.module.less";
 
 interface InteractiveCatProps {
   /** 是否正在输入（触发遮眼动画） */
@@ -15,15 +15,15 @@ const InteractiveCat: React.FC<InteractiveCatProps> = ({
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 });
   const catRef = useRef<HTMLDivElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
   const calculateEyeOffset = useCallback(() => {
@@ -103,12 +103,32 @@ const InteractiveCat: React.FC<InteractiveCatProps> = ({
 
           {/* 阴影 */}
           <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#000" floodOpacity="0.15" />
+            <feDropShadow
+              dx="0"
+              dy="4"
+              stdDeviation="6"
+              floodColor="#000"
+              floodOpacity="0.15"
+            />
           </filter>
 
           {/* 条纹图案 */}
-          <pattern id="stripes" patternUnits="userSpaceOnUse" width="20" height="20" patternTransform="rotate(15)">
-            <line x1="0" y1="0" x2="0" y2="20" stroke="#E88A3C" strokeWidth="3" opacity="0.3" />
+          <pattern
+            id="stripes"
+            patternUnits="userSpaceOnUse"
+            width="20"
+            height="20"
+            patternTransform="rotate(15)"
+          >
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="20"
+              stroke="#E88A3C"
+              strokeWidth="3"
+              opacity="0.3"
+            />
           </pattern>
         </defs>
 
@@ -142,21 +162,9 @@ const InteractiveCat: React.FC<InteractiveCatProps> = ({
             filter="url(#shadow)"
           />
           {/* 身体条纹 */}
-          <ellipse
-            cx="100"
-            cy="155"
-            rx="50"
-            ry="38"
-            fill="url(#stripes)"
-          />
+          <ellipse cx="100" cy="155" rx="50" ry="38" fill="url(#stripes)" />
           {/* 肚子 */}
-          <ellipse
-            cx="100"
-            cy="160"
-            rx="32"
-            ry="25"
-            fill="url(#lightFur)"
-          />
+          <ellipse cx="100" cy="160" rx="32" ry="25" fill="url(#lightFur)" />
         </g>
 
         {/* 头部 */}
@@ -168,10 +176,7 @@ const InteractiveCat: React.FC<InteractiveCatProps> = ({
               fill="url(#furGradient)"
               filter="url(#shadow)"
             />
-            <path
-              d="M58 78 L65 45 L78 70 Z"
-              fill="url(#innerEar)"
-            />
+            <path d="M58 78 L65 45 L78 70 Z" fill="url(#innerEar)" />
           </g>
 
           {/* 右耳 - 三角形猫耳 */}
@@ -181,10 +186,7 @@ const InteractiveCat: React.FC<InteractiveCatProps> = ({
               fill="url(#furGradient)"
               filter="url(#shadow)"
             />
-            <path
-              d="M142 78 L135 45 L122 70 Z"
-              fill="url(#innerEar)"
-            />
+            <path d="M142 78 L135 45 L122 70 Z" fill="url(#innerEar)" />
           </g>
 
           {/* 头部主体 - 圆形 */}
@@ -198,22 +200,10 @@ const InteractiveCat: React.FC<InteractiveCatProps> = ({
           />
 
           {/* 头部条纹 */}
-          <ellipse
-            cx="100"
-            cy="100"
-            rx="52"
-            ry="48"
-            fill="url(#stripes)"
-          />
+          <ellipse cx="100" cy="100" rx="52" ry="48" fill="url(#stripes)" />
 
           {/* 脸部浅色区域 */}
-          <ellipse
-            cx="100"
-            cy="110"
-            rx="38"
-            ry="32"
-            fill="url(#lightFur)"
-          />
+          <ellipse cx="100" cy="110" rx="38" ry="32" fill="url(#lightFur)" />
 
           {/* 额头花纹 */}
           <path
@@ -301,15 +291,31 @@ const InteractiveCat: React.FC<InteractiveCatProps> = ({
           </g>
 
           {/* 遮眼爪子 */}
-          <g className={`${styles.peekPaws} ${isTyping ? styles.peekPawsActive : ''}`}>
+          <g
+            className={`${styles.peekPaws} ${
+              isTyping ? styles.peekPawsActive : ""
+            }`}
+          >
             <g className={styles.peekLeftPaw}>
-              <ellipse cx="65" cy="98" rx="20" ry="16" fill="url(#furGradient)" />
+              <ellipse
+                cx="65"
+                cy="98"
+                rx="20"
+                ry="16"
+                fill="url(#furGradient)"
+              />
               <ellipse cx="62" cy="102" rx="4" ry="3" fill="#FFB5B5" />
               <ellipse cx="68" cy="102" rx="4" ry="3" fill="#FFB5B5" />
               <ellipse cx="65" cy="107" rx="5" ry="4" fill="#FFB5B5" />
             </g>
             <g className={styles.peekRightPaw}>
-              <ellipse cx="135" cy="98" rx="20" ry="16" fill="url(#furGradient)" />
+              <ellipse
+                cx="135"
+                cy="98"
+                rx="20"
+                ry="16"
+                fill="url(#furGradient)"
+              />
               <ellipse cx="132" cy="102" rx="4" ry="3" fill="#FFB5B5" />
               <ellipse cx="138" cy="102" rx="4" ry="3" fill="#FFB5B5" />
               <ellipse cx="135" cy="107" rx="5" ry="4" fill="#FFB5B5" />
@@ -318,11 +324,15 @@ const InteractiveCat: React.FC<InteractiveCatProps> = ({
 
           {/* 鼻子 - 倒三角形 */}
           <g className={styles.nose}>
-            <path
-              d="M100 115 L94 122 L106 122 Z"
-              fill="url(#noseColor)"
+            <path d="M100 115 L94 122 L106 122 Z" fill="url(#noseColor)" />
+            <ellipse
+              cx="100"
+              cy="118"
+              rx="2"
+              ry="1.5"
+              fill="#FFFFFF"
+              opacity="0.5"
             />
-            <ellipse cx="100" cy="118" rx="2" ry="1.5" fill="#FFFFFF" opacity="0.5" />
           </g>
 
           {/* 嘴巴 */}
@@ -344,12 +354,60 @@ const InteractiveCat: React.FC<InteractiveCatProps> = ({
 
           {/* 胡须 */}
           <g className={styles.whiskers}>
-            <line x1="45" y1="108" x2="72" y2="112" stroke="#D4A574" strokeWidth="1.2" strokeLinecap="round" />
-            <line x1="42" y1="118" x2="70" y2="118" stroke="#D4A574" strokeWidth="1.2" strokeLinecap="round" />
-            <line x1="45" y1="128" x2="72" y2="124" stroke="#D4A574" strokeWidth="1.2" strokeLinecap="round" />
-            <line x1="155" y1="108" x2="128" y2="112" stroke="#D4A574" strokeWidth="1.2" strokeLinecap="round" />
-            <line x1="158" y1="118" x2="130" y2="118" stroke="#D4A574" strokeWidth="1.2" strokeLinecap="round" />
-            <line x1="155" y1="128" x2="128" y2="124" stroke="#D4A574" strokeWidth="1.2" strokeLinecap="round" />
+            <line
+              x1="45"
+              y1="108"
+              x2="72"
+              y2="112"
+              stroke="#D4A574"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
+            <line
+              x1="42"
+              y1="118"
+              x2="70"
+              y2="118"
+              stroke="#D4A574"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
+            <line
+              x1="45"
+              y1="128"
+              x2="72"
+              y2="124"
+              stroke="#D4A574"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
+            <line
+              x1="155"
+              y1="108"
+              x2="128"
+              y2="112"
+              stroke="#D4A574"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
+            <line
+              x1="158"
+              y1="118"
+              x2="130"
+              y2="118"
+              stroke="#D4A574"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
+            <line
+              x1="155"
+              y1="128"
+              x2="128"
+              y2="124"
+              stroke="#D4A574"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
           </g>
         </g>
 
@@ -368,7 +426,11 @@ const InteractiveCat: React.FC<InteractiveCatProps> = ({
       </svg>
 
       {/* 表情气泡 */}
-      <div className={`${styles.speechBubble} ${isTyping ? styles.speechBubbleVisible : ''}`}>
+      <div
+        className={`${styles.speechBubble} ${
+          isTyping ? styles.speechBubbleVisible : ""
+        }`}
+      >
         <span>🙈</span>
         <span className={styles.speechText}>不看...</span>
       </div>

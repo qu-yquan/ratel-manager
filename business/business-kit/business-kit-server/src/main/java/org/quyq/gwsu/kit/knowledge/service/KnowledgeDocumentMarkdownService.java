@@ -5,6 +5,7 @@ import org.quyq.gwsu.common.cache.utils.CacheUtils;
 import org.quyq.gwsu.common.core.exception.BusinessException;
 import org.quyq.gwsu.kit.api.knowledge.dto.KnowledgeMarkdownSaveDTO;
 import org.quyq.gwsu.kit.api.knowledge.vo.KnowledgeDocumentBlocksVO;
+import org.quyq.gwsu.kit.errcode.KitErrorCode;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgePage;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgePageBlock;
 import org.quyq.gwsu.kit.knowledge.domain.KitKnowledgePageVersion;
@@ -63,13 +64,37 @@ public class KnowledgeDocumentMarkdownService {
         if (!StringUtils.hasText(document.getTargetPageId())) return new KnowledgeDocumentBlocksVO().setBlocks(List.of());
         KitKnowledgePage page = pageMapper.selectById(document.getTargetPageId());
         if (page == null || !StringUtils.hasText(page.getCurrentVersionId())) return new KnowledgeDocumentBlocksVO().setBlocks(List.of());
-        List<KitKnowledgePageBlock> blocks = blockMapper.selectByVersionId(page.getCurrentVersionId()).stream()
+        return buildBlocks(page.getCurrentVersionId(), false);
+    }
+
+    public KnowledgeDocumentBlocksVO getCitationPreview(String documentId, String pageVersionId) {
+        var document = directoryService.requireReadableDocument(documentId);
+        if (!StringUtils.hasText(document.getTargetPageId())) {
+            return new KnowledgeDocumentBlocksVO().setBlocks(List.of());
+        }
+        KitKnowledgePage page = pageMapper.selectById(document.getTargetPageId());
+        if (page == null || !StringUtils.hasText(page.getCurrentVersionId())) {
+            return new KnowledgeDocumentBlocksVO().setBlocks(List.of());
+        }
+        String resolvedVersionId = StringUtils.hasText(pageVersionId)
+                ? pageVersionId.trim()
+                : page.getCurrentVersionId();
+        KitKnowledgePageVersion version = versionMapper.selectById(resolvedVersionId);
+        if (version == null || !Objects.equals(version.getPageId(), page.getId())) {
+            throw new BusinessException(KitErrorCode.E03010);
+        }
+        return buildBlocks(resolvedVersionId, true);
+    }
+
+    private KnowledgeDocumentBlocksVO buildBlocks(String pageVersionId, boolean renderContent) {
+        List<KitKnowledgePageBlock> blocks = blockMapper.selectByVersionId(pageVersionId).stream()
                 .sorted(Comparator.comparing(KitKnowledgePageBlock::getOrderNo)).toList();
         Map<String, String> locators = refMapper.selectByPageBlockIds(blocks.stream().map(KitKnowledgePageBlock::getId).toList())
                 .stream().collect(Collectors.toMap(ref -> ref.getPageBlockId(), ref -> ref.getSourceLocator() == null ? "" : ref.getSourceLocator()));
-        return new KnowledgeDocumentBlocksVO().setPageVersionId(page.getCurrentVersionId()).setBlocks(blocks.stream()
+        return new KnowledgeDocumentBlocksVO().setPageVersionId(pageVersionId).setBlocks(blocks.stream()
                 .map(block -> new KnowledgeDocumentBlocksVO.Block().setId(block.getId()).setOrderNo(block.getOrderNo())
-                        .setBlockType(block.getBlockType()).setContent(block.getContent())
+                        .setBlockType(block.getBlockType())
+                        .setContent(renderContent ? contentRenderService.render(block.getContent()) : block.getContent())
                         .setSourceLocator(locators.get(block.getId())))
                 .toList());
     }
