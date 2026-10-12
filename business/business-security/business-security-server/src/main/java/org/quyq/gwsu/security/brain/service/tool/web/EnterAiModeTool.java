@@ -13,8 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -28,8 +28,9 @@ public class EnterAiModeTool extends ToolBase {
     private static final String APPROVAL_TIP = "智能助手请求控制界面，是否同意？";
 
     private final WebToolUtils webToolUtils;
+    private final ViewOperationCallerGuard viewOperationCallerGuard;
 
-    public EnterAiModeTool(WebToolUtils webToolUtils) {
+    public EnterAiModeTool(WebToolUtils webToolUtils, ViewOperationCallerGuard viewOperationCallerGuard) {
         super(ToolBase.builder()
                 .name(TOOL_NAME)
                 .description("""
@@ -41,9 +42,10 @@ public class EnterAiModeTool extends ToolBase {
                 .inputSchema(Map.of(
                         "type", "object",
                         "properties", Map.of(),
-                        "required", java.util.List.of()
+                        "required", List.of()
                 )));
         this.webToolUtils = webToolUtils;
+        this.viewOperationCallerGuard = viewOperationCallerGuard;
     }
 
     @Override
@@ -54,17 +56,9 @@ public class EnterAiModeTool extends ToolBase {
     @Override
     @SuppressWarnings("unchecked")
     public Mono<ToolResultBlock> callAsync(ToolCallParam param) {
+        viewOperationCallerGuard.check(param.getAgent());
         RuntimeContext runtimeContext = param.getRuntimeContext();
         AIRunnerInstanceWrapper wrapper = runtimeContext.get(AIRunnerInstanceWrapper.class);
-        return Mono.fromCallable(() -> webToolUtils.webExecuteTool(wrapper, TOOL_NAME, Map.of()))
-                .doOnSuccess(result -> {
-                    Map<String, Object> val = Optional.ofNullable(runtimeContext.get(AIConstants.Param.FORWARDED_PROPS_KEY, Map.class))
-                            .orElse(Collections.emptyMap());
-                    if(!CollectionUtils.isEmpty(val) && val.containsKey(AIConstants.Param.FORWARDED_PROPS_OPERATION_MODE_KEY)){
-                        Map<String, Object> mutableProps = new HashMap<>(val);
-                        mutableProps.put(AIConstants.Param.FORWARDED_PROPS_OPERATION_MODE_KEY, "ai");
-                        runtimeContext.put(AIConstants.Param.FORWARDED_PROPS_KEY, mutableProps);
-                    }
-                });
+        return Mono.fromCallable(() -> webToolUtils.webExecuteTool(wrapper, TOOL_NAME, Map.of()));
     }
 }

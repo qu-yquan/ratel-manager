@@ -1,6 +1,7 @@
 package org.quyq.gwsu.security.brain.service.tool.web;
 
 import io.agentscope.core.agent.RuntimeContext;
+import io.agentscope.core.agent.Agent;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
@@ -31,6 +32,7 @@ public class WebTool {
     private final WebToolUtils webToolUtils;
     private final ObjectMapper objectMapper;
     private final WebPageApprovalStateService webPageApprovalStateService;
+    private final ViewOperationCallerGuard viewOperationCallerGuard;
 
 
     // ==================== 操作模式 ====================
@@ -39,18 +41,10 @@ public class WebTool {
             退出`AI操作模式`，将界面控制权交还给用户。
             当你完成所有界面操作后，必须调用此工具退出AI操作模式。""")
     @SuppressWarnings("unchecked")
-    public Mono<ToolResultBlock> exitAiMode(RuntimeContext runtimeContext) {
+    public Mono<ToolResultBlock> exitAiMode(Agent caller, RuntimeContext runtimeContext) {
+        viewOperationCallerGuard.check(caller);
         AIRunnerInstanceWrapper wrapper = runtimeContext.get(AIRunnerInstanceWrapper.class);
-        return Mono.just(webToolUtils.webExecuteTool(wrapper, "ExitAiMode", Map.of()))
-                .doOnSuccess(_ -> {
-                    Map<String, Object> val = Optional.ofNullable(runtimeContext.get(AIConstants.Param.FORWARDED_PROPS_KEY, Map.class))
-                            .orElse(Collections.emptyMap());
-                    if (!CollectionUtils.isEmpty(val) && val.containsKey(AIConstants.Param.FORWARDED_PROPS_OPERATION_MODE_KEY)) {
-                        Map<String, Object> mutableProps = new HashMap<>(val);
-                        mutableProps.put(AIConstants.Param.FORWARDED_PROPS_OPERATION_MODE_KEY, "human");
-                        runtimeContext.put(AIConstants.Param.FORWARDED_PROPS_KEY, mutableProps);
-                    }
-                });
+        return Mono.just(webToolUtils.webExecuteTool(wrapper, "ExitAiMode", Map.of()));
 
     }
 
@@ -65,20 +59,13 @@ public class WebTool {
             description = """
                     跳转的前端路由地址
                     示例：/sub-system/user
-                    """) String path, RuntimeContext runtimeContext) {
+                    """) String path, Agent caller, RuntimeContext runtimeContext) {
+
+        viewOperationCallerGuard.check(caller);
 
         AIRunnerInstanceWrapper wrapper = runtimeContext.get(AIRunnerInstanceWrapper.class);
         return Mono.just(webToolUtils
-                        .webExecuteTool(wrapper, "RouteNavigation", Map.of("path", path)))
-                .doOnSuccess(result -> {
-                    Map<String, Object> val = Optional.ofNullable(runtimeContext.get(AIConstants.Param.FORWARDED_PROPS_KEY, Map.class))
-                            .orElse(Collections.emptyMap());
-                    if (!CollectionUtils.isEmpty(val) && val.containsKey(AIConstants.Param.FORWARDED_PROPS_CURRENT_PATH_KEY)) {
-                        Map<String, Object> mutableProps = new HashMap<>(val);
-                        mutableProps.put(AIConstants.Param.FORWARDED_PROPS_CURRENT_PATH_KEY, path);
-                        runtimeContext.put(AIConstants.Param.FORWARDED_PROPS_KEY, mutableProps);
-                    }
-                });
+                        .webExecuteTool(wrapper, "RouteNavigation", Map.of("path", path)));
 
     }
 
@@ -93,7 +80,8 @@ public class WebTool {
               示例：  普通元素：[0]<button>提交</button>  带标签的元素：[0]{approval}<button>提交</button>
             - approval：需要人工审批的元素索引数组，例如 [142]，没有则 []
             """)
-    public Mono<ToolResultBlock> getPageState(RuntimeContext runtimeContext) {
+    public Mono<ToolResultBlock> getPageState(Agent caller, RuntimeContext runtimeContext) {
+        viewOperationCallerGuard.check(caller);
         return Mono.deferContextual(contextView -> {
             AIRunnerInstanceWrapper wrapper = runtimeContext.get(AIRunnerInstanceWrapper.class);
             ToolResultBlock result = webToolUtils.webExecuteTool(wrapper, "GetPageState", Map.of());
@@ -112,7 +100,9 @@ public class WebTool {
     public Mono<ToolResultBlock> inputText(
             @ToolParam(name = "index", description = "输入框元素索引编号") Integer index,
             @ToolParam(name = "text", description = "要输入的文本内容") String text,
+            Agent caller,
             RuntimeContext runtimeContext) {
+        viewOperationCallerGuard.check(caller);
         AIRunnerInstanceWrapper wrapper = runtimeContext.get(AIRunnerInstanceWrapper.class);
         return Mono.just(webToolUtils.webExecuteTool(wrapper, "InputText", Map.of("index", index, "text", text)));
     }
@@ -125,7 +115,9 @@ public class WebTool {
     public Mono<ToolResultBlock> selectOption(
             @ToolParam(name = "index", description = "select元素索引编号") Integer index,
             @ToolParam(name = "text", description = "要选择的选项文本") String text,
+            Agent caller,
             RuntimeContext runtimeContext) {
+        viewOperationCallerGuard.check(caller);
         AIRunnerInstanceWrapper wrapper = runtimeContext.get(AIRunnerInstanceWrapper.class);
         return Mono.just(webToolUtils.webExecuteTool(wrapper, "SelectOption", Map.of("index", index, "text", text)));
     }
@@ -142,7 +134,9 @@ public class WebTool {
             参数：index - 要悬停的元素索引编号""")
     public Mono<ToolResultBlock> hoverElement(
             @ToolParam(name = "index", description = "要悬停的元素索引编号，从GetPageState结果中获取") Integer index,
+            Agent caller,
             RuntimeContext runtimeContext) {
+        viewOperationCallerGuard.check(caller);
         AIRunnerInstanceWrapper wrapper = runtimeContext.get(AIRunnerInstanceWrapper.class);
         return Mono.just(webToolUtils.webExecuteTool(wrapper, "HoverElement", Map.of("index", index)));
     }
@@ -154,7 +148,9 @@ public class WebTool {
     public Mono<ToolResultBlock> scrollPage(
             @ToolParam(name = "direction", description = "滚动方向：up/down/left/right") String direction,
             @ToolParam(name = "amount", description = "滚动量：1表示一页，数字像素值表示精确滚动") Integer amount,
+            Agent caller,
             RuntimeContext runtimeContext) {
+        viewOperationCallerGuard.check(caller);
         AIRunnerInstanceWrapper wrapper = runtimeContext.get(AIRunnerInstanceWrapper.class);
         return Mono.just(webToolUtils.webExecuteTool(wrapper, "ScrollPage",
                 Map.of("direction", direction, "amount", amount)));
@@ -176,7 +172,9 @@ public class WebTool {
     public Mono<ToolResultBlock> attachUploadedFile(
             @ToolParam(name = "uploadId", description = "上传控件标识，必须来自GetPageState结果中的data-ai-upload-id属性") String uploadId,
             @ToolParam(name = "fileId", description = "要挂载的文件ID，必须来自系统提示词<fileInfos>中的fileId") String fileId,
+            Agent caller,
             RuntimeContext runtimeContext) {
+        viewOperationCallerGuard.check(caller);
         AIRunnerInstanceWrapper wrapper = runtimeContext.get(AIRunnerInstanceWrapper.class);
         return Mono.just(webToolUtils.webExecuteTool(wrapper, "AttachUploadedFile",
                 Map.of("uploadId", uploadId, "fileId", fileId)));

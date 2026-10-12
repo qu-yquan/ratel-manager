@@ -59,7 +59,7 @@ public class KnowledgeCitationMiddleware implements MiddlewareBase {
             AgentEvent event,
             KnowledgeCitationContext citationContext,
             String liveMessageId) {
-        if (!(event instanceof AgentResultEvent resultEvent) || event.getSource() != null) {
+        if (!(event instanceof AgentResultEvent resultEvent)) {
             return Flux.just(event);
         }
         Msg result = resultEvent.getResult();
@@ -68,6 +68,15 @@ public class KnowledgeCitationMiddleware implements MiddlewareBase {
         }
 
         List<String> citationKeys = extractCitationKeys(result.getTextContent());
+        if (event.getSource() != null) {
+            // 子智能体已经完成事实筛选，其最终结果中的引用比全部检索候选更精确。
+            citationContext.recordDelegatedCitationKeys(citationKeys);
+            return Flux.just(event);
+        }
+        if (citationKeys.isEmpty()) {
+            // 根智能体转述时可能遗漏标记，使用子智能体实际引用过的编号保证结构化引用不丢失。
+            citationKeys = citationContext.delegatedCitationKeysSnapshot();
+        }
         List<KnowledgeReferenceVO> references = aggregateReferences(citationKeys, citationContext);
         if (references.isEmpty()) {
             return Flux.just(event);
@@ -94,22 +103,29 @@ public class KnowledgeCitationMiddleware implements MiddlewareBase {
     }
 
     /**
-     * AG-UI 使用 replyId 作为实时助手消息 ID，它与最终 Msg.id 不一定相同。
+     * AgentScope AG-UI 使用 {@code replyId-blockId} 作为实时助手消息 ID，它与最终 Msg.id 不一定相同。
      * 这里只跟踪根智能体的文本事件，避免子智能体输出覆盖父智能体消息 ID。
      */
     private void captureLiveMessageId(AgentEvent event, AtomicReference<String> liveMessageId) {
         if (event.getSource() != null) {
             return;
         }
-        String replyId = null;
+        String messageId = null;
         if (event instanceof TextBlockStartEvent startEvent) {
-            replyId = startEvent.getReplyId();
+            messageId = buildLiveMessageId(startEvent.getReplyId(), startEvent.getBlockId());
         } else if (event instanceof TextBlockDeltaEvent deltaEvent) {
-            replyId = deltaEvent.getReplyId();
+            messageId = buildLiveMessageId(deltaEvent.getReplyId(), deltaEvent.getBlockId());
         }
-        if (StringUtils.hasText(replyId)) {
-            liveMessageId.set(replyId);
+        if (StringUtils.hasText(messageId)) {
+            liveMessageId.set(messageId);
         }
+    }
+
+    private String buildLiveMessageId(String replyId, String blockId) {
+        if (!StringUtils.hasText(replyId) || !StringUtils.hasText(blockId)) {
+            return null;
+        }
+        return replyId + "-" + blockId;
     }
 
     private List<String> extractCitationKeys(String text) {

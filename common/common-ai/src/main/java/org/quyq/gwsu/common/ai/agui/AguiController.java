@@ -39,6 +39,7 @@ import reactor.core.Disposable;
 import reactor.util.context.Context;
 
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -377,7 +378,9 @@ public abstract class AguiController implements DisposableBean {
                 .sessionId(threadId)
                 .userId(userId);
         if (!CollectionUtils.isEmpty(forwardedProps)) {
-            builder.put(AIConstants.Param.FORWARDED_PROPS_KEY, forwardedProps);
+            // RuntimeContext 的派生上下文会复制属性容器，但属性值是浅拷贝。
+            // 为本次运行创建唯一可变 map，让工具更新能被后续提示词读取。
+            builder.put(AIConstants.Param.FORWARDED_PROPS_KEY, new HashMap<>(forwardedProps));
         }
         builder.put(AIRunnerInstanceWrapper.class, wrapper);
         return builder.build();

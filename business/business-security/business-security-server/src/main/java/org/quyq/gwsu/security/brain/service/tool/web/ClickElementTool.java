@@ -32,9 +32,11 @@ public class ClickElementTool extends ToolBase {
 
     private final WebToolUtils webToolUtils;
     private final WebPageApprovalStateService webPageApprovalStateService;
+    private final ViewOperationCallerGuard viewOperationCallerGuard;
 
     public ClickElementTool(WebToolUtils webToolUtils,
-                            WebPageApprovalStateService webPageApprovalStateService) {
+                            WebPageApprovalStateService webPageApprovalStateService,
+                            ViewOperationCallerGuard viewOperationCallerGuard) {
         super(ToolBase.builder()
                 .name(TOOL_NAME)
                 .description("""
@@ -61,6 +63,7 @@ public class ClickElementTool extends ToolBase {
                 )));
         this.webToolUtils = webToolUtils;
         this.webPageApprovalStateService = webPageApprovalStateService;
+        this.viewOperationCallerGuard = viewOperationCallerGuard;
     }
 
     @Override
@@ -90,6 +93,7 @@ public class ClickElementTool extends ToolBase {
 
     @Override
     public Mono<ToolResultBlock> callAsync(ToolCallParam param) {
+        viewOperationCallerGuard.check(param.getAgent());
         AIRunnerInstanceWrapper wrapper = param.getRuntimeContext().get(AIRunnerInstanceWrapper.class);
         Object index = param.getInput().get("index");
         return Mono.fromCallable(() -> webToolUtils.webExecuteTool(wrapper, TOOL_NAME, Map.of("index", index)));

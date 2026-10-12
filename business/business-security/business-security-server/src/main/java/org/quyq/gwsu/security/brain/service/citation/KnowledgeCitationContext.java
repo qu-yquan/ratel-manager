@@ -6,7 +6,10 @@ import org.quyq.gwsu.security.brain.vo.BrainHistoryMessageMetadataVO;
 import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 单次 Agent 运行的知识引用收集器。
@@ -18,6 +21,7 @@ public final class KnowledgeCitationContext {
     private final Map<String, String> citationKeyByHit = new LinkedHashMap<>();
     private final Map<String, KnowledgeSearchResultVO> resultByCitationKey = new LinkedHashMap<>();
     private final Map<String, BrainHistoryMessageMetadataVO> metadataByMessageId = new LinkedHashMap<>();
+    private final Set<String> delegatedCitationKeys = new LinkedHashSet<>();
     private int sequence;
 
     public static KnowledgeCitationContext getOrCreate(RuntimeContext runtimeContext) {
@@ -49,6 +53,24 @@ public final class KnowledgeCitationContext {
 
     public synchronized KnowledgeSearchResultVO find(String citationKey) {
         return resultByCitationKey.get(citationKey);
+    }
+
+    /**
+     * 记录子智能体最终结果实际使用过的引用编号。
+     *
+     * <p>只接受当前运行中已由知识检索工具注册的编号，避免子智能体文本中的伪造编号进入引用元数据。</p>
+     */
+    public synchronized void recordDelegatedCitationKeys(List<String> citationKeys) {
+        if (citationKeys == null) {
+            return;
+        }
+        citationKeys.stream()
+                .filter(resultByCitationKey::containsKey)
+                .forEach(delegatedCitationKeys::add);
+    }
+
+    public synchronized List<String> delegatedCitationKeysSnapshot() {
+        return List.copyOf(delegatedCitationKeys);
     }
 
     public synchronized void recordMessageMetadata(String messageId, BrainHistoryMessageMetadataVO metadata) {

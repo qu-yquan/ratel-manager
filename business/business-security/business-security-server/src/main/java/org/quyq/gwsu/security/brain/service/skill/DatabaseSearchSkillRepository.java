@@ -22,6 +22,8 @@ public class DatabaseSearchSkillRepository implements AgentSkillRepository, Lazy
 
     public static final String SKILL_NAME = "database_search";
 
+    public static final String SKILL_DESCRIPTION = "用于查询系统中实时或持久化的业务数据，包括记录明细、数量统计、聚合分析、状态核验和关联查询；仅允许读取数据，不用于修改数据，也不作为制度、流程或操作说明的事实来源。生成 SQL 前必须确认业务规则、表结构、字段权限和数据库厂商，并严格遵守同一数据源内关联、禁止 SELECT *、默认限制 10 条和仅 SELECT 等约束。";
+
     private final Supplier<List<TableModelTableVO>> allTablesSupplier;
 
     private final Supplier<List<BusinessFunctionVO>> businessFunctionsSupplier;
@@ -120,7 +122,7 @@ public class DatabaseSearchSkillRepository implements AgentSkillRepository, Lazy
             return AgentSkill.builder()
                     .name(SKILL_NAME)
                     .source(repositoryInfo.getLocation())
-                    .description(skillDescription())
+                    .description(SKILL_DESCRIPTION)
                     .skillContent("系统表模型未初始化，该功能不可用，请回复用户，让其`联系管理员在'业务模型管理'中采集所有表模型`")
                     .build();
         }
@@ -128,16 +130,11 @@ public class DatabaseSearchSkillRepository implements AgentSkillRepository, Lazy
         return AgentSkill.builder()
                 .name(SKILL_NAME)
                 .source(repositoryInfo.getLocation())
-                .description(skillDescription())
+                .description(SKILL_DESCRIPTION)
                 .skillContent(buildSkillContent(snapshot))
                 .build();
     }
 
-    private String skillDescription() {
-        return """
-                用于查询系统中实时或持久化的业务数据，包括记录明细、数量统计、聚合分析、状态核验和关联查询；仅允许读取数据，不用于修改数据，也不作为制度、流程或操作说明的事实来源。若问题同时需要业务规则和当前数据，可与 knowledge_search 配合使用。生成 SQL 前必须确认业务规则、表结构、字段权限和数据库厂商，并严格遵守同一数据源内关联、禁止 SELECT *、默认限制 10 条和仅 SELECT 等约束。
-                """;
-    }
 
     private Snapshot snapshot() {
         List<TableModelTableVO> tables = Optional.ofNullable(allTablesSupplier.get()).orElseGet(List::of);

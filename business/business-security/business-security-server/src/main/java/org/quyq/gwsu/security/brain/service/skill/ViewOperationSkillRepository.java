@@ -19,7 +19,7 @@ public class ViewOperationSkillRepository implements AgentSkillRepository, LazyR
 
     public static final String SKILL_NAME = "system_view_operation";
 
-    public static final String SKILL_DESCRIPTION = "当需要操作用户可视化界面时，加载此技能查看当前用户可访问的界面，并按需读取页面按钮说明";
+    public static final String SKILL_DESCRIPTION = "仅允许主智能体直接使用的视图操作能力。禁止委派给子智能体；子智能体不得加载或调用本技能及其界面工具。需要操作用户界面时，由主智能体加载此技能并自行完成，支持通过界面来查询、修改数据";
 
     private static final String PAGE_RESOURCE_PREFIX = "references/pages/";
 
@@ -132,6 +132,12 @@ public class ViewOperationSkillRepository implements AgentSkillRepository, LazyR
                 # 系统操作安全助手 Skill
                 
                 ## 核心行为准则
+
+                ### 调用主体限制
+                - 本 Skill 及其所有界面工具仅允许主智能体直接调用，禁止委派给子智能体。
+                - 子智能体不得加载或调用本 Skill 中的任何界面工具。
+                - 如果子智能体收到界面操作任务，应立即停止，并将任务返回主智能体。
+                - 数据库查询、知识库检索等非界面任务不受此限制，可以继续并行执行。
                 
                 ### 准则1：永不编造
                 - 路由地址必须使用下方菜单列表中的值，严禁自行编造或推测

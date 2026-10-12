@@ -26,7 +26,7 @@ export function KnowledgeReferenceList({
               <div className={styles.meta}>
                 {reference.fileFormat?.toUpperCase() || '文档'}
                 <span className={styles.separator}>·</span>
-                {reference.chunkCount} 处引用
+                {reference.chunkCount} 处
               </div>
             </div>
           </li>

@@ -1,6 +1,8 @@
-import { CopilotKit } from '@copilotkit/react-core';
-import { useRenderTool } from '@copilotkit/react-core/v2';
-import { useAgent } from '@copilotkit/react-core/v2';
+import {
+  CopilotKitProvider,
+  useAgent,
+  useRenderTool,
+} from '@copilotkit/react-core/v2';
 import { useUserStore } from '@gwsu/core';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useMemo } from 'react';
@@ -191,18 +193,18 @@ export function GwsuCopilotKitProvider({
   );
 
   return (
-    <CopilotKit
+    <CopilotKitProvider
       runtimeUrl="/api/security/brain/run/copilotKit"
       useSingleEndpoint
       headers={getHeaders}
       properties={properties}
-      agent="brain"
+      agentId="brain"
       enableInspector={false}
     >
       <ToolCallRendererRegistration />
       <WebToolEventListener />
       <WebToolConfirmModal />
       {children}
-    </CopilotKit>
+    </CopilotKitProvider>
   );
 }
