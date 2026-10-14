@@ -1,4 +1,4 @@
-package org.quyq.gwsu.security.brain.service.middleware;
+package org.quyq.gwsu.common.ai.middleware;
 
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;
@@ -9,6 +9,7 @@ import io.agentscope.core.middleware.AgentInput;
 import io.agentscope.core.middleware.MiddlewareBase;
 import io.agentscope.core.middleware.ModelCallInput;
 import lombok.extern.slf4j.Slf4j;
+import org.quyq.gwsu.common.ai.model.ReloadableModel;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 
@@ -36,6 +37,10 @@ public class StatisticsMiddleware implements MiddlewareBase {
             RuntimeContext runtimeContext,
             ModelCallInput input,
             Function<ModelCallInput, Flux<AgentEvent>> chain) {
+        // 统计与实际请求共用本次解析的真实模型，避免配置切换导致名称与请求不一致。
+        if (input.model() instanceof ReloadableModel model) {
+            input = new ModelCallInput(input.messages(), input.tools(), input.options(), model.resolve());
+        }
         StatisticsState state = getOrCreateState(agent, runtimeContext);
         InvocationRecord record = state.start(InvocationType.MODEL, resolveModelName(input));
         return chain.apply(input)

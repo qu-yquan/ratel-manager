@@ -56,6 +56,8 @@ const KEEP_ATTRS = new Set([
   'tabindex',
   'contenteditable',
   'data-date-format',
+  'colspan',
+  'rowspan',
   'alt',
   'target',
   'data-ai-approval',
@@ -148,12 +150,6 @@ const MAX_DEPTH = 30;
 
 /** 文本截断长度 */
 const TEXT_MAX_LENGTH = 200;
-
-/** 同类子元素折叠阈值 */
-const SIBLING_COLLAPSE_THRESHOLD = 10;
-
-/** 保留的同类子元素数量（前N个+后N个） */
-const SIBLING_KEEP_COUNT = 3;
 
 /**
  * 从元素及其子元素中提取 Ant Design 图标类名
@@ -326,7 +322,10 @@ function enhanceAntdComponentAttrs(element: Element, attrs: Record<string, strin
 /**
  * 提取元素的关键属性
  */
-function extractAttributes(element: Element): Record<string, string> {
+function extractAttributes(
+  element: Element,
+  preserveFullValue = false,
+): Record<string, string> {
   const attrs: Record<string, string> = {};
   const attributes = element.attributes;
 
@@ -335,8 +334,11 @@ function extractAttributes(element: Element): Record<string, string> {
     if (KEEP_ATTRS.has(attr.name)) {
       const value = attr.value.trim();
       if (value) {
-        // 属性值截断
-        attrs[attr.name] = value.length > 30 ? value.substring(0, 30) + '...' : value;
+        // 表格中的输入值也属于单元格数据，需要完整提供给 AI。
+        attrs[attr.name] =
+          preserveFullValue || value.length <= 30
+            ? value
+            : value.substring(0, 30) + '...';
       } else if (BOOLEAN_ATTRS.has(attr.name)) {
         // 布尔属性：HTML 中 disabled="" 等价于 disabled=true，值即使为空也保留
         attrs[attr.name] = 'true';
@@ -408,12 +410,20 @@ function collectText(
  * @param root 根元素
  * @param selectorMap 索引管理器
  * @param depth 当前深度
+ * @param preserveTableContent 是否保留表格子树中的完整文本和属性值
  */
-export function buildDomTree(root: Element, selectorMap: SelectorMap, depth = 0): DomNode {
+export function buildDomTree(
+  root: Element,
+  selectorMap: SelectorMap,
+  depth = 0,
+  preserveTableContent = false,
+): DomNode {
+  const shouldPreserveContent =
+    preserveTableContent || root.tagName.toLowerCase() === 'table';
   const node: DomNode = {
     type: 'element',
     tagName: root.tagName.toLowerCase(),
-    attributes: extractAttributes(root),
+    attributes: extractAttributes(root, shouldPreserveContent),
     children: [],
     _element: root,
   };
@@ -434,14 +444,15 @@ export function buildDomTree(root: Element, selectorMap: SelectorMap, depth = 0)
     if (ATOMIC_INTERACTIVE_TAGS.has(root.tagName.toLowerCase())) {
       const text = getElementText(root, true);
       if (text) {
-        node.textContent = truncateText(text, TEXT_MAX_LENGTH);
+        node.textContent = shouldPreserveContent
+          ? text
+          : truncateText(text, TEXT_MAX_LENGTH);
       }
       return node;
     }
   }
 
   // 处理子节点
-  const childElements: Element[] = [];
   const childNodes = root.childNodes;
 
   for (let i = 0; i < childNodes.length; i++) {
@@ -452,7 +463,9 @@ export function buildDomTree(root: Element, selectorMap: SelectorMap, depth = 0)
       if (text && node.children) {
         node.children.push({
           type: 'text',
-          textContent: truncateText(text, TEXT_MAX_LENGTH),
+          textContent: shouldPreserveContent
+            ? text
+            : truncateText(text, TEXT_MAX_LENGTH),
         });
       }
     } else if (child instanceof Element) {
@@ -486,21 +499,12 @@ export function buildDomTree(root: Element, selectorMap: SelectorMap, depth = 0)
       // 深度限制
       if (depth >= MAX_DEPTH) continue;
 
-      childElements.push(child);
-    }
-  }
-
-  // 同类子元素折叠
-  if (childElements.length > SIBLING_COLLAPSE_THRESHOLD) {
-    const collapsed = applyCollapse(childElements);
-    childElements.length = 0;
-    childElements.push(...collapsed);
-  }
-
-  // 递归构建子树
-  if (node.children) {
-    for (const childEl of childElements) {
-      const childNode = buildDomTree(childEl, selectorMap, depth + 1);
+      const childNode = buildDomTree(
+        child,
+        selectorMap,
+        depth + 1,
+        shouldPreserveContent,
+      );
       // Tags 向下传播：如果子元素是交互元素但没有 tags，继承父元素的 tags
       if (
         childNode.isInteractive &&
@@ -510,78 +514,17 @@ export function buildDomTree(root: Element, selectorMap: SelectorMap, depth = 0)
       ) {
         childNode.tags = [...node.tags];
       }
-      node.children.push(childNode);
+      node.children?.push(childNode);
     }
   }
 
   // 获取元素文本
   const text = getElementText(root);
   if (text) {
-    node.textContent = truncateText(text, TEXT_MAX_LENGTH);
+    node.textContent = shouldPreserveContent
+      ? text
+      : truncateText(text, TEXT_MAX_LENGTH);
   }
 
   return node;
-}
-
-/**
- * 同类子元素分组
- */
-interface SiblingGroup {
-  tagName: string;
-  elements: Element[];
-  collapse: boolean;
-}
-
-function groupSimilarSiblings(elements: Element[]): SiblingGroup[] {
-  const groups: SiblingGroup[] = [];
-
-  for (const el of elements) {
-    const tagName = el.tagName.toLowerCase();
-    const classKey = getStructuralKey(el);
-
-    const existing = groups.find(
-      (g) => g.tagName === tagName && getStructuralKey(g.elements[0]) === classKey,
-    );
-
-    if (existing) {
-      existing.elements.push(el);
-      existing.collapse = existing.elements.length > SIBLING_COLLAPSE_THRESHOLD;
-    } else {
-      groups.push({ tagName, elements: [el], collapse: false });
-    }
-  }
-
-  return groups;
-}
-
-/** 获取元素的结构性key（用于判断是否同类） */
-function getStructuralKey(element: Element): string {
-  const tagName = element.tagName.toLowerCase();
-  const firstChildTag = element.children[0]?.tagName.toLowerCase() || '';
-  const classSignature = Array.from(element.classList)
-    .filter((c) => !c.startsWith('ant-')) // 排除动态class
-    .sort()
-    .join(',');
-  return `${tagName}:${firstChildTag}:${classSignature}`;
-}
-
-/** 应用折叠规则 */
-function applyCollapse(elements: Element[]): Element[] {
-  if (elements.length <= SIBLING_COLLAPSE_THRESHOLD) return elements;
-
-  const result: Element[] = [];
-  const groups = groupSimilarSiblings(elements);
-
-  for (const group of groups) {
-    if (group.collapse) {
-      result.push(
-        ...group.elements.slice(0, SIBLING_KEEP_COUNT),
-        ...group.elements.slice(-SIBLING_KEEP_COUNT),
-      );
-    } else {
-      result.push(...group.elements);
-    }
-  }
-
-  return result;
 }

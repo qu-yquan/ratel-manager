@@ -4,6 +4,8 @@
 
 /** 请求配置 */
 export interface RequestOptions {
+  /** 是否采集到 AI 错误池；工具通信等基础设施请求设为 false。 */
+  captureAiError?: boolean;
   /** 请求地址 */
   url: string;
   /** 请求方法 */
@@ -81,6 +83,7 @@ export type ErrorInterceptor = (error: Error) => void | Promise<void>;
 
 /** 下载请求配置 */
 export interface DownloadRequestOptions {
+  captureAiError?: boolean;
   url: string;
   headers?: Record<string, string>;
   timeout?: number;
@@ -89,6 +92,9 @@ export interface DownloadRequestOptions {
 
 /** 请求错误类，包含错误码 */
 export interface RequestError extends Error {
+  type?: import('./ai-request-error').AiRequestError['type'];
+  httpStatus?: number;
+  businessCode?: number;
   /** 错误码 */
   errCode?: string;
 }

@@ -42,6 +42,7 @@ public class ClickElementTool extends ToolBase {
                 .description("""
                         通过元素索引点击界面上的元素。执行完整的W3C指针事件序列。
                         需要先调用GetPageState获取元素索引。
+                        返回的 startedAt/finishedAt 是前端工具执行时间，不表示后续异步请求已完成。
                         工具使用前提：界面操作模式必须是`AI操作模式`。
                         
                         参数：

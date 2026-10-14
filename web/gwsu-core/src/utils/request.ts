@@ -15,6 +15,49 @@ import type {
 import {emitEvent, EventType} from '../constants';
 import {useHeadlessStore} from '../stores/headlessStore';
 import {useUserStore} from '../stores/userStore';
+import {aiRequestErrorPool} from '../stores/aiRequestErrorStore';
+
+interface RequestObservation {
+    requestStartedAt?: number;
+    method?: string;
+    path?: string;
+    httpStatus?: number;
+}
+
+function requestFailure(message: string, metadata: Partial<RequestError>): RequestError {
+    return Object.assign(new Error(message), metadata);
+}
+
+/** 仅输出诊断摘要，不收集请求体、请求头和响应体。 */
+function sanitizeDiagnostic(value: string): string {
+    return value
+        .replace(/Bearer\s+[^\s"'<>]+/gi, 'Bearer [已隐藏]')
+        .replace(/([?&][^=\s]+)=([^&\s"'<>]*)/g, '$1=[已隐藏]')
+        .replace(/((?:token|password|secret|authorization|cookie)["']?\s*[:=]\s*["']?)[^\s,;"'<>]+/gi, '$1[已隐藏]')
+        .slice(0, 500);
+}
+
+function captureRequestError(error: unknown, observation: RequestObservation, capture = true): void {
+    if (!capture || observation.requestStartedAt === undefined) return;
+    try {
+        const failure = error as RequestError;
+        if (failure?.name === 'AbortError') return;
+        aiRequestErrorPool.append({
+            id: crypto.randomUUID(),
+            method: observation.method ?? 'GET',
+            path: sanitizeDiagnostic(new URL(observation.path ?? '/', window.location.href).pathname),
+            requestStartedAt: observation.requestStartedAt,
+            failedAt: Date.now(),
+            type: failure?.type ?? 'network',
+            httpStatus: failure?.httpStatus ?? observation.httpStatus,
+            businessCode: failure?.businessCode,
+            errCode: failure?.errCode ? sanitizeDiagnostic(failure.errCode) : undefined,
+            message: sanitizeDiagnostic(failure?.message || '未知请求错误'),
+        });
+    } catch {
+        // 诊断失败不能覆盖原始请求异常。
+    }
+}
 
 // 存储拦截器
 const requestInterceptors: RequestInterceptor[] = [];
@@ -128,43 +171,28 @@ function initDefaultInterceptors() {
         const internalResponse = response as InternalApiResponse;
         const httpStatus = internalResponse.httpStatus || 200;
 
-        // 处理 HTTP 500 等服务端错误
-        if (httpStatus >= 500) {
-            const resultObj = response as unknown as Record<string, unknown>;
-            const errorMsg = resultObj.msg || '服务器内部错误';
-            const errCode = resultObj.errCode as string | undefined;
-            const error = new Error(errorMsg as string) as RequestError;
-            if (errCode) {
-                error.errCode = errCode;
-            }
-            throw error;
-        }
+        const metadata: Partial<RequestError> = {
+            type: httpStatus < 200 || httpStatus >= 300 ? 'http' : 'business',
+            httpStatus,
+            businessCode: response.code,
+            errCode: response.errCode,
+        };
 
-        // 根据后端返回的 code 判断请求是否成功
-        if (response.code === 0 || response.code === 200) {
-            return response;
-        }
-
-        // 处理常见的业务错误码
-        if (response.code === 401) {
+        // HTTP 状态优先于业务成功码；保留现有登录失效行为。
+        if (httpStatus === 401 || response.code === 401) {
             if (internalResponse.skipUnauthorizedRedirect) {
-                throw new Error(response.msg || '请求失败');
+                throw requestFailure(response.msg || '请求失败', metadata);
             }
-            // 未授权，清除用户数据并跳转登录
             useUserStore.getState().clearUserData();
-            // 清除无头浏览器 threadId
             useHeadlessStore.getState().clearThreadId();
-            // 使用事件枚举发送事件
             emitEvent(EventType.TOKEN_EXPIRED);
-            throw new Error('登录已过期，请重新登录');
+            throw requestFailure('登录已过期，请重新登录', metadata);
         }
-
-        // 其他业务错误
-        const error = new Error(response.msg || '请求失败') as RequestError;
-        if (response.errCode) {
-            error.errCode = response.errCode;
+        if (httpStatus < 200 || httpStatus >= 300) {
+            throw requestFailure(response.msg || `HTTP Error: ${httpStatus}`, metadata);
         }
-        throw error;
+        if (response.code === 0 || response.code === 200) return response;
+        throw requestFailure(response.msg || '请求失败', metadata);
     });
 
     // 默认错误拦截器 - 仅做日志记录，弹窗由 handleError 统一处理
@@ -211,7 +239,7 @@ async function handleError(error: Error, showError: boolean): Promise<void> {
 /**
  * 发起请求 - 使用 fetch 实现
  */
-async function fetchRequest<T>(options: RequestOptions): Promise<ApiResponse<T>> {
+async function fetchRequest<T>(options: RequestOptions, observation: RequestObservation): Promise<ApiResponse<T>> {
     const {
         url,
         method = 'GET',
@@ -256,8 +284,9 @@ async function fetchRequest<T>(options: RequestOptions): Promise<ApiResponse<T>>
     fetchOptions.signal = controller.signal;
 
     try {
+        Object.assign(observation, { requestStartedAt: Date.now(), method: fetchOptions.method, path: fullUrl });
         const response = await fetch(fullUrl, fetchOptions);
-        clearTimeout(timeoutId);
+        observation.httpStatus = response.status;
 
         // 尝试解析响应体
         let result: ApiResponse<T>;
@@ -267,9 +296,15 @@ async function fetchRequest<T>(options: RequestOptions): Promise<ApiResponse<T>>
         } catch {
             // JSON 解析失败，使用 HTTP 错误信息
             if (!response.ok) {
-                throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+                throw requestFailure(`HTTP Error: ${response.status} ${response.statusText}`, { type: 'http', httpStatus: response.status });
             }
-            throw new Error('响应格式错误');
+            throw requestFailure('响应格式错误', { type: 'parse', httpStatus: response.status });
+        }
+
+        if (!result || typeof result !== 'object' || Array.isArray(result)) {
+            throw requestFailure('响应格式错误', {
+                type: response.ok ? 'parse' : 'http', httpStatus: response.status,
+            });
         }
 
         // 将 HTTP 状态码附加到响应对象上，供拦截器使用
@@ -279,14 +314,15 @@ async function fetchRequest<T>(options: RequestOptions): Promise<ApiResponse<T>>
 
         return result;
     } catch (error) {
-        clearTimeout(timeoutId);
         if (error instanceof Error) {
-            if (error.name === 'AbortError') {
-                throw new Error('请求超时');
+            if (error.name === 'AbortError' && controller.signal.aborted) {
+                throw requestFailure('请求超时', { type: 'timeout', httpStatus: observation.httpStatus });
             }
             throw error;
         }
         throw new Error('未知错误');
+    } finally {
+        clearTimeout(timeoutId);
     }
 }
 
@@ -296,15 +332,16 @@ async function fetchRequest<T>(options: RequestOptions): Promise<ApiResponse<T>>
 export async function request<T = unknown>(
     options: RequestOptions
 ): Promise<ApiResponse<T>> {
+    const observation: RequestObservation = {};
+    let processedOptions = options;
     try {
         // 执行请求拦截器
-        let processedOptions = options;
         for (const interceptor of requestInterceptors) {
             processedOptions = await interceptor(processedOptions);
         }
 
         // 发起请求
-        let response = await fetchRequest<T>(processedOptions);
+        let response = await fetchRequest<T>(processedOptions, observation);
 
         // 执行响应拦截器
         for (const interceptor of responseInterceptors) {
@@ -313,6 +350,7 @@ export async function request<T = unknown>(
 
         return response;
     } catch (error) {
+        captureRequestError(error, observation, options.captureAiError !== false && processedOptions.captureAiError !== false);
         await handleError(error as Error, options.showError ?? config.showError);
         throw error;
     }
@@ -404,40 +442,38 @@ export function patch<T = unknown>(
  * 跳过 JSON 解析和响应拦截器，直接返回原始 Response
  */
 export async function downloadRequest(options: DownloadRequestOptions): Promise<Response> {
-    const { url, headers = {}, timeout = config.timeout } = options;
-
+    const observation: RequestObservation = {};
+    let processedOptions: RequestOptions = {
+        ...options, method: 'GET', timeout: options.timeout ?? config.timeout,
+    };
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
     try {
-        let processedOptions: RequestOptions = {
-            url,
-            method: 'GET',
-            headers,
-            timeout,
-        };
         for (const interceptor of requestInterceptors) {
             processedOptions = await interceptor(processedOptions);
         }
-
         const fullUrl = config.baseURL + processedOptions.url;
-        const fetchOptions: RequestInit = {
-            method: 'GET',
-            headers: processedOptions.headers,
-        };
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), processedOptions.timeout);
-        fetchOptions.signal = controller.signal;
-
-        const response = await fetch(fullUrl, fetchOptions);
-        clearTimeout(timeoutId);
-
-        if (!response.ok && response.status !== 206) {
-            throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+        timeoutId = setTimeout(() => controller.abort(), processedOptions.timeout);
+        Object.assign(observation, { requestStartedAt: Date.now(), method: 'GET', path: fullUrl });
+        const response = await fetch(fullUrl, {
+            method: 'GET', headers: processedOptions.headers, signal: controller.signal,
+        });
+        observation.httpStatus = response.status;
+        if (!response.ok) {
+            throw requestFailure(`HTTP Error: ${response.status} ${response.statusText}`, {
+                type: 'http', httpStatus: response.status,
+            });
         }
-
         return response;
     } catch (error) {
-        await handleError(error as Error, options.showError ?? config.showError);
-        throw error;
+        const failure = controller.signal.aborted
+            ? requestFailure('请求超时', { type: 'timeout', httpStatus: observation.httpStatus })
+            : error;
+        captureRequestError(failure, observation, options.captureAiError !== false && processedOptions.captureAiError !== false);
+        await handleError(failure as Error, options.showError ?? config.showError);
+        throw failure;
+    } finally {
+        clearTimeout(timeoutId);
     }
 }
 

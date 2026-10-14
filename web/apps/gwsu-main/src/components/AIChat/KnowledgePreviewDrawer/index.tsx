@@ -169,6 +169,7 @@ export function KnowledgePreviewDrawer({
                 )}
                 <CopilotChatAssistantMessage.MarkdownRenderer
                   content={block.content}
+                  controls={false}
                   mode="static"
                 />
               </div>

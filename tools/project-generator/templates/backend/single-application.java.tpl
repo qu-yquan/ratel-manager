@@ -1,6 +1,7 @@
 package @@GROUP_ID@@;
 
 import lombok.extern.slf4j.Slf4j;
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -8,6 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @@PROJECT_ID@@ 单体应用启动类。
  */
 @SpringBootApplication(scanBasePackages = {"@@GROUP_ID@@", "org.quyq.gwsu"})
+@MapperScan({"@@GROUP_ID@@.**.mapper" ,CoreConstants.Project.COMMON_PACKAGE + ".**.mapper"})
 @Slf4j
 public class @@PROJECT_CLASS_NAME@@Application {
 

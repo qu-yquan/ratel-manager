@@ -1,4 +1,5 @@
 {
+  "name": "gwsu-main",
   "private": true,
   "scripts": {
     "dev": "PORT=8000 UMI_DEV_SERVER_COMPRESS=none umi dev",

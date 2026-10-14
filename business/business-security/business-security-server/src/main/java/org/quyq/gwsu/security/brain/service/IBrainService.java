@@ -13,9 +13,6 @@ public interface IBrainService {
 
     String AGENT_ID = "brain";
 
-
-    void refreshSingletonAgent();
-
     Agent getOrCreateSingletonAgent();
 
 }

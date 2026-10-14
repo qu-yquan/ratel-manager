@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import { aiRequestErrorPool } from '@gwsu/core';
 
 /** 操作模式：人类操作 / AI操作 */
 export type OperationMode = 'human' | 'ai';
@@ -37,7 +38,10 @@ export const useForwardedPropsStore = create<ForwardedPropsState>((set: any) => 
   exitReason: '',
   extras: {},
   setCurrentPath: (path: string) => set({ currentPath: path }),
-  setOperationMode: (mode: OperationMode) => set({ operationMode: mode }),
+  setOperationMode: (mode: OperationMode) => {
+    aiRequestErrorPool.setEnabled(mode === 'ai');
+    set({ operationMode: mode });
+  },
   setExitReason: (reason: string) => set({ exitReason: reason }),
   clearExitReason: () => set({ exitReason: '' }),
   setExtras: (extras) => set({ extras }),

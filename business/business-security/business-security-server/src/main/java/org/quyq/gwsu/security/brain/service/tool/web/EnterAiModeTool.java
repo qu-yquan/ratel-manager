@@ -38,6 +38,8 @@ public class EnterAiModeTool extends ToolBase {
                         调用此工具后，界面将锁定为AI操作模式，用户无法手动操作界面。
                         使用场景：当你需要对界面进行操作（点击、输入、选择、滚动、路由跳转）时，必须先调用此工具获取控制权。
                         注意：获取页面状态(GetPageState)不需要进入AI操作模式。
+                        进入 AI 模式后开始采集接口错误，通过 GetPageState 读取；退出时清空。
+                        返回的 startedAt/finishedAt 是前端工具执行起止时间（Unix 毫秒）。
                         操作完成后必须调用ExitAiMode退出AI操作模式，将控制权交还给用户。""")
                 .inputSchema(Map.of(
                         "type", "object",

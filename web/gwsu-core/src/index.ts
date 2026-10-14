@@ -18,3 +18,4 @@ export * from './services';
 
 // 状态管理
 export * from './stores';
+export { aiRequestErrorPool } from './stores/aiRequestErrorStore';

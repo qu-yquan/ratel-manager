@@ -138,11 +138,7 @@ public class BrainController implements DisposableBean {
             dto.setDescription("LLM 模型提供商、连接参数及生成参数配置");
         }
 
-        Boolean saved = configService.saveOrUpdateConfig(dto);
-        if (Boolean.TRUE.equals(saved)) {
-            brainService.refreshSingletonAgent();
-        }
-        return R.ok(saved);
+        return R.ok(configService.saveOrUpdateConfig(dto));
     }
 
     @Operation(summary = "分页查询历史会话列表")

@@ -1,8 +1,6 @@
 package org.quyq.gwsu.common.ai.agui.dto;
 
 
-import io.agentscope.core.agui.model.RunAgentInput;
-
 import java.util.Map;
 
 /**
@@ -13,6 +11,7 @@ import java.util.Map;
 public record ChatDTO(
         String method ,
         Map<String , Object> params ,
-        RunAgentInput body
+        // info/agent/stop 没有完整的 RunAgentInput；仅在运行和连接时按 method 转换。
+        Object body
 ) {
 }

@@ -40,9 +40,7 @@ const getPageStateTool: WebToolExecutor = {
 
     // 2. 解析DOM范围
     const scope = resolveScope();
-    if (!scope.mainRoot && scope.modalRoots.length === 0) {
-      return { success: false, result: '未找到可操作界面内容' };
-    }
+    const hasOperableContent = Boolean(scope.mainRoot || scope.modalRoots.length);
 
     // 3. 构建DOM树（主内容 + 弹框）
     let domText = '';
@@ -74,6 +72,8 @@ const getPageStateTool: WebToolExecutor = {
       可交互元素数量: selectorMap.size,
       dom: domText.trim(),
       approval,
+      hasOperableContent,
+      ...(!hasOperableContent ? { message: '未找到可操作界面内容' } : {}),
     });
 
     return { success: true, result };

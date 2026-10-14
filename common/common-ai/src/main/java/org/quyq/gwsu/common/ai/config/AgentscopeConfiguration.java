@@ -26,6 +26,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.context.annotation.Scope;
 
 /**
@@ -34,6 +35,7 @@ import org.springframework.context.annotation.Scope;
  * @description
  */
 @AutoConfiguration
+@ImportRuntimeHints(ModelRuntimeHints.class)
 @ConditionalOnClass(ReActAgent.class)
 public class AgentscopeConfiguration {
 

@@ -39,6 +39,8 @@ public class WebTool {
 
     @Tool(name = "ExitAiMode", description = """
             退出`AI操作模式`，将界面控制权交还给用户。
+            返回的 startedAt/finishedAt 是前端工具执行起止时间（Unix 毫秒）。
+            退出会清空接口错误池；需要诊断时先调用 GetPageState 读取错误。
             当你完成所有界面操作后，必须调用此工具退出AI操作模式。""")
     @SuppressWarnings("unchecked")
     public Mono<ToolResultBlock> exitAiMode(Agent caller, RuntimeContext runtimeContext) {
@@ -53,6 +55,7 @@ public class WebTool {
     @Tool(name = "RouteNavigation", description = """
             控制web界面跳转到指定路由
             工具使用前提：界面操作模式必须是`AI操作模式`。
+            返回的 startedAt/finishedAt 是前端工具执行时间，不表示后续异步请求已完成。
             """)
     @SuppressWarnings("unchecked")
     public Mono<ToolResultBlock> routeNavigation(@ToolParam(name = "path",
@@ -73,7 +76,12 @@ public class WebTool {
 
     @Tool(name = "GetPageState", description = """
             获取当前Web界面的状态信息，返回页面中可见的交互元素列表和页面基本信息。
-            返回内容为JSON字符串，其中包含简化的HTML文本和审批索引。
+            返回内容为JSON字符串，其中包含简化的HTML文本、审批索引和尚未消费的接口错误 requestErrors。
+            requestErrors 包含请求方法、路径、requestStartedAt、failedAt、错误类型与摘要；确认交付后消费。
+            startedAt/finishedAt 是本次前端工具执行起止时间，snapshotAt 是错误快照时间，均为 Unix 毫秒。
+            结合接口与工具时间判断先后关系，但不能仅凭时间认定因果关系。
+            错误数组为空不代表请求全部完成或业务成功；droppedErrorCount 大于零表示错误记录发生截断。
+            即使没有可操作 DOM，也要检查 requestErrors。
             
             元素格式说明：
             - [index]{tags}元素： []标识的内容为元素索引编号，用该编号定位操作元素,必有 ，{}包裹的为元素标签，用户对元素的额外功能标注，多个,分割，由前端生成，可能不包含
@@ -96,6 +104,7 @@ public class WebTool {
             在指定索引的输入框中输入文本。会先清空现有内容再输入新文本，兼容React受控组件。
             需要先调用GetPageState获取输入框的元素索引。
             工具使用前提：界面操作模式必须是`AI操作模式`。
+            返回的 startedAt/finishedAt 是前端工具执行时间，不表示后续异步请求已完成。
             参数：index - 输入框元素索引编号，text - 要输入的文本内容""")
     public Mono<ToolResultBlock> inputText(
             @ToolParam(name = "index", description = "输入框元素索引编号") Integer index,
@@ -111,6 +120,7 @@ public class WebTool {
             在指定索引的下拉选择框中选择选项。支持原生select元素和Ant Design Select组件。
             需要先调用GetPageState获取select元素的索引。
             工具使用前提：界面操作模式必须是`AI操作模式`。
+            返回的 startedAt/finishedAt 是前端工具执行时间，不表示后续异步请求已完成。
             参数：index - select元素索引编号，text - 要选择的选项文本""")
     public Mono<ToolResultBlock> selectOption(
             @ToolParam(name = "index", description = "select元素索引编号") Integer index,
@@ -130,6 +140,7 @@ public class WebTool {
             - 卡片悬停后出现的操作按钮
             需要先调用GetPageState获取元素索引。
             工具使用前提：界面操作模式必须是`AI操作模式`。
+            返回的 startedAt/finishedAt 是前端工具执行时间，不表示后续异步请求已完成。
             悬停后请调用GetPageState查看新出现的交互元素。
             参数：index - 要悬停的元素索引编号""")
     public Mono<ToolResultBlock> hoverElement(
@@ -144,6 +155,7 @@ public class WebTool {
     @Tool(name = "ScrollPage", description = """
             滚动页面或页面内的可滚动元素。
             工具使用前提：界面操作模式必须是`AI操作模式`。
+            返回的 startedAt/finishedAt 是前端工具执行时间，不表示后续异步请求已完成。
             参数：direction - 滚动方向(up/down/left/right)，amount - 滚动量(1=一页，像素值=精确滚动)""")
     public Mono<ToolResultBlock> scrollPage(
             @ToolParam(name = "direction", description = "滚动方向：up/down/left/right") String direction,
@@ -168,6 +180,7 @@ public class WebTool {
             - fileId 必须来自当前系统提示词提供的 <fileInfos> 列表；
             - 工具会根据 uploadId 找到页面上传控件，并按该控件配置复制文件后回填；
             - 工具使用前提：界面操作模式必须是`AI操作模式`。
+            返回的 startedAt/finishedAt 是前端工具执行时间，不表示后续异步请求已完成。
             """)
     public Mono<ToolResultBlock> attachUploadedFile(
             @ToolParam(name = "uploadId", description = "上传控件标识，必须来自GetPageState结果中的data-ai-upload-id属性") String uploadId,

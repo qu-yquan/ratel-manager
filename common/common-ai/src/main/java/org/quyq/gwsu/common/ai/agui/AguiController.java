@@ -37,6 +37,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.Disposable;
 import reactor.util.context.Context;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.HashMap;
@@ -95,6 +96,9 @@ public abstract class AguiController implements DisposableBean {
      * - agent/stop: 停止 agent（JSON）
      */
     public ResponseEntity<?> handleCopilotKitRequest(ChatDTO request, String headerAgentId) {
+        if (request.method() == null) {
+            return ResponseEntity.badRequest().body(R.fail("缺少请求方法"));
+        }
         return switch (request.method()) {
             case "info" -> ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_JSON)
@@ -183,9 +187,9 @@ public abstract class AguiController implements DisposableBean {
 
     protected SseEmitter handlerAgentConnect(ChatDTO request) {
         SseEmitter emitter = new SseEmitter(sseTimeout);
-        RunAgentInput body = request.body();
+        RunAgentInput body = requireRunAgentInput(request);
         String userId = getCurrUserId();
-        AIRunnerInstanceWrapper wrapper = new AIRunnerInstanceWrapper(request.body(), emitter, false);
+        AIRunnerInstanceWrapper wrapper = new AIRunnerInstanceWrapper(body, emitter, false);
         executorService.submit(() -> {
             wrapper.sendEvent(new AguiEvent.RunStarted(
                     body.getThreadId(), body.getRunId(), null, body));
@@ -221,7 +225,7 @@ public abstract class AguiController implements DisposableBean {
             initStopListenerContainer();
         }
 
-        RunAgentInput input = request.body();
+        RunAgentInput input = requireRunAgentInput(request);
 
         // 从 params 中获取 agentId（如果有）
         String pathAgentId = null;
@@ -236,7 +240,7 @@ public abstract class AguiController implements DisposableBean {
      * 处理 agent/stop 请求
      */
     protected Map<String, Object> handleAgentStop(ChatDTO request, String headerAgentId) {
-        Map<String, Object> p = request.params();
+        Map<String, Object> p = request.params() == null ? Map.of() : request.params();
         // 从 params 中获取 agentId 和 threadId
         String agentId = Optional.ofNullable(p.get("agentId")).map(String::valueOf).orElse(headerAgentId);
         String threadId = Optional.ofNullable(p.get("threadId")).map(String::valueOf).orElse(null);
@@ -252,6 +256,17 @@ public abstract class AguiController implements DisposableBean {
 
 
         return Map.of("success", true);
+    }
+
+    private RunAgentInput requireRunAgentInput(ChatDTO request) {
+        if (request.body() instanceof RunAgentInput input) {
+            return input;
+        }
+        if (request.body() == null) {
+            throw new IllegalArgumentException("运行请求缺少 body");
+        }
+        // 停止请求的 body 仅包含 runId，不能在 HTTP 反序列化阶段转换为 RunAgentInput。
+        return SpringUtils.getBean(ObjectMapper.class).convertValue(request.body(), RunAgentInput.class);
     }
 
     private void stopAgent(String agentId, String threadId, String userId) {

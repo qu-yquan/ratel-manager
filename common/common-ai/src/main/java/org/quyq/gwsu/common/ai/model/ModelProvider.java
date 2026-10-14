@@ -1,11 +1,8 @@
 package org.quyq.gwsu.common.ai.model;
 
-
 import io.agentscope.core.model.Model;
 import org.quyq.gwsu.common.ai.config.properties.ModelLlmConfigDTO;
 import org.quyq.gwsu.common.security.utils.ConfigInfoUtils;
-
-import java.util.Objects;
 
 /**
  * @author Quyq
@@ -14,29 +11,18 @@ import java.util.Objects;
  */
 public class ModelProvider {
 
+    public static final String MODEL_LLM_CONFIG = "model_llm_config";
 
-    private static ModelLlmConfigDTO CONFIG;
-
-    private static Model MODEL;
-
-    public final static String MODEL_LLM_CONFIG = "model_llm_config";
-
+    private static final Model MODEL = new ReloadableModel(
+            ModelProvider::currentConfig, ModelProviderType::createModelFromConfig);
 
     /**
-     * 获取模型
+     * 获取稳定的模型代理。真实模型在调用时解析，配置变化不需要重建智能体。
      *
-     * @return
+     * @return 共享的热更新模型代理
      */
     public static Model generateModel() {
-
-        ModelLlmConfigDTO newConfig = ConfigInfoUtils.getByObject(MODEL_LLM_CONFIG, ModelLlmConfigDTO.class);
-        if (configChange(newConfig)) {
-            createModel(newConfig);
-        }
-
-
         return MODEL;
-
     }
 
     /**
@@ -45,35 +31,12 @@ public class ModelProvider {
      * @return 支持返回 true，否则返回 false
      */
     public static boolean supportMultimodal() {
-        ModelLlmConfigDTO config = ConfigInfoUtils.getByObject(MODEL_LLM_CONFIG, ModelLlmConfigDTO.class);
-        return config != null && Boolean.TRUE.equals(config.getSupportMultimodal());
+        ModelLlmConfigDTO config = currentConfig();
+        return Boolean.TRUE.equals(config.getSupportMultimodal());
     }
 
-    /**
-     * 获取当前生效的 LLM 模型配置。
-     */
+    /** 获取最新保存的 LLM 配置，真实模型在下次调用时更新。 */
     public static ModelLlmConfigDTO currentConfig() {
         return ConfigInfoUtils.getByObject(MODEL_LLM_CONFIG, ModelLlmConfigDTO.class);
     }
-
-
-    private static void createModel(ModelLlmConfigDTO config) {
-        synchronized (ModelProvider.class) {
-            if (configChange(config)) {
-                CONFIG = config;
-                MODEL = ModelProviderType.createModelFromConfig(config);
-
-            }
-        }
-    }
-
-    //校验系统配置是否变更
-    private static boolean configChange(ModelLlmConfigDTO newConfig) {
-        if (Objects.isNull(CONFIG) || Objects.isNull(MODEL)) {
-            return true;
-        }
-        return !Objects.equals(newConfig, CONFIG);
-
-    }
-
 }
